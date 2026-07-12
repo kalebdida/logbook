@@ -1,4 +1,6 @@
 export var STORAGE_KEY = "logbook-entries";
+export var DAYS_STORAGE_KEY = "logbook-days";
+export var GOALS_STORAGE_KEY = "logbook-goals";
 
 export function storageWorks() {
   try {
@@ -60,4 +62,40 @@ export function readImportFile(file) {
     };
     reader.readAsText(file);
   });
+}
+
+export function loadDays() {
+  try {
+    var raw = localStorage.getItem(DAYS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+export function saveDays(days) {
+  try {
+    localStorage.setItem(DAYS_STORAGE_KEY, JSON.stringify(days));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+export function loadGoals() {
+  try {
+    var raw = localStorage.getItem(GOALS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveGoals(goals) {
+  try {
+    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
