@@ -5,6 +5,8 @@ import { renderStats } from './stats.js';
 import { renderVerse } from './verse.js';
 import { startMatrixRain } from './rain.js';
 import { renderHeader, updateSaveButtonState, showImportStatus, showStorageWarning, startBoot } from './ui.js';
+import { renderDailyPage } from './dailyPage.js';
+import { renderTimeline } from './timeline.js';
 
 var state = { entries: [], mood: null, expandedId: null, query: "", filterStatus: null };
 
@@ -13,6 +15,7 @@ function refreshAll() {
   renderStats(state.entries);
   renderConstellation(state.entries);
   renderWeekAgo(state.entries, handleWeekAgoExpand);
+  renderTimeline();
   renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
 }
 
@@ -112,6 +115,7 @@ function init() {
   document.getElementById("todayDate").textContent = formatDate(new Date().toISOString());
   renderVerse();
   refreshAll();
+  renderDailyPage();
   wireEvents();
 
   startMatrixRain();
