@@ -4,6 +4,11 @@ import { getDayRecord, updateDayRecord } from './dayRecord.js';
 var FIELD_IDS = [
   "morningIntention",
   "mainFocus",
+  "timelineMorning",
+  "timelineAfternoon",
+  "timelineEvening",
+  "timelineHighlight",
+  "timelineUnexpected",
   "brainDump",
   "dailyJournal",
   "nightWhatHappened",
@@ -32,14 +37,42 @@ export function renderDailyPage() {
   var record = getDayRecord(today, entries, days);
 
   container.innerHTML = `
-    <div class="form-box">
-      <div class="section-label">// daily page</div>
+    <div class="daily-page-card">
 
-      <div class="section-label">morning intention</div>
-      <textarea id="morningIntention" rows="2"></textarea>
+      <div class="daily-field">
+        <div class="section-label">morning intention</div>
+        <textarea id="morningIntention" rows="2"></textarea>
+      </div>
 
-      <div class="section-label">main focus</div>
-      <textarea id="mainFocus" rows="2"></textarea>
+      <div class="daily-field">
+         <div class="section-label">main focus</div>
+          <textarea id="mainFocus" rows="2"></textarea>
+      </div>
+
+      <div class="daily-field">
+        <div class="section-label">morning timeline</div>
+        <textarea id="timelineMorning" rows="2"></textarea>
+      </div>
+
+      <div class="daily-field">
+        <div class="section-label">afternoon timeline</div>
+        <textarea id="timelineAfternoon" rows="2"></textarea>
+      </div>
+
+      <div class="daily-field">
+        <div class="section-label">evening timeline</div>
+        <textarea id="timelineEvening" rows="2"></textarea>
+      </div>
+
+      <div class="daily-field">
+        <div class="section-label">highlight of the day</div>
+        <textarea id="timelineHighlight" rows="2"></textarea>
+      </div>
+
+      <div class="daily-field">
+        <div class="section-label">unexpected moments</div>
+        <textarea id="timelineUnexpected" rows="2"></textarea>
+      </div>
 
       <div class="section-label">brain dump</div>
       <textarea id="brainDump" rows="3"></textarea>
@@ -61,11 +94,17 @@ export function renderDailyPage() {
 
       <div class="section-label">gratitude</div>
       <textarea id="nightGratitude" rows="2"></textarea>
+
     </div>
   `;
 
   document.getElementById("morningIntention").value = record.morning.intention || "";
   document.getElementById("mainFocus").value = record.morning.mainFocus || "";
+  document.getElementById("timelineMorning").value = record.timeline.morning || "";
+  document.getElementById("timelineAfternoon").value = record.timeline.afternoon || "";
+  document.getElementById("timelineEvening").value = record.timeline.evening || "";
+  document.getElementById("timelineHighlight").value = record.timeline.highlight || "";
+  document.getElementById("timelineUnexpected").value = record.timeline.unexpected || "";
   document.getElementById("brainDump").value = record.brainDump || "";
   document.getElementById("dailyJournal").value = record.journal || "";
   document.getElementById("nightWhatHappened").value = record.nightReflection.whatHappened || "";
@@ -95,6 +134,13 @@ function persistToday() {
       intention: document.getElementById("morningIntention").value,
       mainFocus: document.getElementById("mainFocus").value,
       goals: record.morning.goals || []
+    },
+    timeline: {
+      morning: document.getElementById("timelineMorning").value,
+      afternoon: document.getElementById("timelineAfternoon").value,
+      evening: document.getElementById("timelineEvening").value,
+      highlight: document.getElementById("timelineHighlight").value,
+      unexpected: document.getElementById("timelineUnexpected").value
     },
     journal: document.getElementById("dailyJournal").value,
     brainDump: document.getElementById("brainDump").value,

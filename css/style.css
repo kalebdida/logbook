@@ -53,3 +53,4 @@ textarea#entryText { width: 100%; background: #050806; border: 1px solid rgba(25
 .entry-body { margin-top: 8px; color: #c8c4b8; font-size: 13px; line-height: 1.6; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .decrypt-text { white-space: pre-wrap; }
+.daily-page-card {  background: #0c1410;  border: 1px solid rgba(255,255,255,0.08);  border-radius: 14px;  padding: 20px;  margin-bottom: 36px;}
