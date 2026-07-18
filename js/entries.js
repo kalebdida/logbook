@@ -66,21 +66,35 @@ export function renderConstellation(entries) {
     .join("");
 }
 
-export function renderWeekAgo(entries, onExpand) {
-  var el = document.getElementById("weekAgoSection");
+function findWeekAgoEntry(entries) {
   var target = new Date();
   target.setDate(target.getDate() - 7);
-  var found = entries.find(function (e) { return new Date(e.date).toDateString() === target.toDateString(); });
+  return entries.find(function (e) { return new Date(e.date).toDateString() === target.toDateString(); });
+}
+
+export function renderWeekAgo(entries, onExpand) {
+  var el = document.getElementById("weekAgoSection");
+  var found = findWeekAgoEntry(entries);
   if (!found) {
     el.style.display = "none";
     el.innerHTML = "";
     return;
   }
   el.style.display = "block";
+  var s = STATUS[found.mood];
   var preview = found.text.length > 90 ? found.text.slice(0, 90) + "\u2026" : found.text;
   el.innerHTML =
-    '<div class="verse-label" style="color:#4dd0c4">// one week ago</div>' +
-    '<div class="week-ago-text">' + escapeHtml(preview.replace(/\n+/g, " ")) + "</div>";
+    '<div class="replay-header">' +
+    "<span>// daily replay</span>" +
+    '<span class="replay-tag">7 days ago</span>' +
+    "</div>" +
+    '<div class="entry-card-top">' +
+    '<span class="dot" style="background:' + s.color + ";box-shadow:0 0 6px " + s.glow + '"></span>' +
+    '<span class="entry-date">' + formatDate(found.date) + "</span>" +
+    '<span class="entry-status" style="color:' + s.color + '">' + s.code + " " + s.label + "</span>" +
+    "</div>" +
+    '<div class="week-ago-text">' + escapeHtml(preview.replace(/\n+/g, " ")) + "</div>" +
+    '<div class="replay-hint">tap to revisit \u25B8</div>';
   el.onclick = function () {
     onExpand(found.id);
   };
@@ -89,9 +103,11 @@ export function renderWeekAgo(entries, onExpand) {
 export function renderEntries(entries, query, filterStatus, expandedId) {
   var container = document.getElementById("entriesList");
   var emptyMsg = document.getElementById("entriesEmptyMsg");
+  var weekAgoEntry = findWeekAgoEntry(entries);
   var sorted = entries.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
   var q = query.trim().toLowerCase();
   var filtered = sorted.filter(function (e) {
+    if (weekAgoEntry && e.id === weekAgoEntry.id) return false;
     var matchesQuery = q === "" || e.text.toLowerCase().indexOf(q) !== -1;
     var matchesStatus = !filterStatus || e.mood === filterStatus;
     return matchesQuery && matchesStatus;

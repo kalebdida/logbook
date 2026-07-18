@@ -6,7 +6,8 @@ import { renderVerse } from './verse.js';
 import { startMatrixRain } from './rain.js';
 import { renderHeader, updateSaveButtonState, showImportStatus, showStorageWarning, startBoot } from './ui.js';
 import { renderDailyPage } from './dailyPage.js';
-import { renderTimeline } from './timeline.js';
+import { openDayViewer } from './dayViewer.js';
+import { dateKey } from './dayRecord.js';
 
 var state = { entries: [], mood: null, expandedId: null, query: "", filterStatus: null };
 
@@ -15,8 +16,13 @@ function refreshAll() {
   renderStats(state.entries);
   renderConstellation(state.entries);
   renderWeekAgo(state.entries, handleWeekAgoExpand);
-  renderTimeline();
   renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
+}
+
+function openViewerForEntryId(id) {
+  var entry = state.entries.find(function (e) { return e.id === id; });
+  if (!entry) return;
+  openDayViewer(dateKey(entry.date));
 }
 
 function handleWeekAgoExpand(id) {
@@ -26,6 +32,7 @@ function handleWeekAgoExpand(id) {
     var card = document.querySelector('.entry-card[data-id="' + id + '"]');
     if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
   }, 50);
+  openViewerForEntryId(id);
 }
 
 function handleSave() {
@@ -100,8 +107,10 @@ function wireEvents() {
     var card = e.target.closest(".entry-card");
     if (!card) return;
     var id = card.getAttribute("data-id");
-    state.expandedId = state.expandedId === id ? null : id;
+    var opening = state.expandedId !== id;
+    state.expandedId = opening ? id : null;
     renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
+    if (opening) openViewerForEntryId(id);
   });
 }
 
