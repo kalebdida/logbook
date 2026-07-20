@@ -9,7 +9,19 @@ export function escapeHtml(str) {
 
 export function formatDate(iso) {
   var d = new Date(iso);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
+  var date = d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  var time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+
+  return date + " · " + time;
 }
 
 export function dayOfYear(d) {

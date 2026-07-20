@@ -8,6 +8,10 @@ import { renderHeader, updateSaveButtonState, showImportStatus, showStorageWarni
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
 import { dateKey } from './dayRecord.js';
+import { renderCalendar } from "./calendar.js";
+import { renderPomodoro } from "./pomodoro.js";
+import { renderGoals } from "./goals.js";
+import { renderDensityMap } from "./densityMap.js";
 
 var state = { entries: [], mood: null, expandedId: null, query: "", filterStatus: null };
 
@@ -125,6 +129,10 @@ function init() {
   renderVerse();
   refreshAll();
   renderDailyPage();
+  renderCalendar();
+  renderPomodoro();
+  renderGoals();
+  renderDensityMap();
   wireEvents();
 
   startMatrixRain();
