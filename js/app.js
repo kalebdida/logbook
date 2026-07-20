@@ -12,6 +12,7 @@ import { renderCalendar } from "./calendar.js";
 import { renderPomodoro } from "./pomodoro.js";
 import { renderGoals } from "./goals.js";
 import { renderDensityMap } from "./densityMap.js";
+import { renderAnalytics } from "./analytics.js";
 
 var state = { entries: [], mood: null, expandedId: null, query: "", filterStatus: null };
 
@@ -133,6 +134,7 @@ function init() {
   renderPomodoro();
   renderGoals();
   renderDensityMap();
+  renderAnalytics();
   wireEvents();
 
   startMatrixRain();

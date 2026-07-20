@@ -179,7 +179,8 @@ h1#headerTitle {
 .cal-card,
 .pomodoro-card,
 .goals-card,
-.density-map-card {
+.density-map-card,
+.analytics-card {
   margin-bottom: 36px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
@@ -191,7 +192,8 @@ h1#headerTitle {
 .cal-card,
 .pomodoro-card,
 .goals-card,
-.density-map-card { padding: 20px; }
+.density-map-card,
+.analytics-card { padding: 20px; }
 
 .daily-page-card { padding: 24px; }
 
@@ -1013,6 +1015,98 @@ textarea#entryText { padding: 14px; }
     text-transform:uppercase;
 }
 
+/* Analytics: reads other modules' stored data and interprets it; stores nothing of its own. */
+#analyticsSection:empty { display: none; }
+
+.analytics-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.analytics-heading .daily-section-title { margin-bottom: 0; }
+
+.analytics-view-switch { display: flex; flex-shrink: 0; gap: 6px; }
+.analytics-view-switch .tool-btn.active { border-color: rgba(77, 208, 196, 0.4); background: rgba(77, 208, 196, 0.13); color: #4dd0c4; }
+
+.analytics-empty {
+  max-width: 460px;
+  margin: 8px auto 0;
+  padding: 36px 22px;
+  border: 1px dashed rgba(77, 208, 196, 0.24);
+  border-radius: 12px;
+  color: #a8b6ac;
+  text-align: center;
+}
+
+.analytics-empty .section-label { margin-bottom: 10px; }
+.analytics-empty p { margin: 0; font-size: 13px; line-height: 1.6; }
+
+.analytics-overview,
+.analytics-trends,
+.analytics-balance,
+.analytics-streaks,
+.analytics-insights {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.analytics-overview { margin-top: 0; padding-top: 0; border-top: none; }
+.analytics-overview .section-label ~ .section-label { margin-top: 16px; }
+
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.analytics-stat-card { min-width: 0; padding: 12px; }
+.analytics-stat-card .stat-value { overflow: hidden; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+
+.analytics-trend-empty,
+.analytics-balance-empty {
+  color: #5b6482;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.analytics-trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 64px;
+  margin: 12px 0 6px;
+  overflow-x: auto;
+}
+
+.analytics-trend-bar {
+  flex: 1 1 0;
+  min-width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: rgba(77, 208, 196, 0.55);
+  transition: background 0.15s ease;
+}
+
+.analytics-trend-bar:hover { background: #4dd0c4; }
+
+.analytics-trend-range {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  color: #6b7394;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.analytics-trends .bar-row { margin-bottom: 8px; }
+.analytics-trends .bar-row:last-child { margin-bottom: 0; }
+.analytics-balance .bar-row { margin-bottom: 6px; }
+.analytics-balance .bar-row:last-child { margin-bottom: 0; }
+
 /* Dashboard layout for wide screens; all existing DOM order and IDs remain intact. */
 @media (min-width: 1080px) {
   #app {
@@ -1033,6 +1127,7 @@ textarea#entryText { padding: 14px; }
   #app > .form-box,
   #app > #goalsSection,
   #app > #densityMapSection,
+  #app > #analyticsSection,
   #app > #constellation,
   #app > .toolbar,
   #app > #importStatus,
@@ -1061,6 +1156,7 @@ textarea#entryText { padding: 14px; }
   #pomodoroSection .pomodoro-card,
   #goalsSection .goals-card,
   #densityMapSection .density-map-card,
+  #analyticsSection .analytics-card,
   #constellation {
     margin-bottom: 0;
   }
@@ -1074,7 +1170,8 @@ textarea#entryText { padding: 14px; }
   .cal-card,
   .pomodoro-card,
   .goals-card,
-  .density-map-card { padding: 16px; }
+  .density-map-card,
+  .analytics-card { padding: 16px; }
 
   .daily-page-card { padding: 16px; }
   .daily-section { margin-bottom: 16px; padding: 14px; }
@@ -1115,6 +1212,10 @@ textarea#entryText { padding: 14px; }
   .density-view-switch .tool-btn { flex: 1; }
   .density-summary { grid-template-columns: 1fr; }
   .density-legend { justify-content: flex-start; }
+  .analytics-heading { flex-direction: column; align-items: flex-start; }
+  .analytics-view-switch { width: 100%; }
+  .analytics-view-switch .tool-btn { flex: 1; }
+  .analytics-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
