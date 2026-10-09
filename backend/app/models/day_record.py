@@ -13,12 +13,13 @@ from sqlalchemy import Date, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.base import TimestampMixin
+from app.models.base import TimestampMixin, owner_column
 
 
 class DayRecord(Base, TimestampMixin):
     __tablename__ = "day_records"
 
+    user_id: Mapped[int] = owner_column(primary_key=True)
     date: Mapped[date_type] = mapped_column(Date, primary_key=True)
 
     morning_intention: Mapped[str] = mapped_column(Text, default="")

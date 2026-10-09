@@ -7,6 +7,7 @@ import { emitChange } from './bus.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 import { renderStorageCard, renderAICard, renderAppCard } from './settingsMore.js';
+import { renderAccountCard } from './account.js';
 import { renderThemeCard } from './themeSettings.js';
 import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
@@ -101,6 +102,7 @@ export function renderSettings() {
     "</section>" +
 
     '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
+    '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>' +
     '<section class="settings-card" id="settingsAI"></section>' +
     '<section class="settings-card" id="settingsApp"></section>' +
     '<section class="settings-card" id="settingsReminders"><h3 class="daily-section-title">reminders</h3>' + renderReminderRows() + '</section>' +
@@ -114,9 +116,18 @@ export function renderSettings() {
   wireReminderRows(el.querySelector("#settingsReminders"));
   refreshDbStatus();
   renderThemeCard(el.querySelector("#settingsTheme"));
-  renderStorageCard(el.querySelector("#settingsStorage")).catch(function (e) { console.warn(e); });
-  renderAICard(el.querySelector("#settingsAI")).catch(function (e) { console.warn(e); });
+  refreshServerCards();
   renderAppCard(el.querySelector("#settingsApp"));
+}
+
+/* The cards that depend on who's logged in. Settings is first drawn while
+   the app boots, before the lock screen, so these are drawn again each
+   time settings opens. */
+export function refreshServerCards() {
+  var warn = function (e) { console.warn(e); };
+  renderStorageCard(document.getElementById("settingsStorage")).catch(warn);
+  renderAccountCard(document.getElementById("settingsAccount")).catch(warn);
+  renderAICard(document.getElementById("settingsAI")).catch(warn);
 }
 
 async function refreshDbStatus() {

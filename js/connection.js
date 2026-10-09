@@ -21,7 +21,14 @@ function save() {
 }
 
 export function getConnection() {
-  if (!state) state = Object.assign({ mode: null, serverUrl: "", token: "" }, load() || {});
+  if (!state) {
+    state = Object.assign({ mode: null, serverUrl: "", token: "" }, load() || {});
+    if (state.pendingToken) { // a login that reloaded the page (see lock.js)
+      state.token = state.pendingToken;
+      delete state.pendingToken;
+      save();
+    }
+  }
   return state;
 }
 

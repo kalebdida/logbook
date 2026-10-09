@@ -77,9 +77,10 @@ def run_migrations() -> None:
     """Bring the database schema up to date. Called on startup.
 
     Fresh database: Alembic creates everything.
-    Database from logbook 1.x (tables but no Alembic history): add whatever
-    is new since then, then record it as up to date, so future migrations
-    apply normally.
+    Database from logbook 1.x (tables but no Alembic history): it matches
+    the 0001 baseline closely enough, so it's recorded as 0001 and the later
+    migrations run on it. 0002 rebuilds every data table and copies only
+    the columns that exist, which covers anything 1.x lacked.
     """
     from alembic import command
     from alembic.config import Config
@@ -90,8 +91,5 @@ def run_migrations() -> None:
     config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
     inspector = inspect(engine)
     if inspector.has_table("entries") and not inspector.has_table("alembic_version"):
-        Base.metadata.create_all(bind=engine)
-        add_missing_columns()
-        command.stamp(config, "head")
-    else:
-        command.upgrade(config, "head")
+        command.stamp(config, "0001")
+    command.upgrade(config, "head")

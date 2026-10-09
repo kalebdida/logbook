@@ -14,5 +14,6 @@ from app.models.goal import Goal
 from app.models.habit import Habit, HabitLog
 from app.models.pomodoro_day import PomodoroDay
 from app.models.task import Task
+from app.models.user import Invite, User
 
-__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog"]
+__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite"]

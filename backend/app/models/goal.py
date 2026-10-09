@@ -14,6 +14,7 @@ from sqlalchemy import Date, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.models.base import owner_column
 
 
 def _generate_id() -> str:
@@ -23,6 +24,7 @@ def _generate_id() -> str:
 class Goal(Base):
     __tablename__ = "goals"
 
+    user_id: Mapped[int] = owner_column(primary_key=True)
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=_generate_id)
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str] = mapped_column(Text, default="")

@@ -14,9 +14,9 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  registers every model with Base.metadata
 from app import ai
-from app.auth import auth_required, is_authenticated, require_auth
+from app.auth import auth_required, current_user, optional_user, sync_admin
 from app.config import settings
-from app.database import get_db, run_migrations
+from app.database import SessionLocal, get_db, run_migrations
 from app.models import Activity, DayRecord, Entry, Goal, Habit, PomodoroDay, Task
 from app.routers import api_router
 from app.routers import auth as auth_router
@@ -27,6 +27,8 @@ log = logging.getLogger("logbook")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     run_migrations()
+    with SessionLocal() as db:
+        sync_admin(db)
     if settings.environment == "production" and not settings.password:
         raise RuntimeError(
             "logbook: LOGBOOK_ENVIRONMENT is production but LOGBOOK_PASSWORD is empty, so anyone who can reach "
@@ -56,7 +58,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
-app.include_router(api_router, dependencies=[Depends(require_auth)])
+app.include_router(api_router, dependencies=[Depends(current_user)])
 
 
 @app.get("/health", tags=["Health"])
@@ -67,17 +69,17 @@ def health(authorization: str | None = Header(default=None), db: Session = Depen
         "version": settings.app_version,
         "auth_required": auth_required(),
         "ai": ai.configured(),
+        "accounts": auth_required(),
     }
-    if is_authenticated(authorization):
+    user = optional_user(authorization, db)
+    if user is not None:
         body["database"] = "sqlite" if settings.is_sqlite else "postgresql"
+        # this account's own numbers only
         body["counts"] = {
-            "entries": db.query(Entry).count(),
-            "day_records": db.query(DayRecord).count(),
-            "tasks": db.query(Task).count(),
-            "activities": db.query(Activity).count(),
-            "goals": db.query(Goal).count(),
-            "pomodoro_days": db.query(PomodoroDay).count(),
-            "habits": db.query(Habit).count(),
+            name: db.query(model).filter(model.user_id == user.id).count()
+            for name, model in (("entries", Entry), ("day_records", DayRecord), ("tasks", Task),
+                                ("activities", Activity), ("goals", Goal), ("pomodoro_days", PomodoroDay),
+                                ("habits", Habit))
         }
     return body
 

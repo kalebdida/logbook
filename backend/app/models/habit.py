@@ -7,13 +7,14 @@ from sqlalchemy import Boolean, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.base import TimestampMixin
+from app.models.base import TimestampMixin, owner_column
 
 
 class Habit(Base, TimestampMixin):
     __tablename__ = "habits"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = owner_column()
     name: Mapped[str] = mapped_column(String(80))
     icon: Mapped[str] = mapped_column(String(16), default="")
     activity_category: Mapped[str | None] = mapped_column(String(50), default=None)
@@ -26,3 +27,4 @@ class HabitLog(Base):
 
     habit_id: Mapped[int] = mapped_column(ForeignKey("habits.id", ondelete="CASCADE"), primary_key=True)
     date: Mapped[date_type] = mapped_column(Date, primary_key=True, index=True)
+    user_id: Mapped[int] = owner_column()

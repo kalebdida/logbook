@@ -109,11 +109,12 @@ Import is additive: it never deletes or overwrites anything, so importing a file
 ## Tests
 
 ```bash
-cd backend && pip install -r requirements-dev.txt && python -m pytest -q   # API: 27 tests
+cd backend && pip install -r requirements-dev.txt && python -m pytest -q   # API: 51 tests
 TEST_DATABASE_URL=postgresql://user@host/db python -m pytest -q            # the same, on Postgres
 pip install playwright && playwright install chromium
 python tests/e2e_browser.py     # core app in a real browser: 42 checks
-python tests/e2e_v2.py          # device mode, offline, themes, habits, music, login, sync: 30 checks
+python tests/e2e_v2.py          # device mode, offline, themes, habits, music, login, sync: 32 checks
+python tests/e2e_accounts.py    # invite, join on a phone, privacy between accounts, reset, remove: 24 checks
 ```
 
 Both browser tests start their own throwaway servers. Your real data is never touched.

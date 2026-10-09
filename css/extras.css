@@ -281,6 +281,48 @@ html[data-theme-mode="light"] .scanlines { opacity: 0.08; }
 .lock-field input:focus { border-color: rgb(var(--accent-rgb) / 0.6); outline: none; }
 .lock-error { min-height: 1.2em; margin: 0; color: var(--danger-text); font-size: 12px; }
 .lock-switch { align-self: center; font-size: 11px; }
+.lock-tabs { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-deep); }
+.lock-tab {
+  flex: 1;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.lock-tab:hover { color: var(--text-2); }
+.lock-tab.is-active { background: rgb(var(--accent-rgb) / 0.12); color: var(--accent); }
+.lock-tab:focus-visible { outline: 1px solid rgb(var(--accent-rgb) / 0.6); outline-offset: 1px; }
+.lock-hint { margin: -4px 0 0; color: var(--faint); font-size: 11px; line-height: 1.5; }
+
+/* ---------- account + people ---------- */
+.people { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.people-title { margin: 6px 0 0; color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: lowercase; }
+.people-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.people-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.people-row:last-child { border-bottom: 0; }
+.people-main { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+.people-name { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.people-meta { color: var(--faint); font-size: 11px; }
+.people-empty { padding: 6px 0; color: var(--faint); font-size: 12px; }
+.people-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid rgb(var(--warm-rgb) / 0.4);
+  border-radius: 999px;
+  color: var(--warm-text);
+  font-size: 10px;
+  vertical-align: 1px;
+}
+.people-confirm { display: flex; flex-basis: 100%; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 6px; }
+.people-confirm .text-input { flex: 1; min-width: 140px; }
+.code-box { padding: 12px 14px; border: 1px dashed rgb(var(--accent-rgb) / 0.45); border-radius: var(--r-md); background: rgb(var(--accent-rgb) / 0.05); }
+.code-box-label { margin: 0 0 6px; color: var(--muted); font-size: 11px; }
+.code-box-code { display: block; margin-bottom: 10px; color: var(--accent); font-size: 22px; letter-spacing: 0.12em; user-select: all; }
+.danger-zone summary { color: var(--danger-text); }
 
 /* ---------- storage + AI cards ---------- */
 .storage-now { display: flex; align-items: baseline; gap: 9px; margin: 6px 0 4px; color: var(--text-2); font-size: 13px; line-height: 1.6; }

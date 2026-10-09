@@ -1,6 +1,6 @@
 # Logbook: notes for Claude
 
-Personal OS for one user (Kal). Default look is the terminal/CRT theme: near-black,
+Personal OS. Kal runs the server; a few friends get invite-only accounts, each fully private. Default look is the terminal/CRT theme: near-black,
 phosphor green `#7ce8a0`, teal `#4dd0c4`, amber `#e8b95c`, red `#c96a6a`, monospace,
 serif italic only for the verse and the companion's question. Moods are HTTP-style
 statuses: good = 200 OK, okay = 102 PROCESSING, rough = 500 ERROR. Keep that voice
@@ -10,8 +10,9 @@ statuses: good = 200 OK, okay = 102 PROCESSING, rough = 500 ERROR. Keep that voi
 
 - `cd backend && uvicorn app.main:app --reload`, open http://127.0.0.1:8000 (the backend serves the frontend)
 - API tests: `cd backend && python -m pytest -q` (add `TEST_DATABASE_URL=postgresql://...` for Postgres)
-- Browser tests: `python tests/e2e_browser.py` (core) and `python tests/e2e_v2.py` (device mode,
-  offline, themes, habits, music, login, sync). Run both after any frontend change.
+- Browser tests: `python tests/e2e_browser.py` (core), `python tests/e2e_v2.py` (device mode,
+  offline, themes, habits, music, login, sync) and `python tests/e2e_accounts.py` (invites, privacy
+  between accounts). Run all three after any frontend change.
 - Static build (Pages / Android): `python3 scripts/build_web.py` → `dist/`
 
 ## Architecture
@@ -50,7 +51,10 @@ statuses: good = 200 OK, okay = 102 PROCESSING, rough = 500 ERROR. Keep that voi
 - FastAPI + SQLAlchemy 2. SQLite at `backend/logbook.db` by default, Postgres via `DATABASE_URL`.
 - Alembic owns the schema (`backend/migrations`); startup upgrades to head.
 - Every datetime in or out uses `UTCDateTime` (schemas/common.py). Day keys are the browser's local date.
-- Auth only when `LOGBOOK_PASSWORD` is set (`app/auth.py`). AI keys on the server never reach the browser.
+- Accounts only when `LOGBOOK_PASSWORD` is set (`app/auth.py`, `app/routers/auth.py`); user 1 is the admin.
+  **Every data query filters on `user_id`**: new routes take `uid = Depends(current_user_id)`, and
+  `tests/test_accounts.py` must cover them. The admin never gets an endpoint that reads others' data.
+- AI keys on the server never reach the browser; invited accounts use it only with `LOGBOOK_AI_FOR_EVERYONE`.
 - The static mount serves an allowlist only. Never serve the project root wholesale.
 
 ## Hosting and Android

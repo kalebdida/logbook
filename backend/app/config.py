@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_prefix="LOGBOOK_", extra="ignore")
 
     app_name: str = "Logbook"
-    app_version: str = "2.0.0"
+    app_version: str = "2.1.0"
     environment: str = "development"
 
     # DATABASE_URL is the name hosting providers (Render, Neon) use.
@@ -27,8 +27,17 @@ class Settings(BaseSettings):
     )
 
     # Login. Empty password = no login (fine on your own machine).
-    # Set LOGBOOK_PASSWORD whenever the server is reachable from a network.
+    # Set LOGBOOK_PASSWORD whenever the server is reachable from a network:
+    # it turns on accounts, and it's the admin's password (admin_username).
     password: str = ""
+    admin_username: str = "admin"
+    max_users: int = 10           # accounts in total, the admin included
+    invite_days: int = 7          # how long an invite or reset code works
+    ai_for_everyone: bool = False  # let invited accounts use the server's AI key (you pay for it)
+    # Read the client address from X-Forwarded-For. Only behind a proxy that
+    # sets it (Render does); otherwise anyone could claim any address.
+    # Unset: on when running on Render, off elsewhere.
+    trust_proxy: bool | None = None
     secret: str = ""          # signs login tokens. unset: a random one is made and kept in secret_file
     secret_file: str = ""     # default: backend/.logbook-secret
     token_days: int = 30

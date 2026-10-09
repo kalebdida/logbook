@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from app.auth import current_user_id
 from app.database import get_db
 from app.models.habit import Habit, HabitLog
 from app.schemas.habit import HabitCreate, HabitLogResponse, HabitResponse, HabitUpdate
@@ -13,25 +14,25 @@ from app.schemas.habit import HabitCreate, HabitLogResponse, HabitResponse, Habi
 router = APIRouter(prefix="/habits", tags=["Habits"])
 
 
-def _get(habit_id: int, db: Session) -> Habit:
+def _get(uid: int, habit_id: int, db: Session) -> Habit:
     habit = db.get(Habit, habit_id)
-    if habit is None:
+    if habit is None or habit.user_id != uid:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Habit not found")
     return habit
 
 
 @router.get("/", response_model=list[HabitResponse])
-def list_habits(include_archived: bool = False, db: Session = Depends(get_db)):
-    query = db.query(Habit)
+def list_habits(include_archived: bool = False, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    query = db.query(Habit).filter(Habit.user_id == uid)
     if not include_archived:
         query = query.filter(Habit.archived.is_(False))
     return query.order_by(Habit.sort, Habit.id).all()
 
 
 @router.post("/", response_model=HabitResponse, status_code=status.HTTP_201_CREATED)
-def create_habit(habit: HabitCreate, db: Session = Depends(get_db)):
-    count = db.query(Habit).count()
-    row = Habit(**habit.model_dump(), sort=count)
+def create_habit(habit: HabitCreate, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    count = db.query(Habit).filter(Habit.user_id == uid).count()
+    row = Habit(**habit.model_dump(), user_id=uid, sort=count)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -39,8 +40,8 @@ def create_habit(habit: HabitCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/logs", response_model=list[HabitLogResponse])
-def list_logs(start: date_type | None = None, end: date_type | None = None, db: Session = Depends(get_db)):
-    query = db.query(HabitLog)
+def list_logs(start: date_type | None = None, end: date_type | None = None, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    query = db.query(HabitLog).filter(HabitLog.user_id == uid)
     if start is not None:
         query = query.filter(HabitLog.date >= start)
     if end is not None:
@@ -49,8 +50,8 @@ def list_logs(start: date_type | None = None, end: date_type | None = None, db: 
 
 
 @router.patch("/{habit_id}", response_model=HabitResponse)
-def update_habit(habit_id: int, patch: HabitUpdate, db: Session = Depends(get_db)):
-    habit = _get(habit_id, db)
+def update_habit(habit_id: int, patch: HabitUpdate, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    habit = _get(uid, habit_id, db)
     for field, value in patch.model_dump(exclude_unset=True).items():
         if value is not None or field == "activity_category":
             setattr(habit, field, value)
@@ -60,19 +61,19 @@ def update_habit(habit_id: int, patch: HabitUpdate, db: Session = Depends(get_db
 
 
 @router.delete("/{habit_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_habit(habit_id: int, db: Session = Depends(get_db)):
-    habit = _get(habit_id, db)
+def delete_habit(habit_id: int, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    habit = _get(uid, habit_id, db)
     db.query(HabitLog).filter(HabitLog.habit_id == habit_id).delete()
     db.delete(habit)
     db.commit()
 
 
 @router.put("/{habit_id}/days/{day}", response_model=HabitLogResponse)
-def check_habit(habit_id: int, day: date_type, db: Session = Depends(get_db)):
-    _get(habit_id, db)
+def check_habit(habit_id: int, day: date_type, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    _get(uid, habit_id, db)
     log = db.get(HabitLog, (habit_id, day))
     if log is None:
-        log = HabitLog(habit_id=habit_id, date=day)
+        log = HabitLog(habit_id=habit_id, date=day, user_id=uid)
         db.add(log)
         try:
             db.commit()
@@ -84,7 +85,8 @@ def check_habit(habit_id: int, day: date_type, db: Session = Depends(get_db)):
 
 
 @router.delete("/{habit_id}/days/{day}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
-def uncheck_habit(habit_id: int, day: date_type, db: Session = Depends(get_db)):
+def uncheck_habit(habit_id: int, day: date_type, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    _get(uid, habit_id, db)
     log = db.get(HabitLog, (habit_id, day))
     if log is not None:
         db.delete(log)

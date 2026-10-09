@@ -11,6 +11,7 @@ from datetime import date as date_type
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import current_user_id
 from app.database import get_db
 from app.models.day_record import DayRecord
 from app.models.task import Task
@@ -19,16 +20,16 @@ from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
-def _ensure_day_exists(day_date: date_type, db: Session) -> None:
-    if db.get(DayRecord, day_date) is None:
-        db.add(DayRecord(date=day_date))
+def _ensure_day_exists(uid: int, day_date: date_type, db: Session) -> None:
+    if db.get(DayRecord, (uid, day_date)) is None:
+        db.add(DayRecord(user_id=uid, date=day_date))
         db.flush()
 
 
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)):
-    _ensure_day_exists(task.day_date, db)
-    db_task = Task(**task.model_dump())
+def create_task(task: TaskCreate, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    _ensure_day_exists(uid, task.day_date, db)
+    db_task = Task(**task.model_dump(), user_id=uid)
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -42,9 +43,10 @@ def list_tasks(
     completed: bool | None = None,
     skip: int = 0,
     limit: int = 5000,
+    uid: int = Depends(current_user_id),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Task)
+    query = db.query(Task).filter(Task.user_id == uid)
     if day_date is not None:
         query = query.filter(Task.day_date == day_date)
     if before is not None:
@@ -55,14 +57,14 @@ def list_tasks(
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
-def update_task(task_id: int, patch: TaskUpdate, db: Session = Depends(get_db)):
+def update_task(task_id: int, patch: TaskUpdate, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
     task = db.get(Task, task_id)
-    if task is None:
+    if task is None or task.user_id != uid:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     changes = patch.model_dump(exclude_unset=True)
     if changes.get("day_date") is not None:
-        _ensure_day_exists(changes["day_date"], db)
+        _ensure_day_exists(uid, changes["day_date"], db)
     for field, value in changes.items():
         if field == "day_date" and value is None:
             continue
@@ -74,9 +76,9 @@ def update_task(task_id: int, patch: TaskUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(task_id: int, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
     task = db.get(Task, task_id)
-    if task is None:
+    if task is None or task.user_id != uid:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     db.delete(task)
     db.commit()

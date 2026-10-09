@@ -3,15 +3,19 @@ are logged as having happened, not tracked toward completion."""
 
 from datetime import date as date_type
 
-from sqlalchemy import Date, ForeignKey, Integer
+from sqlalchemy import Date, ForeignKeyConstraint, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.base import ActivityFieldsMixin, TimestampMixin
+from app.models.base import ActivityFieldsMixin, TimestampMixin, owner_column
 
 
 class Activity(Base, ActivityFieldsMixin, TimestampMixin):
     __tablename__ = "activities"
 
+    # the day belongs to the same account as the row
+    __table_args__ = (ForeignKeyConstraint(["user_id", "day_date"], ["day_records.user_id", "day_records.date"]),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    day_date: Mapped[date_type] = mapped_column(Date, ForeignKey("day_records.date"), index=True)
+    user_id: Mapped[int] = owner_column()
+    day_date: Mapped[date_type] = mapped_column(Date, index=True)

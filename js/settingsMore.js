@@ -3,7 +3,7 @@ import { getConnection, setConnection, isDevice, probeServer, describeConnection
 import { serverRequest, apiLogin, apiAuthStatus } from './api.js';
 import { deviceRequest, initDeviceStore, deviceStoragePersisted } from './deviceStore.js';
 import { getAIConfig, setAIConfig, aiStatus, aiChat } from './ai.js';
-import { logout } from './lock.js';
+import { logout, clearLocalTraces } from './lock.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 import { canInstall, isInstalled, promptInstall } from './pwa.js';
@@ -14,9 +14,13 @@ export async function renderStorageCard(el) {
   if (!el) return;
   var c = getConnection();
   var device = isDevice();
-  var authRequired = false, persisted = true;
+  var authRequired = false, persisted = true, me = null;
   if (!device) {
-    try { authRequired = (await apiAuthStatus()).required; } catch (e) {}
+    try {
+      var st = await apiAuthStatus();
+      authRequired = st.required;
+      me = st.user || null;
+    } catch (e) {}
   } else if (!window.Capacitor) {
     persisted = await deviceStoragePersisted();
   }
@@ -26,7 +30,8 @@ export async function renderStorageCard(el) {
     '<p class="storage-now"><span class="status-dot is-online"></span> ' +
       (device
         ? "<strong>this device.</strong> everything is saved in this browser. no server, works offline. back it up now and then."
-        : "<strong>" + escapeHtml(describeConnection()) + ".</strong> " + (authRequired ? "password protected, you're logged in." : "no password.")) +
+        : "<strong>" + escapeHtml(describeConnection()) + ".</strong> " +
+          (me ? "logged in as " + escapeHtml(me.username) + "." : authRequired ? "password protected, you're logged in." : "no password.")) +
     "</p>" +
     (device && !persisted
       ? '<p class="setting-hint storage-risk">this browser hasn\'t promised to keep it: it may clear site data you haven\'t visited in a while (Safari does after 7 days). installing logbook as an app protects it. either way, download a backup now and then, or connect a server.</p>'
@@ -35,13 +40,15 @@ export async function renderStorageCard(el) {
       (device
         ? ""
         : '<button type="button" class="tool-btn" id="toDevice">keep data on this device instead</button>' +
-          (authRequired ? '<button type="button" class="tool-btn" id="logoutBtn">log out</button>' : "")) +
+          (authRequired && !me ? '<button type="button" class="tool-btn" id="logoutBtn">log out</button>' : "")) +
     "</div>" +
     '<details class="connect-box"' + (device ? " open" : "") + "><summary>" + (device ? "connect to a logbook server" : "connect to a different server") + "</summary>" +
       '<form id="connectForm" class="connect-form" autocomplete="off">' +
         '<label class="setting-row"><span class="setting-text"><span class="setting-label">server address</span>' +
           '<span class="setting-hint">e.g. https://your-logbook.onrender.com, or http://127.0.0.1:8000 on this computer</span></span>' +
           '<input class="text-input" name="url" type="url" required placeholder="https://..." value="' + escapeHtml(c.serverUrl || "") + '"></label>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">username</span><span class="setting-hint">your account on that server</span></span>' +
+          '<input class="text-input" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" value="' + escapeHtml(c.username || "") + '"></label>' +
         '<label class="setting-row"><span class="setting-text"><span class="setting-label">password</span><span class="setting-hint">leave empty if the server has none</span></span>' +
           '<input class="text-input" name="password" type="password" autocomplete="current-password"></label>' +
         '<label class="setting-row"><span class="setting-text"><span class="setting-label">copy what\'s here to the server</span>' +
@@ -81,18 +88,23 @@ export async function renderStorageCard(el) {
     try {
       var health = await probeServer(url, 70000); // free hosts can take a minute to wake up
       if (!health) throw new Error("no logbook server answered at that address");
-      var token = "";
-      if (health.auth_required) token = (await apiLogin(url, form.elements.password.value)).token;
+      var token = "", who = "";
+      if (health.auth_required) {
+        var login = await apiLogin(url, form.elements.password.value, form.elements.username.value.trim().toLowerCase());
+        token = login.token;
+        who = login.user ? login.user.username : "";
+      }
       if (form.elements.copy.checked) {
         var here = device
           ? await deviceRequest("/backup", {})
           : await serverRequest(serverBase(), c.token, "/backup", {});
         await serverRequest(url, token, "/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(here) });
       }
-      setConnection({ mode: "server", serverUrl: url === location.origin ? "" : url, token: token });
+      if (who !== (c.username || "")) clearLocalTraces();
+      setConnection({ mode: "server", serverUrl: url === location.origin ? "" : url, token: token, username: who });
       location.reload();
     } catch (ex) {
-      toast(ex.status === 401 ? "wrong password" : "couldn't connect: " + (ex.detail || ex.message), "error");
+      toast(ex.status === 401 ? "wrong username or password" : ex.status === 429 ? ex.detail : "couldn't connect: " + (ex.detail || ex.message), "error");
       btn.disabled = false;
       btn.textContent = "connect";
     }

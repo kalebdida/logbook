@@ -11,11 +11,13 @@ from sqlalchemy import Date, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+from app.models.base import owner_column
 
 
 class PomodoroDay(Base):
     __tablename__ = "pomodoro_days"
 
+    user_id: Mapped[int] = owner_column(primary_key=True)
     date: Mapped[date_type] = mapped_column(Date, primary_key=True)
     sessions: Mapped[int] = mapped_column(Integer, default=0)
     focus_ms: Mapped[int] = mapped_column(Integer, default=0)

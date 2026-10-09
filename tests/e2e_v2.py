@@ -290,7 +290,7 @@ try:
         page2.wait_for_timeout(800)
         check("right password unlocks and loads the data", "written with no server" in page2.evaluate("document.body.innerText") or page2.evaluate("window.__logbook.request('/entries/').then(e => e.length)") == 1)
         page2.evaluate("location.hash = '#settings'")
-        page2.click("#logoutBtn")
+        page2.click("#settingsAccount [data-logout]")
         page2.wait_for_selector("#lockScreen", timeout=10000)
         check("log out locks it again", page2.is_visible("#lockScreen"))
 

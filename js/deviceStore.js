@@ -24,7 +24,7 @@ var TABLES = {
   habit_logs: "key",
   meta: "key"
 };
-var VERSION = "2.0.0";
+var VERSION = "2.1.0";
 
 var MOODS = ["good", "okay", "rough"];
 var AREAS = CATEGORIES.map(function (c) { return c.id; });
@@ -223,7 +223,7 @@ function route(method, pattern, handler) {
 route("GET", "/health", function () {
   return { app: "logbook", status: "online", version: VERSION, auth_required: false, ai: false, database: "this device", counts: counts() };
 });
-route("GET", "/auth/status", function () { return { required: false, authenticated: true }; });
+route("GET", "/auth/status", function () { return { required: false, authenticated: true, accounts: false, user: null }; });
 route("POST", "/auth/login", function () { return { token: "", expires_at: null, required: false }; });
 
 /* entries */

@@ -9,16 +9,20 @@ exist yet, so this doesn't force a separate "create the day" step.
 
 from datetime import date as date_type
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer
+from sqlalchemy import Boolean, Date, ForeignKeyConstraint, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.base import ActivityFieldsMixin, TimestampMixin
+from app.models.base import ActivityFieldsMixin, TimestampMixin, owner_column
 
 
 class Task(Base, ActivityFieldsMixin, TimestampMixin):
     __tablename__ = "tasks"
 
+    # the day belongs to the same account as the row
+    __table_args__ = (ForeignKeyConstraint(["user_id", "day_date"], ["day_records.user_id", "day_records.date"]),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    day_date: Mapped[date_type] = mapped_column(Date, ForeignKey("day_records.date"), index=True)
+    user_id: Mapped[int] = owner_column()
+    day_date: Mapped[date_type] = mapped_column(Date, index=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)

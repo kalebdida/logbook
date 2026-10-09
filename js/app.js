@@ -26,7 +26,7 @@ import { renderGoals, invalidateGoals } from './goals.js';
 import { renderDensityMap } from './densityMap.js';
 import { renderAnalytics } from './analytics.js';
 import { renderCompanion } from './companion.js';
-import { renderSettings, refreshDbStatus } from './settings.js';
+import { renderSettings, refreshDbStatus, refreshServerCards } from './settings.js';
 import { initPalette } from './palette.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
 import { navigateTo } from './navigation.js';
@@ -108,7 +108,10 @@ async function init() {
   } else {
     try {
       var auth = await apiAuthStatus();
-      if (auth.required && !auth.authenticated) await showLock();
+      if (auth.required && !auth.authenticated) {
+        await showLock();
+        refreshServerCards();
+      }
     } catch (e) {
       // server unreachable: checkBackend below shows the warning
     }
@@ -156,6 +159,7 @@ async function init() {
 
   document.addEventListener("logbook:auth-required", async function () {
     await showLock("expired");
+    refreshServerCards();
     await loadEntries().catch(warn);
     invalidateGoals();
     await renderEverything();
@@ -163,7 +167,7 @@ async function init() {
 
   document.addEventListener("logbook:navigated", function (e) {
     if (e.detail.page === "companion") renderCompanion().catch(warn);
-    if (e.detail.page === "settings") refreshDbStatus();
+    if (e.detail.page === "settings") { refreshDbStatus(); refreshServerCards(); }
   });
   if (currentPage() === "companion") renderCompanion(true).catch(warn);
 

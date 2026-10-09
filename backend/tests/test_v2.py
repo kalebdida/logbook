@@ -13,7 +13,7 @@ from tests.conftest import reset_database
 # ---------- login ----------
 
 def test_open_when_no_password(client):
-    assert client.get("/auth/status").json() == {"required": False, "authenticated": True}
+    assert client.get("/auth/status").json() == {"required": False, "authenticated": True, "accounts": False, "user": None}
     assert client.get("/entries/").status_code == 200
 
 
@@ -46,9 +46,11 @@ def test_login_locks_out_after_repeated_misses(client):
 def test_tampered_token_rejected(client):
     settings.password = "pw"
     token = client.post("/auth/login", json={"password": "pw"}).json()["token"]
-    version, expires, sig = token.split(".")
-    forged = f"{version}.{int(expires) + 999999}.{sig}"
-    assert client.get("/entries/", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
+    version, uid, tv, expires, sig = token.split(".")
+    for forged in (f"{version}.{uid}.{tv}.{int(expires) + 999999}.{sig}",   # longer life
+                   f"{version}.2.{tv}.{expires}.{sig}",                       # someone else
+                   f"{version}.{uid}.{int(tv) + 1}.{expires}.{sig}"):
+        assert client.get("/entries/", headers={"Authorization": f"Bearer {forged}"}).status_code == 401
 
 
 # ---------- habits ----------
@@ -157,16 +159,32 @@ def test_ai_requires_login_when_password_set(client):
 # ---------- upgrading a 1.x database ----------
 
 def test_v1_database_upgrades_in_place(client):
-    client.post("/entries/", json={"mood": "good", "text": "from v1", "id": "keep-me"})
-    # simulate a 1.x database: no habits tables, no Alembic history
+    # build a real 1.x database: the 0001 schema minus what 1.x didn't have
+    from alembic import command
+    from alembic.config import Config
+    from app.config import BACKEND_DIR
+    reset_database()
+    config = Config(str(BACKEND_DIR / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    command.upgrade(config, "0001")
     with engine.begin() as conn:
+        conn.execute(text("INSERT INTO entries (id, occurred_at, mood, text) VALUES ('keep-me', '2026-05-01 10:00:00', 'good', 'from v1')"))
+        conn.execute(text("INSERT INTO day_records (date, morning_intention, morning_main_focus, journal, reflection_what_happened, "
+                          "reflection_wins, reflection_lessons, reflection_tomorrow_plan, reflection_gratitude, brain_dump) "
+                          "VALUES ('2026-05-01', '', '', 'old journal', '', '', '', '', '', '')"))
+        conn.execute(text("INSERT INTO tasks (id, day_date, completed, title) VALUES (7, '2026-05-01', false, 'old task')"))
         conn.execute(text("DROP TABLE habit_logs"))
         conn.execute(text("DROP TABLE habits"))
+        conn.execute(text("ALTER TABLE goals DROP COLUMN activity_category"))
         conn.execute(text("DROP TABLE alembic_version"))
     run_migrations()
     insp = inspect(engine)
-    assert insp.has_table("habits") and insp.has_table("habit_logs") and insp.has_table("alembic_version")
-    assert client.get("/entries/keep-me").json()["text"] == "from v1"
+    assert insp.has_table("habits") and insp.has_table("users") and insp.has_table("alembic_version")
+    assert client.get("/entries/keep-me").json()["text"] == "from v1"          # now user 1's
+    assert client.get("/days/2026-05-01").json()["journal"] == "old journal"
+    assert client.get("/tasks/").json()[0]["title"] == "old task"
+    new_task = client.post("/tasks/", json={"day_date": "2026-05-02", "title": "new"}).json()
+    assert new_task["id"] > 7                                                   # ids carry on after the copied ones
     run_migrations()  # second start is a no-op
 
 

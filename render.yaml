@@ -17,7 +17,9 @@ services:
     envVars:
       - key: DATABASE_URL          # paste the Neon connection string
         sync: false
-      - key: LOGBOOK_PASSWORD      # the password you'll log in with
+      - key: LOGBOOK_PASSWORD      # your (the admin's) password
+        sync: false
+      - key: LOGBOOK_ADMIN_USERNAME  # your username, e.g. kal
         sync: false
       - key: LOGBOOK_SECRET        # signs login tokens
         generateValue: true

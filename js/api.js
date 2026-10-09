@@ -373,8 +373,59 @@ export async function apiAuthStatus() {
   return request("/auth/status");
 }
 
-export async function apiLogin(base, password) {
-  return serverRequest(base, "", "/auth/login", Object.assign({ method: "POST" }, jsonBody({ password: password })));
+/* base: which server (the connect form logs in before it's saved). An empty
+   username means the admin, which is also what older servers expect. */
+export async function apiLogin(base, password, username) {
+  return serverRequest(base, "", "/auth/login", Object.assign({ method: "POST" }, jsonBody({ username: username || "", password: password })));
+}
+
+export async function apiSignup(base, invite, username, password) {
+  return serverRequest(base, "", "/auth/signup", Object.assign({ method: "POST" }, jsonBody({ invite: invite, username: username, password: password })));
+}
+
+export async function apiResetPassword(base, username, code, password) {
+  return serverRequest(base, "", "/auth/reset", Object.assign({ method: "POST" }, jsonBody({ username: username, code: code, password: password })));
+}
+
+export async function apiMe() {
+  return request("/auth/me");
+}
+
+export async function apiChangePassword(current, next) {
+  return request("/auth/password", Object.assign({ method: "POST" }, jsonBody({ current: current, new: next })));
+}
+
+export async function apiLogoutEverywhere() {
+  return request("/auth/logout-everywhere", { method: "POST" });
+}
+
+export async function apiDeleteAccount(password) {
+  return request("/auth/delete-account", Object.assign({ method: "POST" }, jsonBody({ password: password })));
+}
+
+/* admin only */
+export async function apiListInvites() {
+  return request("/auth/invites");
+}
+
+export async function apiCreateInvite(note) {
+  return request("/auth/invites", Object.assign({ method: "POST" }, jsonBody({ note: note || "" })));
+}
+
+export async function apiCancelInvite(id) {
+  return request("/auth/invites/" + id, { method: "DELETE" });
+}
+
+export async function apiListUsers() {
+  return request("/auth/users");
+}
+
+export async function apiResetCode(userId) {
+  return request("/auth/users/" + userId + "/reset-code", { method: "POST" });
+}
+
+export async function apiRemoveUser(userId, password) {
+  return request("/auth/users/" + userId, Object.assign({ method: "DELETE" }, jsonBody({ password: password })));
 }
 
 export async function apiAIStatus() {
