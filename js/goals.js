@@ -1,6 +1,9 @@
-import { loadGoals, saveGoals } from "./storage.js";
+import { apiListGoals, apiCreateGoal, apiUpdateGoal, apiDeleteGoal } from "./api.js";
 import { dateKey } from "./dayRecord.js";
 import { escapeHtml } from "./utils.js";
+import { categoryById, categoryOptions } from "./categories.js";
+import { emitChange } from "./bus.js";
+import { toast } from "./toast.js";
 
 var CATEGORIES = ["daily", "weekly", "monthly", "long-term"];
 var PRIORITIES = ["low", "medium", "high"];
@@ -18,13 +21,18 @@ var state = {
 
 /*
   Mount this once after <div id="goalsSection"></div> is in the page.
-  Goal data remains isolated in localStorage through storage.js: "logbook-goals".
+  Goal data now lives on the backend (see api.js), state.goals is an
+  in-memory cache of it: loaded once, then kept in sync by each write
+  function's own response rather than re-fetched on every render. Search,
+  filter, sort, and the stats below all read from that cache, so none of
+  that logic needed to change, only the functions that actually load or
+  mutate a goal did.
 */
-export function renderGoals() {
+export async function renderGoals() {
   var container = document.getElementById("goalsSection");
   if (!container) return;
 
-  ensureGoals();
+  await ensureGoals();
   container.innerHTML = renderGoalsShell();
   container.onclick = handleClick;
   container.oninput = handleInput;
@@ -33,63 +41,22 @@ export function renderGoals() {
   animateProgressBars();
 }
 
-export function getGoals() {
-  ensureGoals();
+export async function getGoals() {
+  await ensureGoals();
   return state.goals.map(copyGoal);
 }
 
-export function getGoalStats() {
-  ensureGoals();
+export async function getGoalStats() {
+  await ensureGoals();
   return buildGoalStats(state.goals);
 }
 
-function ensureGoals() {
+async function ensureGoals() {
   if (state.goals) return;
-  state.goals = loadGoals().map(normalizeGoal);
-}
-
-function normalizeGoal(goal) {
-  var now = new Date().toISOString();
-  var progress = clampProgress(goal.progress);
-  var completed = Boolean(goal.completed) || progress === 100;
-
-  return {
-    id: goal.id || createGoalId(),
-    title: String(goal.title || "Untitled goal"),
-    description: String(goal.description || ""),
-    category: CATEGORIES.indexOf(goal.category) >= 0 ? goal.category : "daily",
-    priority: PRIORITIES.indexOf(goal.priority) >= 0 ? goal.priority : "medium",
-    progress: completed ? 100 : progress,
-    completed: completed,
-    createdAt: goal.createdAt || now,
-    updatedAt: goal.updatedAt || goal.createdAt || now,
-    completedAt: completed ? (goal.completedAt || now) : null,
-    targetDate: isDateString(goal.targetDate) ? goal.targetDate : null
-  };
-}
-
-function createGoal(values) {
-  var now = new Date().toISOString();
-  var progress = clampProgress(values.progress);
-  var completed = progress === 100;
-
-  return {
-    id: createGoalId(),
-    title: values.title,
-    description: values.description,
-    category: values.category,
-    priority: values.priority,
-    progress: completed ? 100 : progress,
-    completed: completed,
-    createdAt: now,
-    updatedAt: now,
-    completedAt: completed ? now : null,
-    targetDate: values.targetDate || null
-  };
-}
-
-function createGoalId() {
-  return "goal-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+  // the backend already validates category/priority/progress and derives
+  // completed/completedAt, so unlike the old localStorage path this
+  // doesn't need a defensive normalize pass over what comes back
+  state.goals = await apiListGoals();
 }
 
 function copyGoal(goal) {
@@ -171,7 +138,8 @@ function renderEditor() {
     category: "daily",
     priority: "medium",
     progress: 0,
-    targetDate: ""
+    targetDate: "",
+    activityCategory: ""
   };
 
   return `
@@ -214,8 +182,13 @@ function renderEditor() {
         <input name="targetDate" type="date" value="${escapeHtml(goal.targetDate || "")}" />
       </label>
 
+      <label class="goals-field">
+        <span>life area <em>shows on the density map when done</em></span>
+        <select name="activityCategory">${categoryOptions(goal.activityCategory || "", "none")}</select>
+      </label>
+
       <label class="goals-field goals-progress-field">
-        <span>starting progress <output id="goalFormProgress">${goal.progress}%</output></span>
+        <span>progress <output id="goalFormProgress">${goal.progress}%</output></span>
         <input id="goalProgress" name="progress" type="range" min="0" max="100" value="${goal.progress}" />
       </label>
 
@@ -262,7 +235,7 @@ function renderGoalCard(goal) {
   return `
     <article class="${classes.join(" ")}" data-goal-id="${escapeHtml(goal.id)}">
       <div class="goal-card-topline">
-        <span class="goal-category">${categoryLabel(goal.category)}</span>
+        <span class="goal-category">${categoryLabel(goal.category)}${areaTag(goal)}</span>
         <span class="goal-priority goal-priority--${goal.priority}">${capitalize(goal.priority)}</span>
       </div>
 
@@ -294,6 +267,11 @@ function renderGoalCard(goal) {
   `;
 }
 
+function areaTag(goal) {
+  var cat = categoryById(goal.activityCategory);
+  return cat ? ' <span class="goal-area" title="' + cat.label + '">' + cat.icon + "</span>" : "";
+}
+
 function renderGoalBadges(goal, overdue, almostDone) {
   var badges = [];
   if (goal.completed) badges.push('<span class="goal-badge goal-badge--complete">complete</span>');
@@ -307,18 +285,18 @@ function renderTargetDate(goal, overdue) {
   return (overdue ? "overdue · " : "target · ") + formatDate(goal.targetDate);
 }
 
-function handleClick(event) {
+async function handleClick(event) {
   var button = event.target.closest("[data-goal-action]");
   if (!button) return;
 
   var action = button.getAttribute("data-goal-action");
   var goalId = button.getAttribute("data-goal-id");
 
-  if (action === "add") openEditor("new");
-  if (action === "edit") openEditor(goalId);
-  if (action === "cancel") closeEditor();
-  if (action === "complete") toggleCompletion(goalId);
-  if (action === "delete") deleteGoal(goalId);
+  if (action === "add") await openEditor("new");
+  if (action === "edit") await openEditor(goalId);
+  if (action === "cancel") await closeEditor();
+  if (action === "complete") await toggleCompletion(goalId);
+  if (action === "delete") await deleteGoal(goalId);
 }
 
 function handleInput(event) {
@@ -341,7 +319,7 @@ function handleInput(event) {
   }
 }
 
-function handleChange(event) {
+async function handleChange(event) {
   var target = event.target;
 
   if (target.id === "goalCategoryFilter") {
@@ -363,11 +341,11 @@ function handleChange(event) {
   }
 
   if (target.hasAttribute("data-goal-progress")) {
-    saveProgress(target.getAttribute("data-goal-progress"), target.value);
+    await saveProgress(target.getAttribute("data-goal-progress"), target.value);
   }
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   if (event.target.id !== "goalEditor") return;
   event.preventDefault();
 
@@ -378,7 +356,8 @@ function handleSubmit(event) {
     category: form.elements.category.value,
     priority: form.elements.priority.value,
     progress: form.elements.progress.value,
-    targetDate: form.elements.targetDate.value
+    targetDate: form.elements.targetDate.value,
+    activityCategory: form.elements.activityCategory.value
   };
 
   if (!values.title) {
@@ -386,37 +365,42 @@ function handleSubmit(event) {
     return;
   }
 
-  var createdGoal;
+  var resultGoal;
   var action;
+  var wasCompleted = false;
+
   if (state.editingId === "new") {
-    createdGoal = createGoal(values);
-    state.goals.unshift(createdGoal);
+    resultGoal = await apiCreateGoal(values);
+    state.goals.unshift(resultGoal);
     action = "created";
   } else {
-    createdGoal = updateGoal(state.editingId, values);
+    var existing = findGoal(state.editingId);
+    wasCompleted = existing ? existing.completed : false;
+    resultGoal = await apiUpdateGoal(state.editingId, values);
+    var idx = state.goals.findIndex(function (g) { return g.id === state.editingId; });
+    if (idx >= 0) state.goals[idx] = resultGoal;
     action = "updated";
   }
 
-  var justCompleted = createdGoal && createdGoal.completed && !createdGoal.completedAtBeforeUpdate;
-  if (createdGoal) delete createdGoal.completedAtBeforeUpdate;
+  var justCompleted = resultGoal.completed && !wasCompleted;
 
   state.editingId = null;
-  persistGoals(action, createdGoal);
-  renderGoals();
-  if (justCompleted) triggerCelebration(createdGoal.id);
+  await persistGoals(action, resultGoal);
+  await renderGoals();
+  if (justCompleted) triggerCelebration(resultGoal.id);
 }
 
-function openEditor(goalId) {
+async function openEditor(goalId) {
   state.editingId = goalId;
-  renderGoals();
+  await renderGoals();
 
   var title = document.querySelector("#goalEditor input[name='title']");
   if (title) title.focus();
 }
 
-function closeEditor() {
+async function closeEditor() {
   state.editingId = null;
-  renderGoals();
+  await renderGoals();
 }
 
 function previewProgress(input) {
@@ -430,79 +414,73 @@ function previewProgress(input) {
   if (percent) percent.textContent = value + "%";
 }
 
-function saveProgress(goalId, value) {
+async function saveProgress(goalId, value) {
   var goal = findGoal(goalId);
   if (!goal) return;
 
   var wasCompleted = goal.completed;
   var progress = clampProgress(value);
-  goal.progress = progress;
-  goal.completed = progress === 100;
-  goal.completedAt = goal.completed ? (goal.completedAt || new Date().toISOString()) : null;
-  goal.updatedAt = new Date().toISOString();
+  var updated = await apiUpdateGoal(goalId, { progress: progress });
+  var idx = state.goals.findIndex(function (g) { return g.id === goalId; });
+  if (idx >= 0) state.goals[idx] = updated;
 
-  persistGoals(goal.completed && !wasCompleted ? "completed" : "progress-updated", goal);
-  renderGoals();
-  if (goal.completed && !wasCompleted) triggerCelebration(goal.id);
+  await persistGoals(updated.completed && !wasCompleted ? "completed" : "progress-updated", updated);
+  await renderGoals();
+  if (updated.completed && !wasCompleted) triggerCelebration(updated.id);
 }
 
-function updateGoal(goalId, values) {
-  var goal = findGoal(goalId);
-  if (!goal) return null;
-
-  var wasCompleted = goal.completed;
-  var progress = clampProgress(values.progress);
-  goal.title = values.title;
-  goal.description = values.description;
-  goal.category = values.category;
-  goal.priority = values.priority;
-  goal.progress = progress;
-  goal.completed = progress === 100;
-  goal.targetDate = values.targetDate || null;
-  goal.updatedAt = new Date().toISOString();
-  goal.completedAt = goal.completed ? (goal.completedAt || goal.updatedAt) : null;
-  goal.completedAtBeforeUpdate = wasCompleted;
-  return goal;
-}
-
-function toggleCompletion(goalId) {
+async function toggleCompletion(goalId) {
   var goal = findGoal(goalId);
   if (!goal) return;
 
   var completing = !goal.completed;
-  goal.completed = completing;
-  goal.progress = completing ? 100 : Math.min(goal.progress, 90);
-  goal.completedAt = completing ? new Date().toISOString() : null;
-  goal.updatedAt = new Date().toISOString();
+  var newProgress = completing ? 100 : Math.min(goal.progress, 90);
+  var updated = await apiUpdateGoal(goalId, { progress: newProgress });
+  var idx = state.goals.findIndex(function (g) { return g.id === goalId; });
+  if (idx >= 0) state.goals[idx] = updated;
 
-  persistGoals(completing ? "completed" : "reopened", goal);
-  renderGoals();
-  if (completing) triggerCelebration(goal.id);
+  await persistGoals(completing ? "completed" : "reopened", updated);
+  await renderGoals();
+  if (completing) triggerCelebration(updated.id);
 }
 
-function deleteGoal(goalId) {
+async function deleteGoal(goalId) {
   var goal = findGoal(goalId);
   if (!goal) return;
 
   if (window.confirm && !window.confirm("Delete this goal?")) return;
 
+  await apiDeleteGoal(goalId);
   state.goals = state.goals.filter(function (item) { return item.id !== goalId; });
   if (state.editingId === goalId) state.editingId = null;
-  persistGoals("deleted", goal);
-  renderGoals();
+  await persistGoals("deleted", goal);
+  await renderGoals();
 }
 
-function persistGoals(action, goal) {
-  saveGoals(state.goals);
-  notifyGoalsChanged(action, goal);
+// the backend already persisted the write by the time this runs (every
+// caller awaits an api* call first), so this is just the change
+// notification now, kept in case something downstream (the companion,
+// eventually) wants to listen for "logbook:goals-changed"
+async function persistGoals(action, goal) {
+  await notifyGoalsChanged(action, goal);
+  emitChange("goals", { action: action });
+  if (action === "completed") toast("goal complete: " + goal.title);
+  else if (action === "created") toast("goal created");
+  else if (action === "deleted") toast("goal deleted");
 }
 
-function notifyGoalsChanged(action, goal) {
+/* Re-fetch on the next render, used after an import. */
+export function invalidateGoals() {
+  state.goals = null;
+}
+
+async function notifyGoalsChanged(action, goal) {
+  var stats = await getGoalStats();
   document.dispatchEvent(new CustomEvent("logbook:goals-changed", {
     detail: {
       action: action,
       goal: goal ? copyGoal(goal) : null,
-      stats: getGoalStats()
+      stats: stats
     }
   }));
 }
@@ -655,9 +633,5 @@ function formatDate(value) {
   var parts = value.split("-");
   var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function isDateString(value) {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 

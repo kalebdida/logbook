@@ -1,37 +1,66 @@
-export function renderHeader(total) {
-  document.getElementById("headerTitle").textContent =
-    total === 0 ? "awaiting first entry" : total + " " + (total === 1 ? "entry" : "entries") + " logged";
-}
+import { getPrefs } from './prefs.js';
+import { isDevice, serverBase } from './connection.js';
 
-export function updateSaveButtonState(mood) {
-  var btn = document.getElementById("saveBtn");
-  var hasText = document.getElementById("entryText").value.trim().length > 0;
-  var enabled = !!mood && hasText;
-  btn.disabled = !enabled;
-  btn.classList.toggle("enabled", enabled);
-}
-
-export function showImportStatus(msg) {
-  var el = document.getElementById("importStatus");
-  el.textContent = msg;
-  setTimeout(function () { el.textContent = ""; }, 4000);
-}
-
-export function showStorageWarning() {
+export function showBackendWarning(show) {
   var warn = document.getElementById("storageWarning");
-  warn.style.display = "block";
-  warn.textContent =
-    "this browser is not letting the page save local data, so entries will not persist between visits here. " +
-    "try opening this file in a different browser (chrome and firefox both work well), or ask claude to help set this up as a hosted page instead.";
+  if (!warn) return;
+  if (show === false) {
+    warn.hidden = true;
+    return;
+  }
+  warn.hidden = false;
+  if (serverBase()) {
+    warn.innerHTML = "<strong>can't reach your logbook server</strong> (" + serverBase().replace(/</g, "") + "). " +
+      "nothing will load or save until it's back. if it's on a free host it may be waking up, which takes about a minute. " +
+      "this page retries on its own. you can switch to keeping data on this device in settings.";
+    return;
+  }
+  warn.innerHTML =
+    "<strong>can't reach the logbook backend.</strong> nothing will load or save until it's back. " +
+    "start it from the backend folder with <code>uvicorn app.main:app --reload</code>, then open " +
+    "<code>http://127.0.0.1:8000</code>. this page retries on its own.";
 }
 
+export function showStorageWarning(kind) {
+  var warn = document.getElementById("storageWarning");
+  if (!warn) return;
+  warn.hidden = false;
+  warn.textContent = kind === "device"
+    ? "this browser won't let logbook save data (private window or blocked site data). anything you write disappears when you close the tab. use a normal window, or connect to a logbook server in settings."
+    : "this browser is blocking local storage, so settings and the live focus timer won't be remembered here. your journal data is safe on the server.";
+}
+
+/* The boot sequence. Any key or click skips it; it can be turned off in settings. */
 export function startBoot(entryCount) {
   var bootEl = document.getElementById("boot");
+  var app = document.getElementById("app");
+  var prefs = getPrefs();
+  var reduce = false;
+  try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+
+  function finish() {
+    if (bootEl.dataset.done) return;
+    bootEl.dataset.done = "1";
+    clearInterval(timer);
+    document.removeEventListener("keydown", finish);
+    bootEl.removeEventListener("click", finish);
+    bootEl.style.opacity = "0";
+    setTimeout(function () { bootEl.hidden = true; }, 400);
+    document.body.classList.add("is-booted");
+  }
+
+  if (!prefs.boot || reduce) {
+    bootEl.hidden = true;
+    bootEl.dataset.done = "1";
+    document.body.classList.add("is-booted");
+    return;
+  }
+
   var container = document.getElementById("bootLines");
   var lines = [
     "> initializing logbook...",
-    "> reading local storage...",
-    "> user: kaleb",
+    isDevice() ? "> opening local vault..." : "> connecting to backend...",
+    "> user: " + prefs.name,
     "> clearance: personal / eyes only",
     "> entries on record: " + entryCount,
     "> access granted."
@@ -40,16 +69,15 @@ export function startBoot(entryCount) {
   var timer = setInterval(function () {
     var line = document.createElement("div");
     line.textContent = lines[i];
-    line.style.color = i === lines.length - 1 ? "#e8b95c" : "#7ce8a0";
+    if (i === lines.length - 1) line.className = "boot-granted";
     container.appendChild(line);
     i++;
     if (i >= lines.length) {
       clearInterval(timer);
-      setTimeout(function () {
-        bootEl.style.opacity = "0";
-        setTimeout(function () { bootEl.style.display = "none"; }, 500);
-        document.getElementById("app").style.opacity = "1";
-      }, 450);
+      setTimeout(finish, 450);
     }
-  }, 200);
+  }, 170);
+  document.addEventListener("keydown", finish);
+  bootEl.addEventListener("click", finish);
+  void app;
 }

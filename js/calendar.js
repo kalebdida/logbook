@@ -1,4 +1,4 @@
-import { loadEntries } from './storage.js';
+import { apiListEntries } from './api.js';
 import { STATUS } from './entries.js';
 import { dateKey } from './dayRecord.js';
 import { openDayViewer } from './dayViewer.js';
@@ -10,6 +10,9 @@ var viewMode = "month";
 var viewYear = null;
 var viewMonth = null;
 var tooltipEl = null;
+// filled in on every renderCalendar() call, the mouseover handler reads
+// from this instead of re-fetching on every pixel of mouse movement
+var lastDayEntryMap = {};
 
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -130,8 +133,8 @@ function renderMonthView(container, entries, dayEntryMap, now) {
     var isToday = key === todayKey;
     var classes = "cal-cell";
     if (isToday) classes += " cal-cell-today";
-    var style = s ? ' style="background:' + s.color + "22;border-color:" + s.color + '"' : "";
-    var numColor = s ? s.color : (isToday ? "#4dd0c4" : "");
+    var style = s ? ' style="background:' + s.tint(0.14) + ";border-color:" + s.color + '"' : "";
+    var numColor = s ? s.color : (isToday ? "var(--accent2)" : "");
     var numStyle = numColor ? ' style="color:' + numColor + '"' : "";
     cells +=
       '<div class="' + classes + '" data-date="' + key + '"' + style + ">" +
@@ -199,7 +202,7 @@ function renderYearView(container, entries, dayEntryMap, now) {
       var isToday = key === todayKey;
       var classes = "heat-cell";
       if (isToday) classes += " heat-cell-today";
-      var style = s ? ' style="background:' + s.color + "55;border-color:" + s.color + '"' : "";
+      var style = s ? ' style="background:' + s.tint(0.33) + ";border-color:" + s.color + '"' : "";
       var title = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       heatCells +=
         '<div class="' + classes + '" data-date="' + key + '" title="' + title + '"' + style + "></div>";
@@ -220,13 +223,14 @@ function renderYearView(container, entries, dayEntryMap, now) {
     "</div>";
 }
 
-export function renderCalendar() {
+export async function renderCalendar() {
   var container = document.getElementById("calendarSection");
   if (!container) return;
 
   var now = new Date();
-  var entries = loadEntries();
+  var entries = await apiListEntries();
   var dayEntryMap = buildDayEntryMap(entries);
+  lastDayEntryMap = dayEntryMap;
 
   if (viewMode === "year") {
     renderYearView(container, entries, dayEntryMap, now);
@@ -258,8 +262,7 @@ export function renderCalendar() {
       var cell = e.target.closest("[data-date]");
       if (!cell) return;
       var key = cell.getAttribute("data-date");
-      var freshMap = buildDayEntryMap(loadEntries());
-      showTooltip(cell, freshMap[key]);
+      showTooltip(cell, lastDayEntryMap[key]);
     });
 
     container.addEventListener("mouseout", function (e) {

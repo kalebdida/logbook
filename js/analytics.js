@@ -1,9 +1,9 @@
-import { loadEntries, loadDays } from "./storage.js";
+import { apiListEntries, apiListDaysAsMap } from "./api.js";
 import { dateKey } from "./dayRecord.js";
 import { calcStreak, bar } from "./stats.js";
 import { getGoals, getGoalStats } from "./goals.js";
 import { getDensityData, calculateDensityStats } from "./densityMap.js";
-import { getPomodoroStats, POMODORO_STORAGE_KEY } from "./pomodoro.js";
+import { getPomodoroHistory } from "./pomodoro.js";
 
 var WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var NOT_ENOUGH_DATA = "Not enough data yet. Keep logging.";
@@ -19,40 +19,24 @@ var state = { view: "week" };
   when its source is empty, and nothing here infers a mood, a habit, or a
   character trait that wasn't actually logged.
 */
-export function renderAnalytics() {
+export async function renderAnalytics() {
   var container = document.getElementById("analyticsSection");
   if (!container) return;
 
-  var data = computeAnalyticsData(state.view);
+  var data = await computeAnalyticsData(state.view);
   container.innerHTML = renderDashboard(data);
   container.onclick = handleClick;
 }
 
-export function getAnalyticsStats() {
-  return computeAnalyticsData(state.view);
-}
-
-function handleClick(event) {
+async function handleClick(event) {
   var button = event.target.closest("[data-analytics-view]");
   if (!button) return;
   state.view = button.getAttribute("data-analytics-view");
-  renderAnalytics();
+  await renderAnalytics();
 }
 
 /* ---------- data layer ---------- */
 
-function loadPomodoroDayMap() {
-  // Call pomodoro's own stats function first so a session that finished
-  // while this tab was closed gets finalized before we read its raw history.
-  getPomodoroStats();
-  try {
-    var raw = localStorage.getItem(POMODORO_STORAGE_KEY);
-    var parsed = raw ? JSON.parse(raw) : null;
-    return (parsed && parsed.days) || {};
-  } catch (e) {
-    return {};
-  }
-}
 
 function hasText(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -198,12 +182,12 @@ function strongestWeekday(counts) {
 
 /* ---------- computed data ---------- */
 
-function computeAnalyticsData(view) {
-  var entries = loadEntries();
-  var days = loadDays();
-  var pomodoroDays = loadPomodoroDayMap();
-  var goals = getGoals();
-  var goalStats = getGoalStats();
+async function computeAnalyticsData(view) {
+  var entries = await apiListEntries();
+  var days = await apiListDaysAsMap();
+  var pomodoroDays = await getPomodoroHistory();
+  var goals = await getGoals();
+  var goalStats = await getGoalStats();
 
   var range = getDateRange(view);
   var sets = buildActivitySets(entries, days, pomodoroDays, goals);
@@ -217,7 +201,7 @@ function computeAnalyticsData(view) {
     consistency: buildConsistency(range, sets),
     reflection: buildReflectionHabit(range, sets),
     goalProgress: buildGoalProgress(goalStats),
-    balance: calculateDensityStats(getDensityData(), range),
+    balance: await calculateDensityStats(await getDensityData(), range),
     streaks: buildStreaks(entries, sets, goalStats),
     insights: buildInsights(range, view, sets, goalStats, pomodoroDays)
   };

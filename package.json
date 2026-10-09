@@ -1,0 +1,20 @@
+{
+  "name": "logbook",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Logbook: a private journal and personal OS. Web app, server, and Android app.",
+  "scripts": {
+    "build": "python3 scripts/build_web.py",
+    "android:init": "npm run build && npx cap add android && npm run android:icons",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npm run android:sync && npx cap open android",
+    "apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:icons": "capacitor-assets generate --android --assetPath resources"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2"
+  }
+}

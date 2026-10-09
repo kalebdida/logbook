@@ -2,97 +2,224 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#050806" />
+<script>
+/* apply the saved theme before anything paints (no flash of the default look) */
+(function () {
+  try {
+    var s = JSON.parse(localStorage.getItem("logbook-theme-vars") || "null");
+    if (!s || !s.vars) return;
+    var r = document.documentElement;
+    for (var k in s.vars) {
+      if (k === "color-scheme") r.style.colorScheme = s.vars[k];
+      else r.style.setProperty(k, s.vars[k]);
+    }
+    r.setAttribute("data-scanlines", s.scanlines ? "on" : "off");
+    r.setAttribute("data-glow", s.glow ? "on" : "off");
+    if (s.bg) document.querySelector('meta[name="theme-color"]').setAttribute("content", s.bg);
+    if (s.css) { var st = document.createElement("style"); st.id = "themeCss"; st.textContent = s.css; document.head.appendChild(st); }
+  } catch (e) {}
+})();
+</script>
 <title>logbook</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="description" content="logbook: a private journal and personal OS" />
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/shell.css" />
+<link rel="stylesheet" href="css/features.css" />
+<link rel="stylesheet" href="css/extras.css" />
 <link rel="stylesheet" href="css/animations.css" />
 <link rel="stylesheet" href="css/responsive.css" />
 </head>
 <body>
 
-<canvas id="rain"></canvas>
-<div class="scanlines"></div>
+<a class="skip-link" href="#app">skip to content</a>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div class="scanlines" aria-hidden="true"></div>
 
-<div id="boot"><div id="bootLines"></div></div>
+<div id="boot"><div id="bootLines"></div><p class="boot-skip">press any key to skip</p></div>
 
-<div id="dayViewer"></div>
+<div id="dayViewer" hidden></div>
 
-<div id="app">
-  <div id="storageWarning"></div>
-
-  <div class="eyebrow">logbook // private</div>
-  <h1 id="headerTitle">awaiting first entry</h1>
-
-  <div class="verse-box">
-    <div class="verse-label">// message of the day</div>
-    <div class="verse-text" id="verseText"></div>
-    <div class="verse-ref" id="verseRef"></div>
+<div id="palette" class="overlay" hidden>
+  <div class="palette-backdrop"></div>
+  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="command prompt">
+    <label class="palette-prompt">
+      <span aria-hidden="true">&gt;</span>
+      <input id="paletteInput" type="text" placeholder="run a command or search your entries" autocomplete="off" spellcheck="false"
+             role="combobox" aria-expanded="false" aria-controls="paletteList" aria-autocomplete="list" />
+    </label>
+    <ul id="paletteList" role="listbox" aria-label="results"></ul>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>enter</kbd> run</span><span><kbd>esc</kbd> close</span></div>
   </div>
-
-  <div id="statsRow">
-    <div class="stat-card">
-      <div class="stat-label">uptime</div>
-      <div class="stat-value" id="uptimeValue" style="color:#7ce8a0">0 days</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">total entries</div>
-      <div class="stat-value" id="totalValue" style="color:#eafff2">0</div>
-    </div>
-  </div>
-
-  <div id="statsBars"></div>
-
-  <div id="weekAgoSection"></div>
-
-  <div class="form-box">
-    <div class="section-label" id="todayDate"></div>
-    <div class="mood-row">
-      <button class="mood-btn mood-good" data-mood="good">200 · OK</button>
-      <button class="mood-btn mood-okay" data-mood="okay">102 · PROCESSING</button>
-      <button class="mood-btn mood-rough" data-mood="rough">500 · ERROR</button>
-    </div>
-    <textarea id="entryText" rows="5" placeholder="&gt; log entry: what happened, what you felt. no need to dress it up."></textarea>
-    <div class="form-footer">
-      <span id="saveStatus"></span>
-      <button id="saveBtn" disabled>commit_entry ▸</button>
-    </div>
-  </div>
-
-  <div id="dailyPage"></div>
-
-  <div id="timelineSection"></div>
-
-  <div id="calendarSection"></div>
-
-  <div id="pomodoroSection"></div>
-
-  <div id="goalsSection"></div>
-
-  <div id="densityMapSection"></div>
-
-  <div id="analyticsSection"></div>
-  
-  <div id="constellation"></div>
-
-  <div class="toolbar">
-    <input id="searchInput" type="text" placeholder="grep entries..." />
-    <button class="filter-chip chip-good" data-status="good">200</button>
-    <button class="filter-chip chip-okay" data-status="okay">102</button>
-    <button class="filter-chip chip-rough" data-status="rough">500</button>
-    <button class="tool-btn" id="exportBtn">↓ export</button>
-    <button class="tool-btn" id="importBtn">↑ import</button>
-    <input type="file" id="importFile" accept="application/json" style="display:none" />
-  </div>
-  <div id="importStatus"></div>
-
-  <div class="section-label">past entries</div>
-  <div id="entriesEmptyMsg"></div>
-  <div id="entriesList"></div>
 </div>
+
+<div id="shortcutHelp" class="overlay" hidden>
+  <div class="viewer-backdrop"></div>
+  <div class="viewer-panel help-panel" role="dialog" aria-modal="true" aria-label="keyboard shortcuts">
+    <header class="viewer-header">
+      <div class="viewer-heading"><div class="viewer-date">keyboard shortcuts</div></div>
+      <button type="button" class="viewer-close" aria-label="close">✕</button>
+    </header>
+    <div class="help-body"></div>
+  </div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<div id="appShell">
+  <nav id="sidebarNav" class="sidebar-nav" aria-label="main">
+    <div class="sidebar-nav-brand">logbook<span class="brand-sub">private // local</span></div>
+
+    <a class="sidebar-nav-item" href="#dashboard" data-nav-target="dashboard">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12L12 3l9 9v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>
+      <span class="nav-label">dashboard</span><kbd class="nav-key">1</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#journal" data-nav-target="journal">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm3 4v2h10V7H7zm0 4v2h10v-2H7zm0 4v2h7v-2H7z"/></svg></span>
+      <span class="nav-label">journal</span><kbd class="nav-key">2</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#calendar" data-nav-target="calendar">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v3h6V2h2v3h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2V2zm10 7H7v11h10V9z"/></svg></span>
+      <span class="nav-label">calendar</span><kbd class="nav-key">3</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#focus" data-nav-target="focus">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm1-13h-2v6l5.2 3.1 1-1.7-4.2-2.5z"/></svg></span>
+      <span class="nav-label">focus</span><kbd class="nav-key">4</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#goals" data-nav-target="goals">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2zm0 4a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V6zm0 4a2 2 0 1 0 2 2h-2v-2z"/></svg></span>
+      <span class="nav-label">goals</span><kbd class="nav-key">5</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#companion" data-nav-target="companion">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm3 5v2h2V9H7zm4 0v2h2V9h-2zm4 0v2h2V9h-2z"/></svg></span>
+      <span class="nav-label">companion</span><kbd class="nav-key">6</kbd>
+    </a>
+    <a class="sidebar-nav-item" href="#settings" data-nav-target="settings">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65-2-3.46-2.49 1a7.12 7.12 0 0 0-1.69-.98L15 2h-6l-.36 2.93c-.61.25-1.17.58-1.69.98l-2.49-1-2 3.46 2.11 1.65c-.05.32-.07.65-.07.98s.02.66.07.98L2.46 14.63l2 3.46 2.49-1c.52.4 1.08.73 1.69.98L9 21h6l.36-2.93c.61-.25 1.17-.58 1.69-.98l2.49 1 2-3.46-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg></span>
+      <span class="nav-label">settings</span><kbd class="nav-key">7</kbd>
+    </a>
+
+    <div class="sidebar-foot">
+      <button type="button" class="palette-hint" data-command="palette"><span>commands</span><span><kbd>ctrl</kbd><kbd>k</kbd></span></button>
+      <button type="button" class="palette-hint" data-command="shortcuts"><span>shortcuts</span><kbd>?</kbd></button>
+      <div class="sidebar-status"><span id="statusDot" class="status-dot"></span><span id="statusLabel">checking…</span></div>
+    </div>
+  </nav>
+
+  <main id="app" tabindex="-1">
+    <header id="pageHeader">
+      <h1 id="pageTitle">dashboard</h1>
+      <button type="button" class="header-cmd" data-command="palette" aria-label="open command prompt"><kbd>ctrl</kbd><kbd>k</kbd></button>
+    </header>
+
+    <div id="storageWarning" role="alert" hidden></div>
+
+    <section class="nav-page" data-nav-page="dashboard" aria-label="dashboard">
+      <div id="todayConsole" class="today-console"></div>
+
+      <div class="dash-grid">
+        <div class="dash-main">
+          <div id="dailyPage"></div>
+        </div>
+        <aside class="dash-side" aria-label="overview">
+          <div id="habitsSection"></div>
+          <div class="verse-box">
+            <div class="verse-label">verse of the day</div>
+            <p class="verse-text" id="verseText"></p>
+            <div class="verse-ref" id="verseRef"></div>
+          </div>
+
+          <div id="statsRow">
+            <div class="stat-card">
+              <div class="stat-label">uptime</div>
+              <div class="stat-value stat-value--good" id="uptimeValue">0 days</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">entries</div>
+              <div class="stat-value" id="totalValue">0</div>
+            </div>
+          </div>
+          <div id="statsBars"></div>
+
+          <div id="weekAgoSection" hidden></div>
+
+          <div id="constellation" hidden></div>
+        </aside>
+      </div>
+
+      <div id="densityMapSection"></div>
+      <div id="analyticsSection"></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="journal" aria-label="journal" hidden>
+      <div class="form-box">
+        <div class="form-head">
+          <span class="section-label" id="todayDate"></span>
+          <span class="form-hint"><kbd>ctrl</kbd><kbd>enter</kbd> to commit</span>
+        </div>
+        <div class="mood-row" role="group" aria-label="status">
+          <button type="button" class="mood-btn mood-good" data-mood="good" aria-pressed="false">200 · OK</button>
+          <button type="button" class="mood-btn mood-okay" data-mood="okay" aria-pressed="false">102 · PROCESSING</button>
+          <button type="button" class="mood-btn mood-rough" data-mood="rough" aria-pressed="false">500 · ERROR</button>
+        </div>
+        <textarea id="entryText" rows="5" aria-label="entry" placeholder="&gt; log entry: what happened, what you felt. no need to dress it up."></textarea>
+        <div class="form-footer">
+          <span id="saveStatus" aria-live="polite"></span>
+          <button type="button" id="saveBtn" disabled>commit_entry ▸</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input id="searchInput" type="search" placeholder="grep entries..." aria-label="search entries" />
+        <div class="filter-group" role="group" aria-label="filter by status">
+          <button type="button" class="filter-chip chip-good" data-status="good" aria-pressed="false">200</button>
+          <button type="button" class="filter-chip chip-okay" data-status="okay" aria-pressed="false">102</button>
+          <button type="button" class="filter-chip chip-rough" data-status="rough" aria-pressed="false">500</button>
+        </div>
+        <div class="filter-group">
+          <button type="button" class="tool-btn" id="exportBtn">export</button>
+          <button type="button" class="tool-btn" id="importBtn">import</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json,.json" hidden />
+      </div>
+
+      <div class="list-head"><span class="section-label">past entries</span><span class="list-count" id="entriesCount"></span></div>
+      <p id="entriesEmptyMsg" class="empty-line" hidden></p>
+      <div id="entriesList"></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="calendar" aria-label="calendar" hidden>
+      <div id="calendarSection"></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="focus" aria-label="focus" hidden>
+      <div id="pomodoroSection"></div>
+      <div id="musicSection"></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="goals" aria-label="goals" hidden>
+      <div id="goalsSection"></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="companion" aria-label="companion" hidden>
+      <div id="companionSection"><p class="empty-line">reading your logbook…</p></div>
+    </section>
+
+    <section class="nav-page" data-nav-page="settings" aria-label="settings" hidden>
+      <div id="settingsSection"></div>
+    </section>
+  </main>
+</div>
+
+<div id="miniPlayer" class="mini-player" role="region" aria-label="now playing" hidden></div>
 
 <script type="module" src="js/app.js"></script>
 </body>

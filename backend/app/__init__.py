@@ -1,0 +1,1 @@
+"""Logbook backend application package."""

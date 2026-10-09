@@ -1,0 +1,12 @@
+**/__pycache__
+**/*.pyc
+**/*.db
+.env
+.git
+.github
+dist
+android
+node_modules
+tests
+backend/tests
+**/.logbook-secret

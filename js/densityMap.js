@@ -1,21 +1,13 @@
-import { loadDays, loadEntries } from "./storage.js";
+import { apiListDaysAsMap, apiListEntries, apiListHabits, apiHabitLogs } from "./api.js";
 import { dateKey } from "./dayRecord.js";
 import { getGoals } from "./goals.js";
-import { POMODORO_STORAGE_KEY } from "./pomodoro.js";
+import { getPomodoroHistory } from "./pomodoro.js";
+import { CATEGORIES } from "./categories.js";
+import { openDayViewer } from "./dayViewer.js";
 
 var DENSITY_UNIT_MINUTES = 25;
 var MAX_VISIBLE_CATEGORIES = 6;
-var CATEGORIES = [
-  { id: "coding", label: "Coding", icon: "💻" },
-  { id: "learning", label: "Learning", icon: "📚" },
-  { id: "fitness", label: "Fitness", icon: "🏋" },
-  { id: "faith", label: "Faith", icon: "🙏" },
-  { id: "social", label: "Social", icon: "👥" },
-  { id: "work", label: "Work", icon: "💼" },
-  { id: "rest", label: "Rest", icon: "🧘" },
-  { id: "creativity", label: "Creativity", icon: "🎨" },
-  { id: "reflection", label: "Reflection", icon: "📝" }
-];
+
 
 var categoryIds = CATEGORIES.map(function (category) { return category.id; });
 var state = { view: "monthly" };
@@ -25,10 +17,10 @@ var state = { view: "monthly" };
   a completed 25-minute focus block, a tagged activity, or a written reflection.
   Future modules can add activityCategory/category fields without changing this format.
 */
-export function getDensityData() {
+export async function getDensityData() {
   var days = {};
-  var storedDays = loadDays();
-  var entries = loadEntries();
+  var storedDays = await apiListDaysAsMap();
+  var entries = await apiListEntries();
 
   Object.keys(storedDays).forEach(function (date) {
     var record = storedDays[date] || {};
@@ -39,7 +31,7 @@ export function getDensityData() {
     if (hasReflection(record.nightReflection)) addActivity(day, "reflection", 1, "dailyReflections");
 
     addExplicitCollection(day, record.activities, "activities");
-    addExplicitCollection(day, record.tasks, "tasks");
+    addExplicitCollection(day, (record.tasks || []).filter(function (t) { return t && t.completed; }), "tasks");
     addTextTags(day, record.morning && record.morning.mainFocus, "taggedFocus");
   });
 
@@ -50,8 +42,9 @@ export function getDensityData() {
     addTextTags(day, entry.text, "taggedEntries");
   });
 
-  addPomodoroDays(days);
-  addGoalCompletions(days);
+  await addHabitDays(days);
+  addPomodoroDays(days, await getPomodoroHistory());
+  await addGoalCompletions(days);
 
   var records = Object.keys(days)
     .sort()
@@ -67,8 +60,8 @@ export function getDensityData() {
   };
 }
 
-export function calculateDensityStats(data, range) {
-  var density = data || getDensityData();
+export async function calculateDensityStats(data, range) {
+  var density = data || (await getDensityData());
   var dates = range || getViewDates(state.view);
   var dayByDate = mapDays(density.days);
   var totals = emptyCategories();
@@ -105,13 +98,13 @@ export function calculateDensityStats(data, range) {
   };
 }
 
-export function renderDensityMap() {
+export async function renderDensityMap() {
   var container = document.getElementById("densityMapSection");
   if (!container) return;
 
-  var density = getDensityData();
+  var density = await getDensityData();
   var dates = getViewDates(state.view);
-  var stats = calculateDensityStats(density, dates);
+  var stats = await calculateDensityStats(density, dates);
 
   container.innerHTML = renderMap(density, stats);
   container.onclick = handleClick;
@@ -172,8 +165,8 @@ function renderEmptyState() {
   return `
     <div class="density-empty">
       <div class="section-label">your density map is empty</div>
-      <p>Every logged day adds another pixel to your story.</p>
-      <p class="density-empty-note">Pomodoro focus, written reflections, and explicitly tagged activities will appear here.</p>
+      <p>Log an activity, finish a tagged task, or run a focus session and it shows up here.</p>
+      <p class="density-empty-note">Tip: write #fitness or #faith in an entry to tag it.</p>
     </div>
   `;
 }
@@ -204,7 +197,7 @@ function renderDayHeader(date) {
 function renderDensityCell(date, category, value, peak) {
   var level = densityLevel(value, peak);
   var label = category.label + " · " + formatDateLabel(date) + " · " + (value ? formatNumber(value) + " activity signals" : "no signal");
-  return `<i class="density-cell density-level-${level}" title="${label}" aria-label="${label}"></i>`;
+  return `<button type="button" class="density-cell density-level-${level}" data-date="${date}" title="${label}" aria-label="${label}"></button>`;
 }
 
 function renderInsights(stats) {
@@ -242,15 +235,18 @@ function summaryItem(label, value) {
 }
 
 function handleClick(event) {
+  var cell = event.target.closest(".density-cell[data-date]");
+  if (cell) {
+    openDayViewer(cell.getAttribute("data-date"));
+    return;
+  }
   var button = event.target.closest("[data-density-view]");
   if (!button) return;
   state.view = button.getAttribute("data-density-view");
   renderDensityMap();
 }
 
-function addPomodoroDays(days) {
-  var pomodoro = loadPomodoroData();
-  var history = pomodoro && pomodoro.days ? pomodoro.days : {};
+function addPomodoroDays(days, history) {
 
   Object.keys(history).forEach(function (date) {
     var focusMs = Number(history[date] && history[date].focusMs) || 0;
@@ -261,8 +257,8 @@ function addPomodoroDays(days) {
   });
 }
 
-function addGoalCompletions(days) {
-  getGoals().forEach(function (goal) {
+async function addGoalCompletions(days) {
+  (await getGoals()).forEach(function (goal) {
     if (!goal.completed || !goal.completedAt || !isCategory(goal.activityCategory)) return;
     var day = ensureDay(days, dateKey(goal.completedAt));
     addActivity(day, goal.activityCategory, 1, "completedGoals");
@@ -306,11 +302,27 @@ function ensureDay(days, date) {
         taggedFocus: 0,
         activities: 0,
         tasks: 0,
+        habits: 0,
         completedGoals: 0
       }
     };
   }
   return days[date];
+}
+
+/* a checked habit with a life area counts once for that day */
+async function addHabitDays(days) {
+  try {
+    var habits = await apiListHabits(true);
+    var area = {};
+    habits.forEach(function (h) { if (h.category) area[h.id] = h.category; });
+    if (!Object.keys(area).length) return;
+    (await apiHabitLogs()).forEach(function (l) {
+      if (area[l.habitId]) addActivity(ensureDay(days, l.date), area[l.habitId], 1, "habits");
+    });
+  } catch (e) {
+    // an older server without habits: skip them
+  }
 }
 
 function addActivity(day, category, units, source) {
@@ -446,11 +458,3 @@ function copyCategory(category) {
   return Object.assign({}, category);
 }
 
-function loadPomodoroData() {
-  try {
-    var raw = localStorage.getItem(POMODORO_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    return null;
-  }
-}

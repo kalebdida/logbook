@@ -1,0 +1,27 @@
+# Render Blueprint: the Logbook server (API + the app itself) on Render's
+# free web service, with the database on Neon (free Postgres that doesn't
+# expire). See docs/HOSTING.md.
+#
+# Render's free instances sleep after 15 idle minutes and take about a
+# minute to wake. The app handles that: it waits for the server, and in the
+# meantime nothing you type is lost.
+services:
+  - type: web
+    name: logbook
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL          # paste the Neon connection string
+        sync: false
+      - key: LOGBOOK_PASSWORD      # the password you'll log in with
+        sync: false
+      - key: LOGBOOK_SECRET        # signs login tokens
+        generateValue: true
+      - key: LOGBOOK_ENVIRONMENT
+        value: production
+      - key: LOGBOOK_AI_API_KEY    # optional: an Anthropic key, so AI works from any device
+        sync: false

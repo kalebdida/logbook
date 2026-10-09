@@ -1,0 +1,41 @@
+# Builds an installable Android APK in the cloud: no Android Studio needed.
+# Run it from the Actions tab ("Run workflow"), or push a tag like v2.1.0.
+# Download the APK from the run's "Artifacts" section, copy it to your
+# phone, and open it (allow "install unknown apps" for your file manager).
+name: android apk
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: python scripts/build_web.py
+      - run: npx cap add android
+      - name: app icon and splash screen
+        run: npm run android:icons
+        continue-on-error: true
+      - run: npx cap sync android
+      - name: build debug apk
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: logbook-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

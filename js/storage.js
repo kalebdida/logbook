@@ -1,6 +1,8 @@
-export var STORAGE_KEY = "logbook-entries";
-export var DAYS_STORAGE_KEY = "logbook-days";
-export var GOALS_STORAGE_KEY = "logbook-goals";
+/*
+  Data now lives on the backend (see api.js). What's left here is
+  browser-only: a storage check (sessionStorage drafts and the pomodoro
+  timer still use it) and the JSON export/import file helpers.
+*/
 
 export function storageWorks() {
   try {
@@ -9,24 +11,6 @@ export function storageWorks() {
     var ok = localStorage.getItem(k) === "1";
     localStorage.removeItem(k);
     return ok;
-  } catch (e) {
-    return false;
-  }
-}
-
-export function loadEntries() {
-  try {
-    var raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-export function saveEntries(entries) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    return true;
   } catch (e) {
     return false;
   }
@@ -51,7 +35,7 @@ export function readImportFile(file) {
     reader.onload = function () {
       try {
         var parsed = JSON.parse(reader.result);
-        if (!Array.isArray(parsed)) throw new Error("not an array");
+        if (!parsed || typeof parsed !== "object") throw new Error("not a logbook file");
         resolve(parsed);
       } catch (e) {
         reject(e);
@@ -62,40 +46,4 @@ export function readImportFile(file) {
     };
     reader.readAsText(file);
   });
-}
-
-export function loadDays() {
-  try {
-    var raw = localStorage.getItem(DAYS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-export function saveDays(days) {
-  try {
-    localStorage.setItem(DAYS_STORAGE_KEY, JSON.stringify(days));
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-export function loadGoals() {
-  try {
-    var raw = localStorage.getItem(GOALS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-export function saveGoals(goals) {
-  try {
-    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
-    return true;
-  } catch (e) {
-    return false;
-  }
 }

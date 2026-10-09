@@ -1,4 +1,8 @@
 import { dateKey } from "./dayRecord.js";
+import { apiRecordPomodoroSession, apiListPomodoroDays } from "./api.js";
+import { getPrefs } from "./prefs.js";
+import { emitChange } from "./bus.js";
+import { toast } from "./toast.js";
 
 export var POMODORO_STORAGE_KEY = "logbook-pomodoro";
 
@@ -25,21 +29,21 @@ var lastSavedAt = 0;
 var globalListenersAttached = false;
 
 /*
-  Call once from app.js after #pomodoroSection exists.
-
-  Optional durations are set once, on the first run only:
-  renderPomodoro({ focus: 50, shortBreak: 10, longBreak: 20 });
+  Call once from app.js after #pomodoroSection exists. Timer lengths come
+  from settings (prefs.js); the live timer itself stays in this browser so
+  it keeps ticking offline, and each finished focus block is also sent to
+  the backend.
 */
-export function renderPomodoro(durations) {
+export function renderPomodoro() {
   var container = document.getElementById("pomodoroSection");
   if (!container) return;
 
-  ensureState(durations);
+  ensureState(prefDurations());
   if (syncTimer()) saveState();
 
   container.innerHTML = `
     <div class="pomodoro-card" data-pomodoro-mode="focus">
-      <div class="daily-section-title">// lock-in</div>
+      <h3 class="daily-section-title">lock-in</h3>
 
       <div class="pomodoro-mode-row" role="group" aria-label="Timer mode">
         <button class="tool-btn" type="button" data-pomodoro-action="mode" data-mode="focus">focus</button>
@@ -47,8 +51,10 @@ export function renderPomodoro(durations) {
         <button class="tool-btn" type="button" data-pomodoro-action="mode" data-mode="longBreak">long break</button>
       </div>
 
-      <div class="pomodoro-timer" id="pomodoroTime" role="timer" aria-live="polite">25:00</div>
-      <div class="pomodoro-status" id="pomodoroStatus">focus ready</div>
+      <div class="pomodoro-dial" id="pomodoroRing">
+        <div class="pomodoro-timer" id="pomodoroTime" role="timer">25:00</div>
+        <div class="pomodoro-status" id="pomodoroStatus" aria-live="polite">focus ready</div>
+      </div>
 
       <div class="pomodoro-summary">
         <span id="pomodoroSessions">sessions today: 0</span>
@@ -79,10 +85,82 @@ export function getPomodoroStats() {
   return statsSnapshot();
 }
 
+function prefDurations() {
+  var p = getPrefs();
+  return { focus: p.focusMinutes, shortBreak: p.shortBreakMinutes, longBreak: p.longBreakMinutes };
+}
+
 function ensureState(durations) {
   if (state) return;
   state = loadState() || createState(durations);
+  state.settings = Object.assign({}, state.settings, durations || prefDurations());
   ensureToday();
+}
+
+/* Called when timer lengths change in settings. A timer that hasn't
+   started picks up the new length right away; a running or paused one
+   keeps its current length and the next one uses the new setting. */
+export function applyPomodoroDurations() {
+  if (!state) return;
+  state.settings = Object.assign({}, state.settings, prefDurations());
+  if (state.timer.status === "ready") state.timer = createTimer(state.timer.mode, state.settings);
+  saveState();
+  updateView();
+}
+
+/* Focus history per day: what this browser recorded, merged with what the
+   backend has (the larger number wins), so clearing browser storage or
+   switching browsers doesn't erase your history. */
+var backendDays = {};
+
+export async function getPomodoroHistory() {
+  ensureState();
+  if (syncTimer()) saveState();
+  var merged = {};
+  Object.keys(state.days).forEach(function (d) {
+    merged[d] = { sessions: state.days[d].sessions, focusMs: state.days[d].focusMs };
+  });
+  try {
+    (await apiListPomodoroDays()).forEach(function (row) {
+      backendDays[row.date] = { sessions: row.sessions, focusMs: row.focus_ms };
+      var local = merged[row.date] || { sessions: 0, focusMs: 0 };
+      merged[row.date] = { sessions: Math.max(local.sessions, row.sessions), focusMs: Math.max(local.focusMs, row.focus_ms) };
+    });
+    updateView();
+  } catch (e) {}
+  return merged;
+}
+
+/* Today's focus, taking the larger of this browser's count and the
+   backend's (another device, or cleared browser storage). */
+export function getTodayFocus() {
+  ensureState();
+  var key = dateKey(new Date());
+  var today = dayStats(key);
+  var remote = backendDays[key] || { sessions: 0, focusMs: 0 };
+  return {
+    sessions: Math.max(today.sessions, remote.sessions),
+    focusMs: Math.max(today.focusMs, remote.focusMs),
+    running: state.timer.status === "running",
+    mode: state.timer.mode
+  };
+}
+
+export function toggleFocusFromAnywhere() {
+  ensureState();
+  if (state.timer.status === "running") {
+    pauseTimer();
+    return "paused";
+  }
+  startFocusFromAnywhere();
+  return "started";
+}
+
+export function startFocusFromAnywhere() {
+  ensureState();
+  if (state.timer.status === "running") return;
+  if (state.timer.mode !== "focus" && state.timer.status === "ready") state.timer = createTimer("focus", state.settings);
+  startTimer();
 }
 
 function createState(durations) {
@@ -116,12 +194,38 @@ function createTimer(mode, settings) {
 }
 
 function loadState() {
+  var parsed = null;
   try {
     var raw = localStorage.getItem(POMODORO_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    parsed = raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
   }
+  if (!parsed || typeof parsed !== "object") return null;
+
+  // Repair anything missing or malformed instead of crashing on it; keep
+  // whatever focus history is there.
+  var fresh = createState(prefDurations());
+  var days = parsed.days && typeof parsed.days === "object" ? parsed.days : {};
+  Object.keys(days).forEach(function (d) {
+    var v = days[d] || {};
+    days[d] = { sessions: Math.max(0, Number(v.sessions) || 0), focusMs: Math.max(0, Number(v.focusMs) || 0) };
+  });
+  var timer = parsed.timer;
+  var timerOk = timer && MODE_LABELS[timer.mode] && ["ready", "running", "paused"].indexOf(timer.status) >= 0 &&
+    Number.isFinite(timer.durationMs) && Number.isFinite(timer.remainingMs) &&
+    (timer.status !== "running" || Number.isFinite(timer.endsAt));
+  return {
+    version: 1,
+    settings: Object.assign({}, fresh.settings, parsed.settings || {}),
+    lastActiveDate: typeof parsed.lastActiveDate === "string" ? parsed.lastActiveDate : fresh.lastActiveDate,
+    days: days,
+    totals: {
+      sessions: Math.max(0, Number(parsed.totals && parsed.totals.sessions) || 0),
+      focusMs: Math.max(0, Number(parsed.totals && parsed.totals.focusMs) || 0)
+    },
+    timer: timerOk ? timer : fresh.timer
+  };
 }
 
 function saveState() {
@@ -217,6 +321,7 @@ function pauseTimer() {
   stopTicking();
   saveState();
   updateView();
+  emitPomodoroEvent("paused");
 }
 
 function resetTimer(reason) {
@@ -256,11 +361,23 @@ function completeTimer(completedAt, recovered, skipped) {
   stopTicking();
 
   if (completedMode === "focus") {
-    var stats = dayStats(dateKey(new Date(completedAt)));
+    var completedDay = dateKey(new Date(completedAt));
+    var stats = dayStats(completedDay);
     stats.sessions++;
     stats.focusMs += state.timer.durationMs;
     state.totals.sessions++;
     state.totals.focusMs += state.timer.durationMs;
+
+    // Local state above stays the source of truth for "sessions today"
+    // and the live timer, both of which need to work instantly and
+    // offline. This is a fire-and-forget report to the backend on top of
+    // that, not a replacement for it, a failed request here shouldn't
+    // interrupt a running timer.
+    apiRecordPomodoroSession(completedDay, state.timer.durationMs).then(function (row) {
+      if (row) backendDays[row.date] = { sessions: row.sessions, focusMs: row.focus_ms };
+    }).catch(function (e) {
+      console.warn("logbook: failed to report pomodoro session to backend", e);
+    });
 
     var nextBreak = state.totals.sessions % LONG_BREAK_EVERY === 0 ? "longBreak" : "shortBreak";
     state.timer = createTimer(nextBreak, state.settings);
@@ -270,12 +387,59 @@ function completeTimer(completedAt, recovered, skipped) {
 
   ensureToday();
   saveState();
+  // background tabs tick slowly, so a timer can be noticed a little late;
+  // still announce it unless it ended long ago (e.g. the laptop was asleep)
+  if (!recovered || Date.now() - completedAt < 120000) announce(completedMode, skipped);
+  emitChange("focus");
   emitPomodoroEvent(completedMode === "focus" ? "focus-completed" : "break-completed", {
     completedMode: completedMode,
     completedAt: completedAt,
     recovered: Boolean(recovered),
     skipped: Boolean(skipped)
   });
+}
+
+function announce(completedMode, skipped) {
+  if (skipped) return;
+  var message = completedMode === "focus" ? "focus block done. take a break." : "break's over. ready to focus?";
+  toast(message);
+  var prefs = getPrefs();
+  if (prefs.sound) chime(completedMode === "focus" ? [660, 880, 990] : [880, 660]);
+  if (prefs.notifications && "Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
+    try { new Notification("logbook", { body: message, tag: "logbook-pomodoro" }); } catch (e) {}
+  }
+}
+
+var audioCtx = null;
+function chime(notes) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    var t = audioCtx.currentTime;
+    notes.forEach(function (freq, i) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = "square";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + i * 0.16);
+      gain.gain.exponentialRampToValueAtTime(0.06, t + i * 0.16 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.16 + 0.14);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t + i * 0.16);
+      osc.stop(t + i * 0.16 + 0.15);
+    });
+  } catch (e) {}
+}
+
+var baseTitle = null;
+function updateTabTitle() {
+  if (!state) return;
+  if (state.timer.status === "running") {
+    if (baseTitle === null) baseTitle = document.title;
+    document.title = formatTime(Math.ceil(remainingMs() / 1000)) + " " + MODE_LABELS[state.timer.mode] + " · logbook";
+  } else if (baseTitle !== null) {
+    document.title = baseTitle;
+    baseTitle = null;
+  }
 }
 
 function startTicking() {
@@ -321,7 +485,7 @@ function updateView() {
   var timer = state.timer;
   var isRunning = timer.status === "running";
   var isBreak = timer.mode !== "focus";
-  var today = dayStats(dateKey(new Date()));
+  var today = getTodayFocus();
 
   card.setAttribute("data-pomodoro-mode", timer.mode);
   document.getElementById("pomodoroStatus").textContent = statusText();
@@ -343,9 +507,16 @@ function updateView() {
 }
 
 function updateClock() {
+  updateTabTitle();
   var time = document.getElementById("pomodoroTime");
   if (!time || !state) return;
-  time.textContent = formatTime(Math.ceil(remainingMs() / 1000));
+  var secs = Math.ceil(remainingMs() / 1000);
+  time.textContent = formatTime(secs);
+  var ring = document.getElementById("pomodoroRing");
+  if (ring) {
+    var frac = state.timer.durationMs ? 1 - (secs * 1000) / state.timer.durationMs : 0;
+    ring.style.setProperty("--progress", Math.max(0, Math.min(1, frac)).toFixed(4));
+  }
 }
 
 function statusText() {

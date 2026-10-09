@@ -1,144 +1,194 @@
-import { formatDate } from './utils.js';
-import { storageWorks, loadEntries, saveEntries, exportEntries, readImportFile } from './storage.js';
-import { renderConstellation, renderWeekAgo, renderEntries, createEntry, mergeImportedEntries } from './entries.js';
+import { storageWorks } from './storage.js';
+import { resolveConnection, isDevice } from './connection.js';
+import { initDeviceStore, deviceStorageIsPersistent } from './deviceStore.js';
+import { apiAuthStatus, request } from './api.js';
+import { showLock } from './lock.js';
+import { getPrefs } from './prefs.js';
+import { onChange } from './bus.js';
+import { initNavigation, currentPage } from './navigation.js';
+import { loadEntries, getEntries, renderJournal, wireJournal, revealEntry } from './journal.js';
+import { renderConstellation, renderWeekAgo } from './entries.js';
 import { renderStats } from './stats.js';
 import { renderVerse } from './verse.js';
-import { startMatrixRain } from './rain.js';
-import { renderHeader, updateSaveButtonState, showImportStatus, showStorageWarning, startBoot } from './ui.js';
+import { startBackground } from './background.js';
+import { initThemes } from './themes.js';
+import { startReminders } from './reminders.js';
+import { startMusic } from './music.js';
+import { renderHabits } from './habits.js';
+import { startPWA } from './pwa.js';
+import { showStorageWarning, startBoot } from './ui.js';
+import { renderTodayConsole, refreshReadout } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
-import { dateKey } from './dayRecord.js';
-import { renderCalendar } from "./calendar.js";
-import { renderPomodoro } from "./pomodoro.js";
-import { renderGoals } from "./goals.js";
-import { renderDensityMap } from "./densityMap.js";
-import { renderAnalytics } from "./analytics.js";
+import { renderCalendar } from './calendar.js';
+import { renderPomodoro } from './pomodoro.js';
+import { renderGoals, invalidateGoals } from './goals.js';
+import { renderDensityMap } from './densityMap.js';
+import { renderAnalytics } from './analytics.js';
+import { renderCompanion } from './companion.js';
+import { renderSettings, refreshDbStatus } from './settings.js';
+import { initPalette } from './palette.js';
+import { checkBackend, startStatusWatch, onStatus } from './status.js';
+import { navigateTo } from './navigation.js';
 
-var state = { entries: [], mood: null, expandedId: null, query: "", filterStatus: null };
-
-function refreshAll() {
-  renderHeader(state.entries.length);
-  renderStats(state.entries);
-  renderConstellation(state.entries);
-  renderWeekAgo(state.entries, handleWeekAgoExpand);
-  renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
+function applyLook() {
+  var p = getPrefs();
+  document.body.classList.toggle("no-scanlines", !p.scanlines);
 }
 
-function openViewerForEntryId(id) {
-  var entry = state.entries.find(function (e) { return e.id === id; });
-  if (!entry) return;
-  openDayViewer(dateKey(entry.date));
+function renderEntryViews() {
+  var entries = getEntries();
+  renderStats(entries);
+  renderConstellation(entries);
+  renderWeekAgo(entries, openDayViewer);
 }
 
-function handleWeekAgoExpand(id) {
-  state.expandedId = id;
-  renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
-  setTimeout(function () {
-    var card = document.querySelector('.entry-card[data-id="' + id + '"]');
-    if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 50);
-  openViewerForEntryId(id);
+/* Heavy views (they re-read everything from the backend) refresh at most
+   once per burst of changes. */
+var heavyTimer = null;
+function refreshHeavy() {
+  clearTimeout(heavyTimer);
+  heavyTimer = setTimeout(function () {
+    renderDensityMap().catch(warn);
+    renderAnalytics().catch(warn);
+    renderCalendar().catch(warn);
+    if (currentPage() === "companion") renderCompanion(true).catch(warn);
+  }, 400);
 }
 
-function handleSave() {
-  var textEl = document.getElementById("entryText");
-  var textVal = textEl.value.trim();
-  if (!state.mood || !textVal) return;
-  var entry = createEntry(state.mood, textVal);
-  state.entries.unshift(entry);
-  var ok = saveEntries(state.entries);
-  document.getElementById("saveStatus").textContent = ok ? "" : "write failed, try again";
-  textEl.value = "";
-  state.mood = null;
-  Array.prototype.forEach.call(document.querySelectorAll(".mood-btn"), function (b) { b.classList.remove("active"); });
-  updateSaveButtonState(state.mood);
-  refreshAll();
+function warn(e) {
+  console.warn("logbook:", e);
 }
 
-function wireEvents() {
-  Array.prototype.forEach.call(document.querySelectorAll(".mood-btn"), function (btn) {
-    btn.addEventListener("click", function () {
-      state.mood = btn.getAttribute("data-mood");
-      Array.prototype.forEach.call(document.querySelectorAll(".mood-btn"), function (b) { b.classList.remove("active"); });
-      btn.classList.add("active");
-      updateSaveButtonState(state.mood);
-    });
-  });
-
-  document.getElementById("entryText").addEventListener("input", function () {
-    updateSaveButtonState(state.mood);
-  });
-  document.getElementById("saveBtn").addEventListener("click", handleSave);
-
-  document.getElementById("searchInput").addEventListener("input", function (e) {
-    state.query = e.target.value;
-    renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
-  });
-
-  Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (chip) {
-    chip.addEventListener("click", function () {
-      var s = chip.getAttribute("data-status");
-      state.filterStatus = state.filterStatus === s ? null : s;
-      Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (c) { c.classList.remove("active"); });
-      if (state.filterStatus) chip.classList.add("active");
-      renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
-    });
-  });
-
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    exportEntries(state.entries);
-  });
-  document.getElementById("importBtn").addEventListener("click", function () {
-    document.getElementById("importFile").click();
-  });
-  document.getElementById("importFile").addEventListener("change", function (e) {
-    var file = e.target.files[0];
-    e.target.value = "";
-    if (!file) return;
-    readImportFile(file)
-      .then(function (parsed) {
-        var result = mergeImportedEntries(state.entries, parsed);
-        state.entries = result.entries;
-        saveEntries(state.entries);
-        refreshAll();
-        showImportStatus("imported " + result.added + " new entr" + (result.added === 1 ? "y" : "ies"));
-      })
-      .catch(function () {
-        showImportStatus("import failed: invalid file");
-      });
-  });
-
-  document.getElementById("entriesList").addEventListener("click", function (e) {
-    var card = e.target.closest(".entry-card");
-    if (!card) return;
-    var id = card.getAttribute("data-id");
-    var opening = state.expandedId !== id;
-    state.expandedId = opening ? id : null;
-    renderEntries(state.entries, state.query, state.filterStatus, state.expandedId);
-    if (opening) openViewerForEntryId(id);
-  });
+async function renderEverything() {
+  safe("journal", renderJournal);
+  safe("overview", renderEntryViews);
+  safe("today console", renderTodayConsole);
+  await Promise.all([
+    renderDailyPage(),
+    renderHabits(),
+    renderGoals(),
+    renderCalendar()
+  ].map(function (p) { return Promise.resolve(p).catch(warn); }));
+  safe("today console", refreshReadout);
+  await Promise.all([renderDensityMap(), renderAnalytics()].map(function (p) { return p.catch(warn); }));
+  safe("today console", refreshReadout); // focus totals from the backend are known now
 }
 
-function init() {
-  state.entries = loadEntries();
-
-  if (!storageWorks()) {
-    showStorageWarning();
+/* One broken module should never stop the rest of the app from starting. */
+function safe(label, fn) {
+  try {
+    return fn();
+  } catch (e) {
+    console.error("logbook: " + label + " failed to start", e);
   }
+}
 
-  document.getElementById("todayDate").textContent = formatDate(new Date().toISOString());
-  renderVerse();
-  refreshAll();
-  renderDailyPage();
-  renderCalendar();
-  renderPomodoro();
-  renderGoals();
-  renderDensityMap();
-  renderAnalytics();
-  wireEvents();
+async function init() {
+  safe("theme", initThemes);
+  safe("offline + install", startPWA);
+  safe("look", applyLook);
+  if (!storageWorks()) showStorageWarning();
+  safe("navigation", initNavigation);
+  safe("command palette", initPalette);
+  safe("background", startBackground);
+  safe("verse", renderVerse);
+  safe("focus timer", renderPomodoro);
+  Promise.resolve(safe("music", startMusic)).catch(warn);
+  safe("settings", renderSettings);
+  safe("journal", wireJournal);
 
-  startMatrixRain();
-  startBoot(state.entries.length);
+  // where does the data live? (server, or this device)
+  await resolveConnection();
+  document.body.dataset.mode = isDevice() ? "device" : "server";
+  if (isDevice()) {
+    await initDeviceStore();
+    // the Android app keeps its storage until the app is uninstalled; browsers may clear it
+    if (!deviceStorageIsPersistent() && !window.Capacitor) showStorageWarning("device");
+  } else {
+    try {
+      var auth = await apiAuthStatus();
+      if (auth.required && !auth.authenticated) await showLock();
+    } catch (e) {
+      // server unreachable: checkBackend below shows the warning
+    }
+  }
+  // handy for debugging in the browser console, and used by the tests
+  window.__logbook = { request: request, mode: isDevice() ? "device" : "server" };
+
+  var online = await checkBackend();
+  if (online) {
+    try {
+      await loadEntries();
+    } catch (e) {
+      warn(e);
+    }
+  }
+  startBoot(getEntries().length);
+  if (online) await renderEverything();
+  startStatusWatch();
+  safe("reminders", startReminders);
+
+  // when the backend comes back after being down, load everything fresh
+  onStatus(async function (ok, wasOffline) {
+    if (ok && wasOffline) {
+      await loadEntries().catch(warn);
+      invalidateGoals();
+      await renderEverything();
+    }
+  });
+
+  onChange(async function (change) {
+    if (change.kind === "import") {
+      await loadEntries().catch(warn);
+      invalidateGoals();
+      renderJournal();
+      renderEntryViews();
+      await renderGoals().catch(warn);
+      await renderDailyPage().catch(warn);
+      await renderHabits().catch(warn);
+      refreshReadout();
+      refreshDbStatus();
+    }
+    if (change.kind === "entries") renderEntryViews();
+    refreshHeavy();
+  });
+
+  document.addEventListener("logbook:auth-required", async function () {
+    await showLock("expired");
+    await loadEntries().catch(warn);
+    invalidateGoals();
+    await renderEverything();
+  });
+
+  document.addEventListener("logbook:navigated", function (e) {
+    if (e.detail.page === "companion") renderCompanion().catch(warn);
+    if (e.detail.page === "settings") refreshDbStatus();
+  });
+  if (currentPage() === "companion") renderCompanion(true).catch(warn);
+
+  document.addEventListener("logbook:prefs-changed", function (e) {
+    applyLook();
+    if ("name" in e.detail.patch) refreshReadout();
+  });
+
+  // stars in the constellation jump to their entry
+  document.getElementById("constellation").addEventListener("click", function (e) {
+    var star = e.target.closest("[data-entry-id]");
+    if (!star) return;
+    navigateTo("journal");
+    setTimeout(function () { revealEntry(star.getAttribute("data-entry-id")); }, 60);
+  });
+
+  // a new day started while the tab was open: reload today's views
+  var day = new Date().toDateString();
+  setInterval(function () {
+    if (new Date().toDateString() !== day) {
+      day = new Date().toDateString();
+      renderVerse();
+      renderEverything();
+    }
+  }, 60000);
 }
 
 if (document.readyState === "loading") {

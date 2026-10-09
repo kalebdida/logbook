@@ -29,3 +29,10 @@ export function dayOfYear(d) {
   var diff = d - start;
   return Math.floor(diff / 86400000);
 }
+
+/* form.requestSubmit() with a fallback for older Safari */
+export function submitForm(form) {
+  if (!form) return;
+  if (typeof form.requestSubmit === "function") form.requestSubmit();
+  else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+}
