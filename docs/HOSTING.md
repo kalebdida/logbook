@@ -72,6 +72,30 @@ import a file, and pick a backup downloaded from your local copy. Or, from a
 device-mode copy: settings → where your data lives → connect to a server
 (with "copy what's here" on).
 
+**Backups (do this, it's a journal)**
+
+Neon only keeps a short restore window on the free plan, so the repo backs
+the database up itself: `.github/workflows/backup.yml` runs every Sunday,
+dumps everything, encrypts it with your passphrase (AES-256) and keeps it 90
+days as a workflow artifact. The repo is public; only the encrypted file is
+uploaded.
+
+1. Repo **Settings → Secrets and variables → Actions → New repository secret**:
+   - `DATABASE_URL`: the same Neon string
+   - `BACKUP_PASSPHRASE`: a long passphrase. Save it in your password manager:
+     without it the backups can't be opened by anyone, including you.
+2. **Actions → database backup → Run workflow** once to check it works.
+
+To restore: download the artifact from a run, then
+
+```bash
+gpg -d logbook-2026-10-11.dump.gpg > logbook.dump       # asks for the passphrase
+pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" logbook.dump
+```
+
+The in-app export (settings → your data) is a second, readable copy. Download
+one now and then too.
+
 ## 3. Any other host (Docker)
 
 `Dockerfile` builds one image with the API and the app. Data goes in `/data`
