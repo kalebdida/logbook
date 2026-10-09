@@ -7,21 +7,19 @@ on:
 jobs:
   api:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: logbook
-          POSTGRES_PASSWORD: logbook
-          POSTGRES_DB: logbook_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U logbook" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      # GitHub's Ubuntu runners come with PostgreSQL installed (stopped). Using
+      # it instead of a Docker service means no Docker Hub pull that can fail.
+      - name: start postgres
+        run: |
+          sudo systemctl start postgresql.service
+          for i in $(seq 1 20); do pg_isready && break; sleep 1; done
+          sudo -u postgres psql -c "CREATE USER logbook WITH PASSWORD 'logbook';"
+          sudo -u postgres psql -c "CREATE DATABASE logbook_test OWNER logbook;"
       - run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
       - name: sqlite
         working-directory: backend
