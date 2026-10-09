@@ -1,8 +1,16 @@
 name: tests
 
+# Once per change: on main (the work branch is fast-forwarded into it), on
+# pull requests, or by hand from the Actions tab.
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   api:

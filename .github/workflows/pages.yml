@@ -1,5 +1,7 @@
 # Publishes the web app to GitHub Pages on every push to main.
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions".
+# Until that's done, this workflow skips the deploy with a note instead of
+# failing (so it doesn't email you a failure on every push).
 # The Pages copy runs in device mode (data stays in each browser) and can
 # connect to your Logbook server from settings.
 name: web app (GitHub Pages)
@@ -19,7 +21,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          code=$(curl -s -o pages.json -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/pages")
+          if [ "$code" = "404" ]; then
+            echo "::notice title=GitHub Pages is off::Turn it on once: repo Settings → Pages → Source: GitHub Actions. Then re-run this workflow (or push). Skipping the deploy for now."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            # 200 (on), or anything unexpected: try the deploy and let it report
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
