@@ -70,9 +70,10 @@ without a password, and documents which site is yours.
 
 ### 3. GitHub Pages (the front door)
 
-1. Repo **Settings → Secrets and variables → Actions → Variables → New
-   repository variable**: name `LOGBOOK_API_URL`, value your Render address
-   (`https://logbook-xxxx.onrender.com`, no trailing slash).
+1. Point the build at your server. This repo's workflows already default to
+   `https://logbook-lt30.onrender.com`; for a different server, set a repo
+   variable **Settings → Secrets and variables → Actions → Variables**:
+   `LOGBOOK_API_URL`, your Render address with no trailing slash.
 2. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Push to `main`, or run **Actions → web app (GitHub Pages) → Run workflow**.
    The site appears at `https://<your-username>.github.io/<repo>/`.
@@ -85,7 +86,7 @@ browser's first visit uses it and remembers the choice. If a browser opened
 the Pages copy before you set the variable, it remembered "this device"
 instead: switch it in settings → where your data lives → connect to a server.
 
-Without `LOGBOOK_API_URL`, the Pages copy runs in **device mode**: everything
+Built with no server address at all, the Pages copy runs in **device mode**: everything
 is saved in that browser (IndexedDB), it works offline, and it can be
 installed as an app. Back it up from settings now and then, because clearing
 the browser's site data deletes it.
@@ -120,7 +121,16 @@ the repo; the setting is enough.
    **Get API key → Create API key**, and copy it.
 2. On Render, set `LOGBOOK_AI_API_KEY` to that key. `LOGBOOK_AI_PROVIDER` is
    already `gemini` in `render.yaml`. Save; Render redeploys.
-3. Settings → AI companion should now say it's on, through your server.
+3. Settings → AI companion should now say it's on, through your server. The
+   server also tries the key once at startup (a free token count, no reply
+   generated): `/health` shows `"ai_ok": true` when Google accepted it, and
+   the admin's AI settings say why when it didn't.
+
+Keys from AI Studio now start with `AQ.` (Google calls them auth keys; the
+older ones started with `AIza`). Logbook sends the key the way Google's own
+docs do, in an `x-goog-api-key` header to the native `generateContent` API,
+which accepts both kinds. Google's OpenAI-compatible endpoint is reported to
+reject `AQ.` keys, so Logbook doesn't use it for Gemini.
 
 The default model is `gemini-3.5-flash-lite`. For stronger answers set
 `LOGBOOK_AI_MODEL=gemini-3.8-flash` (also on the free tier, with lower daily
@@ -136,9 +146,9 @@ Gemini, and paste the key. It's saved in that browser only.
 
 ### 6. Optional: keep the server awake
 
-`.github/workflows/keepwarm.yml` pings `LOGBOOK_API_URL/health` every 14
-minutes so Render doesn't put the server to sleep. It uses the same repo
-variable and does nothing when it's unset.
+`.github/workflows/keepwarm.yml` pings the server's `/health` every 10
+minutes so Render doesn't put the server to sleep (the same address as the
+Pages build: `LOGBOOK_API_URL`, or the default written in the workflow).
 
 It helps, but it isn't a guarantee. GitHub's scheduled runs are best effort:
 they often start several minutes late and some get dropped when GitHub is
