@@ -1,5 +1,6 @@
 /* Settings cards for where data lives, and for the AI companion. */
 import { getConnection, setConnection, isDevice, probeServer, describeConnection, serverBase } from './connection.js';
+import { icon } from './icons.js';
 import { serverRequest, apiLogin, apiAuthStatus } from './api.js';
 import { deviceRequest, initDeviceStore, deviceStoragePersisted } from './deviceStore.js';
 import { getAIConfig, setAIConfig, aiStatus, aiChat } from './ai.js';
@@ -26,7 +27,7 @@ export async function renderStorageCard(el) {
   }
 
   el.innerHTML =
-    '<h3 class="daily-section-title">where your data lives</h3>' +
+    '<h3 class="daily-section-title">' + icon("hard-drive") + "<span>where your data lives</span></h3>" +
     '<p class="storage-now"><span class="status-dot is-online"></span> ' +
       (device
         ? "<strong>this device.</strong> everything is saved in this browser. no server, works offline. back it up now and then."
@@ -126,7 +127,7 @@ export async function renderAICard(el) {
   var viaServer = status.via === "server";
 
   el.innerHTML =
-    '<h3 class="daily-section-title">AI companion</h3>' +
+    '<h3 class="daily-section-title">' + icon("sparkles") + "<span>AI companion</span></h3>" +
     '<p class="storage-now"><span class="status-dot ' + (status.available ? "is-online" : "") + '"></span> ' +
       (status.available
         ? "on, using <strong>" + escapeHtml(status.model || status.provider) + "</strong>" + (viaServer ? " through your server (the key stays on the server)." : " from this device.")
@@ -209,7 +210,7 @@ export function renderAppCard(el) {
   else if (ios) line = "on iPhone or iPad: tap Share, then <strong>Add to Home Screen</strong>. it opens like an app and works offline.";
   else line = "open this page in Chrome or Edge to install it as an app. it already works offline here once loaded.";
   el.innerHTML =
-    '<h3 class="daily-section-title">the app</h3>' +
+    '<h3 class="daily-section-title">' + icon("smartphone") + "<span>the app</span></h3>" +
     '<p class="storage-now">' + line + "</p>" +
     (canInstall() && !native ? '<div class="settings-actions"><button type="button" class="primary-btn" id="installApp">install logbook</button></div>' : "") +
     '<p class="setting-hint">android app (APK): built from the same code by the "android apk" GitHub action, or with <code>npm run apk</code>. see docs/ANDROID.md.</p>';

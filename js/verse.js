@@ -20,5 +20,5 @@ export var VERSES = [
 export function renderVerse() {
   var verse = VERSES[dayOfYear(new Date()) % VERSES.length];
   document.getElementById("verseText").textContent = '"' + verse.text + '"';
-  document.getElementById("verseRef").textContent = "\u00B7 " + verse.ref;
+  document.getElementById("verseRef").textContent = verse.ref;
 }

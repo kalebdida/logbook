@@ -1,5 +1,6 @@
 import { apiListActivities, apiCreateActivity, apiDeleteActivity } from './api.js';
-import { CATEGORIES, categoryById } from './categories.js';
+import { CATEGORIES, categoryById, categoryIcon } from './categories.js';
+import { icon } from './icons.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
@@ -29,12 +30,12 @@ function draw() {
   var chips = CATEGORIES.map(function (c) {
     var on = state.picked === c.id;
     return '<button type="button" class="area-chip' + (on ? " is-on" : "") + '" data-area="' + c.id + '" aria-pressed="' + on + '">' +
-      '<span aria-hidden="true">' + c.icon + "</span> " + c.label.toLowerCase() + "</button>";
+      icon(c.icon) + "<span>" + c.label.toLowerCase() + "</span></button>";
   }).join("");
 
   var list = state.items.length
     ? '<ul class="activity-list">' + state.items.map(row).join("") + "</ul>"
-    : '<p class="empty-line">nothing logged yet. pick an area, add minutes, log it.</p>';
+    : '<p class="empty-line">nothing logged yet. pick an area, say what you did, add the minutes.</p>';
 
   var total = totalMinutes();
   state.container.innerHTML =
@@ -42,7 +43,7 @@ function draw() {
     '<form class="inline-form" data-form="activity" autocomplete="off">' +
       '<input class="text-input" name="title" maxlength="300" placeholder="' + (state.picked ? "what did you do?" : "pick an area first") + '" aria-label="activity">' +
       '<input class="text-input text-input--num" name="minutes" type="number" min="1" max="1440" inputmode="numeric" placeholder="min" aria-label="minutes">' +
-      '<button type="submit" class="tool-btn"' + (state.picked ? "" : " disabled") + ">log</button>" +
+      '<button type="submit" class="tool-btn tool-btn--add"' + (state.picked ? "" : " disabled") + ">" + icon("plus") + "<span>log</span></button>" +
     "</form>" +
     list +
     (total ? '<div class="activity-total">' + formatMinutes(total) + " logged today</div>" : "");
@@ -52,10 +53,10 @@ function row(a) {
   var cat = categoryById(a.activityCategory);
   return (
     '<li class="activity-row">' +
-      '<span class="activity-icon" aria-hidden="true">' + (cat ? cat.icon : "•") + "</span>" +
+      '<span class="activity-icon" aria-hidden="true">' + (cat ? categoryIcon(cat) : icon("activity")) + "</span>" +
       '<span class="activity-title">' + escapeHtml(a.title) + "</span>" +
       (a.durationMinutes ? '<span class="activity-mins">' + formatMinutes(a.durationMinutes) + "</span>" : "") +
-      '<button type="button" class="icon-btn" data-activity-delete="' + a.id + '" aria-label="delete activity">×</button>' +
+      '<button type="button" class="icon-btn icon-btn--quiet" data-activity-delete="' + a.id + '" aria-label="delete activity">' + icon("x") + "</button>" +
     "</li>"
   );
 }

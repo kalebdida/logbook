@@ -176,7 +176,7 @@ try:
               and page.evaluate("document.documentElement.dataset.glow") == "on")
         page.click('[data-preview="keep"]')
         page.wait_for_timeout(200)
-        check("kept theme joins the gallery", page.locator(".theme-swatch").count() == 8 and page.evaluate("document.documentElement.dataset.theme").startswith("custom-"))
+        check("kept theme joins the gallery", page.locator(".theme-swatch").count() == 10 and page.evaluate("document.documentElement.dataset.theme").startswith("custom-"))
 
         page.set_input_files("#themeImportFile", str(theme_file))
         page.wait_for_selector(".theme-preview-bar:not([hidden])")
@@ -189,7 +189,7 @@ try:
         page.click('[data-te="save"]')
         page.click("#themeDefault")
         page.wait_for_timeout(200)
-        check("one tap back to the terminal default", page.evaluate("document.documentElement.dataset.theme") == "terminal")
+        check("one tap back to the night default", page.evaluate("document.documentElement.dataset.theme") == "night")
 
         # ---------- music ----------
         page.evaluate("location.hash = '#focus'")
@@ -204,7 +204,7 @@ try:
         page.click('[data-music-tab="ambient"]')
         page.click('[data-mix="3"]')
         page.wait_for_timeout(300)
-        check("ambient mix plays and takes over from the track", "brown noise" in page.text_content("#miniPlayer") and page.text_content("#playerPlay") == "▶")
+        check("ambient mix plays and takes over from the track", "brown noise" in page.text_content("#miniPlayer") and page.get_attribute("#playerPlay", "aria-label") == "play")
         page.check("#musicLinkFocus")
         page.click('[data-music="ambient-toggle"]')
         page.click("#pomodoroStart")
@@ -276,7 +276,7 @@ try:
         page2 = browser.new_context(viewport={"width": 1366, "height": 900}).new_page()
         page2.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
         page2.goto(SERVER + "/")
-        page2.wait_for_selector("#lockScreen", timeout=15000)
+        page2.wait_for_selector("#lockScreen input[type=password]", state="visible", timeout=15000)
         check("password-protected server shows a lock screen", page2.is_visible("#lockScreen input[type=password]"))
         page2.fill("#lockScreen input[type=password]", "wrong")
         page2.click("#lockScreen button[type=submit]")

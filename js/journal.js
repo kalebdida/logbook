@@ -59,7 +59,7 @@ function updateSaveButton() {
   btn.disabled = !enabled;
   btn.classList.toggle("enabled", enabled);
   var hint = document.getElementById("saveStatus");
-  if (hint && !hint.dataset.locked) hint.textContent = hasText && !state.mood ? "pick a status first" : "";
+  if (hint && !hint.dataset.locked) hint.textContent = hasText && !state.mood ? "pick how the day feels first" : "";
 }
 
 async function commitEntry() {
@@ -75,7 +75,7 @@ async function commitEntry() {
     setMood(null);
     draw();
     emitChange("entries");
-    toast("entry committed");
+    toast("entry saved");
   } catch (e) {
     btn.disabled = false;
     toast("couldn't save the entry. is the backend running?", "error");
@@ -246,7 +246,7 @@ export function wireJournal() {
   });
 }
 
-/* Used by the constellation and the command palette to jump to an entry. */
+/* Used by the command palette to jump to an entry. */
 export function revealEntry(id) {
   state.query = "";
   state.filterStatus = null;

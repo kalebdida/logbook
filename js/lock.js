@@ -3,11 +3,13 @@
 import { apiLogin, apiSignup, apiResetPassword } from './api.js';
 import { getConnection, setConnection, serverBase, describeConnection } from './connection.js';
 import { escapeHtml } from './utils.js';
+import { icon } from './icons.js';
+import { sceneSvg } from './scene.js';
 
 var waiting = null;
 
 var MODES = {
-  login: { line: "this logbook is locked.", button: "unlock" },
+  login: { line: "welcome back. log in to open your logbook.", button: "log in" },
   join: { line: "got an invite? make your account.", button: "create account" },
   reset: { line: "got a reset code from the admin? set a new password.", button: "set password" }
 };
@@ -38,10 +40,11 @@ export function showLock(reason) {
     el.id = "lockScreen";
     el.className = "lock-screen";
     el.innerHTML =
+      '<div class="lock-scene" aria-hidden="true">' + sceneSvg(window.innerWidth < window.innerHeight * 1.2 ? { crop: "peak" } : null) + "</div>" +
       '<form class="lock-panel" autocomplete="on" novalidate>' +
-        '<div class="lock-brand">logbook</div>' +
+        '<div class="lock-brand"><span class="brand-mark">' + icon("moon-star") + "</span>logbook</div>" +
         '<p class="lock-line"></p>' +
-        '<p class="lock-server">server: ' + escapeHtml(describeConnection()) + "</p>" +
+        '<p class="lock-server">' + icon("server") + "<span>" + escapeHtml(describeConnection()) + "</span></p>" +
         '<div class="lock-tabs" role="tablist">' +
           '<button type="button" class="lock-tab" data-mode="login">log in</button>' +
           '<button type="button" class="lock-tab" data-mode="join">join</button>' +
@@ -68,7 +71,7 @@ export function showLock(reason) {
     function setMode(next) {
       mode = next;
       var isNew = mode !== "login";
-      form.querySelector(".lock-line").innerHTML = "&gt; " + (mode === "login" && reason === "expired" ? "session expired. log in again." : MODES[mode].line);
+      form.querySelector(".lock-line").textContent = mode === "login" && reason === "expired" ? "you were logged out. log in again." : MODES[mode].line;
       form.querySelector("button[type=submit]").textContent = MODES[mode].button;
       form.querySelectorAll(".lock-tab").forEach(function (t) {
         t.classList.toggle("is-active", t.getAttribute("data-mode") === mode);

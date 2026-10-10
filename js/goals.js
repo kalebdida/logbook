@@ -1,4 +1,5 @@
 import { apiListGoals, apiCreateGoal, apiUpdateGoal, apiDeleteGoal } from "./api.js";
+import { icon } from "./icons.js";
 import { dateKey } from "./dayRecord.js";
 import { escapeHtml } from "./utils.js";
 import { categoryById, categoryOptions } from "./categories.js";
@@ -69,8 +70,8 @@ function renderGoalsShell() {
   return `
     <section class="goals-card" aria-label="Goals">
       <div class="goals-heading">
-        <div class="daily-section-title">// goals</div>
-        <button class="tool-btn goals-add-button" type="button" data-goal-action="add">+ add goal</button>
+        <p class="density-subtitle">the things you're climbing toward, one step at a time</p>
+        <button class="primary-btn goals-add-button" type="button" data-goal-action="add">${icon("plus")}<span>new goal</span></button>
       </div>
 
       ${renderSummary(stats)}
@@ -84,17 +85,18 @@ function renderGoalsShell() {
 function renderSummary(stats) {
   return `
     <div class="goals-summary" aria-label="Goal summary">
-      ${renderSummaryItem("today", stats.todayCompleted)}
-      ${renderSummaryItem("completion", stats.overallProgress + "%")}
-      ${renderSummaryItem("active", stats.active)}
-      ${renderSummaryItem("best streak", stats.longestCompletionStreak + " days")}
+      ${renderSummaryItem("done today", stats.todayCompleted, "circle-check")}
+      ${renderSummaryItem("overall progress", stats.overallProgress + "%", "chart-column")}
+      ${renderSummaryItem("in progress", stats.active, "flag")}
+      ${renderSummaryItem("best streak", stats.longestCompletionStreak + (stats.longestCompletionStreak === 1 ? " day" : " days"), "trophy")}
     </div>
   `;
 }
 
-function renderSummaryItem(label, value) {
+function renderSummaryItem(label, value, iconName) {
   return `
     <div class="stat-card goal-stat-card">
+      <span class="stat-icon">${icon(iconName)}</span>
       <div class="stat-label">${label}</div>
       <div class="stat-value">${value}</div>
     </div>
@@ -104,7 +106,7 @@ function renderSummaryItem(label, value) {
 function renderControls() {
   return `
     <div class="goals-controls">
-      <input id="goalSearch" class="goals-search" type="search" value="${escapeHtml(state.query)}" placeholder="search goals..." aria-label="Search goals" />
+      <label class="search-field goals-search-wrap">${icon("search")}<input id="goalSearch" class="goals-search" type="search" value="${escapeHtml(state.query)}" placeholder="search goals" aria-label="search goals" /></label>
 
       <select id="goalCategoryFilter" class="goals-select" aria-label="Filter goals by category">
         <option value="all">all categories</option>
@@ -121,8 +123,8 @@ function renderControls() {
       </select>
 
       <label class="goals-collapse-control">
-        <input id="goalHideCompleted" type="checkbox"${state.hideCompleted ? " checked" : ""} />
-        hide completed
+        <input id="goalHideCompleted" class="switch" type="checkbox"${state.hideCompleted ? " checked" : ""} />
+        <span>hide finished</span>
       </label>
     </div>
   `;
@@ -145,8 +147,8 @@ function renderEditor() {
   return `
     <form class="goals-editor" id="goalEditor">
       <div class="goals-editor-heading">
-        <div class="section-label">${existingGoal ? "edit goal" : "new goal"}</div>
-        <button class="goals-editor-close" type="button" data-goal-action="cancel" aria-label="Close goal editor">×</button>
+        <h3 class="form-title">${existingGoal ? "edit goal" : "a new goal"}</h3>
+        <button class="icon-btn goals-editor-close" type="button" data-goal-action="cancel" aria-label="close the goal editor">${icon("x")}</button>
       </div>
 
       <label class="goals-field goals-field--wide">
@@ -194,7 +196,7 @@ function renderEditor() {
 
       <div class="goals-editor-actions">
         <button class="tool-btn" type="button" data-goal-action="cancel">cancel</button>
-        <button class="tool-btn goals-save-button" type="submit">${existingGoal ? "save changes" : "create goal"}</button>
+        <button class="primary-btn goals-save-button" type="submit">${icon("check")}<span>${existingGoal ? "save changes" : "create goal"}</span></button>
       </div>
     </form>
   `;
@@ -213,14 +215,14 @@ function renderGoalListMarkup() {
 function renderEmptyState() {
   var hasGoals = state.goals.length > 0;
   var message = hasGoals
-    ? "no goals match this view. adjust your filters or search."
-    : "nothing is queued yet. define the next thing worth moving toward.";
+    ? "no goals match. try another search or filter."
+    : "no goals yet. what's one thing worth moving toward?";
 
   return `
     <div class="goals-empty">
-      <div class="section-label">clear field</div>
+      ${icon(hasGoals ? "search" : "mountain-snow")}
       <p>${message}</p>
-      ${hasGoals ? "" : '<button class="tool-btn" type="button" data-goal-action="add">+ add your first goal</button>'}
+      ${hasGoals ? "" : '<button class="primary-btn" type="button" data-goal-action="add">' + icon("plus") + "<span>add your first goal</span></button>"}
     </div>
   `;
 }
@@ -247,20 +249,21 @@ function renderGoalCard(goal) {
       ${goal.description ? `<p class="goal-description">${escapeHtml(goal.description)}</p>` : ""}
 
       <div class="goal-progress-row">
-        <div class="goal-progress" aria-label="${goal.progress}% complete">
-          <div class="goal-progress-fill" data-progress="${goal.progress}"></div>
+        <div class="goal-progress-track">
+          <div class="goal-progress" aria-hidden="true">
+            <div class="goal-progress-fill" data-progress="${goal.progress}"></div>
+          </div>
+          <input class="goal-progress-input" type="range" min="0" max="100" value="${goal.progress}" data-goal-progress="${escapeHtml(goal.id)}" aria-label="progress for ${escapeHtml(goal.title)}" />
         </div>
         <output class="goal-percent" data-goal-percent>${goal.progress}%</output>
       </div>
 
-      <input class="goal-progress-input" type="range" min="0" max="100" value="${goal.progress}" data-goal-progress="${escapeHtml(goal.id)}" aria-label="Progress for ${escapeHtml(goal.title)}" />
-
       <div class="goal-footer">
         <span class="goal-target">${renderTargetDate(goal, overdue)}</span>
         <div class="goal-actions">
-          <button class="tool-btn" type="button" data-goal-action="edit" data-goal-id="${escapeHtml(goal.id)}">edit</button>
-          <button class="tool-btn" type="button" data-goal-action="complete" data-goal-id="${escapeHtml(goal.id)}">${goal.completed ? "reopen" : "complete"}</button>
-          <button class="tool-btn goal-delete-button" type="button" data-goal-action="delete" data-goal-id="${escapeHtml(goal.id)}">delete</button>
+          <button class="icon-btn" type="button" data-goal-action="edit" data-goal-id="${escapeHtml(goal.id)}" aria-label="edit" title="edit">${icon("pencil")}</button>
+          <button class="icon-btn goal-delete-button" type="button" data-goal-action="delete" data-goal-id="${escapeHtml(goal.id)}" aria-label="delete" title="delete">${icon("trash-2")}</button>
+          <button class="tool-btn goal-complete-button" type="button" data-goal-action="complete" data-goal-id="${escapeHtml(goal.id)}">${goal.completed ? icon("rotate-ccw") + "<span>reopen</span>" : icon("check") + "<span>done</span>"}</button>
         </div>
       </div>
     </article>
@@ -269,7 +272,7 @@ function renderGoalCard(goal) {
 
 function areaTag(goal) {
   var cat = categoryById(goal.activityCategory);
-  return cat ? ' <span class="goal-area" title="' + cat.label + '">' + cat.icon + "</span>" : "";
+  return cat ? ' <span class="goal-area" title="' + cat.label + '">' + icon(cat.icon) + "</span>" : "";
 }
 
 function renderGoalBadges(goal, overdue, almostDone) {
@@ -281,8 +284,8 @@ function renderGoalBadges(goal, overdue, almostDone) {
 }
 
 function renderTargetDate(goal, overdue) {
-  if (!goal.targetDate) return "no target date";
-  return (overdue ? "overdue · " : "target · ") + formatDate(goal.targetDate);
+  if (!goal.targetDate) return "<span>no date</span>";
+  return icon(overdue ? "triangle-alert" : "calendar-days") + "<span>" + (overdue ? "was due " : "by ") + formatDate(goal.targetDate) + "</span>";
 }
 
 async function handleClick(event) {

@@ -1,4 +1,5 @@
 import { getPrefs, setPrefs, DEFAULT_PREFS } from './prefs.js';
+import { icon } from './icons.js';
 import { apiHealth, apiExportBackup, apiRestoreBackup } from './api.js';
 import { readImportFile } from './storage.js';
 import { toRestorePayload, readLegacyLocalStorage, markLegacyImported, summarizeRestore } from './backupFormats.js';
@@ -57,17 +58,18 @@ export function renderSettings() {
   el.innerHTML =
     '<div class="settings-grid">' +
     '<section class="settings-card settings-card--wide" id="settingsTheme"></section>' +
+    '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>' +
     '<section class="settings-card">' +
-      '<h3 class="daily-section-title">you</h3>' +
+      '<h3 class="daily-section-title">' + icon("user") + "<span>you</span></h3>" +
       '<label class="setting-row" for="prefName">' +
-        '<span class="setting-text"><span class="setting-label">name</span><span class="setting-hint">used in greetings and the boot screen</span></span>' +
+        '<span class="setting-text"><span class="setting-label">name</span><span class="setting-hint">used in greetings</span></span>' +
         '<input class="text-input" id="prefName" maxlength="40" value="' + escapeHtml(p.name) + '">' +
       "</label>" +
       toggle("prefAutosave", "autosave the daily page", "saves a moment after you stop typing", p.autosave) +
     "</section>" +
 
     '<section class="settings-card">' +
-      '<h3 class="daily-section-title">focus timer</h3>' +
+      '<h3 class="daily-section-title">' + icon("timer") + "<span>focus timer</span></h3>" +
       number("prefFocus", "focus", p.focusMinutes, 1, 180) +
       number("prefShort", "short break", p.shortBreakMinutes, 1, 60) +
       number("prefLong", "long break", p.longBreakMinutes, 1, 90) +
@@ -75,20 +77,24 @@ export function renderSettings() {
       toggle("prefNotify", "desktop notification", "only when the tab is in the background", p.notifications) +
     "</section>" +
 
+    '<section class="settings-card" id="settingsReminders"><h3 class="daily-section-title">' + icon("bell") + "<span>reminders</span></h3>" + renderReminderRows() + '</section>' +
     '<section class="settings-card">' +
-      '<h3 class="daily-section-title">effects</h3>' +
-      toggle("prefRain", "animated background", "rain, stars, or whatever your theme uses. off saves battery", p.rain) +
-      toggle("prefScanlines", "crt scanlines", "only on themes that have them", p.scanlines) +
-      toggle("prefBoot", "boot sequence on load", "", p.boot) +
+      '<h3 class="daily-section-title">' + icon("sparkle") + "<span>effects</span></h3>" +
+      toggle("prefRain", "moving sky", "twinkling stars, rain, snow: whatever your theme uses. off saves battery", p.rain) +
+      toggle("prefScanlines", "crt scanlines", "only on the retro themes that have them", p.scanlines) +
+      toggle("prefBoot", "boot sequence", "the terminal theme types its way in when the app opens", p.boot) +
       '<button type="button" class="link-btn" id="prefReset">reset these settings</button>' +
     "</section>" +
 
+    '<section class="settings-card" id="settingsAI"></section>' +
+    '<section class="settings-card" id="settingsApp"></section>' +
+    '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
     '<section class="settings-card settings-card--wide">' +
-      '<h3 class="daily-section-title">your data</h3>' +
+      '<h3 class="daily-section-title">' + icon("archive") + "<span>your data</span></h3>" +
       '<div class="db-status" id="dbStatus"><span class="status-dot"></span> checking the backend…</div>' +
       '<div class="settings-actions">' +
-        '<button type="button" class="primary-btn" id="backupExport">download full backup</button>' +
-        '<button type="button" class="tool-btn" id="backupImport">import a file</button>' +
+        '<button type="button" class="primary-btn" id="backupExport">' + icon("download") + "<span>download full backup</span></button>" +
+        '<button type="button" class="tool-btn" id="backupImport">' + icon("upload") + "<span>import a file</span></button>" +
         '<input type="file" id="backupFile" accept="application/json,.json" hidden>' +
       "</div>" +
       '<p class="setting-hint">a backup holds everything: entries, daily pages, tasks, activities, goals, focus history. importing never deletes or overwrites anything, so it\'s safe to import the same file twice. it accepts full backups, old journal exports, and old-version data files.</p>' +
@@ -101,15 +107,6 @@ export function renderSettings() {
       "</details>" +
     "</section>" +
 
-    '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
-    '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>' +
-    '<section class="settings-card" id="settingsAI"></section>' +
-    '<section class="settings-card" id="settingsApp"></section>' +
-    '<section class="settings-card" id="settingsReminders"><h3 class="daily-section-title">reminders</h3>' + renderReminderRows() + '</section>' +
-    '<section class="settings-card settings-card--wide settings-card--keys">' +
-      '<h3 class="daily-section-title">keyboard</h3>' +
-      '<div id="shortcutList"></div>' +
-    "</section>" +
     "</div>";
 
   wire(el);

@@ -1,23 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="night" data-background="night" data-theme-mode="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="dark" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#050806" />
+<meta name="theme-color" content="#0a1430" />
 <script>
 /* apply the saved theme before anything paints (no flash of the default look) */
 (function () {
   try {
     var s = JSON.parse(localStorage.getItem("logbook-theme-vars") || "null");
     if (!s || !s.vars) return;
+    // before 2.2 terminal was everyone's default; they move to night (themes.js)
+    var migrated = Number(localStorage.getItem("logbook-look") || 0) >= 2;
+    var saved = JSON.parse(localStorage.getItem("logbook-theme") || "null");
+    if (!migrated && (saved === "terminal" || saved === null)) return;
     var r = document.documentElement;
     for (var k in s.vars) {
       if (k === "color-scheme") r.style.colorScheme = s.vars[k];
       else r.style.setProperty(k, s.vars[k]);
     }
+    if (s.id) r.setAttribute("data-theme", s.id);
+    r.setAttribute("data-background", s.background || "none");
+    r.setAttribute("data-theme-mode", s.mode || "dark");
     r.setAttribute("data-scanlines", s.scanlines ? "on" : "off");
     r.setAttribute("data-glow", s.glow ? "on" : "off");
     if (s.bg) document.querySelector('meta[name="theme-color"]').setAttribute("content", s.bg);
@@ -31,16 +38,19 @@
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="description" content="logbook: a private journal and personal OS" />
-<link rel="stylesheet" href="css/style.css" />
-<link rel="stylesheet" href="css/shell.css" />
-<link rel="stylesheet" href="css/features.css" />
-<link rel="stylesheet" href="css/extras.css" />
-<link rel="stylesheet" href="css/animations.css" />
-<link rel="stylesheet" href="css/responsive.css" />
+<link rel="preload" href="assets/fonts/zen-maru-gothic-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="assets/fonts/shippori-mincho-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/layout.css" />
+<link rel="stylesheet" href="css/scene.css" />
+<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/themes.css" />
+<link rel="stylesheet" href="css/motion.css" />
 </head>
 <body>
 
 <a class="skip-link" href="#app">skip to content</a>
+<div id="sky" aria-hidden="true"></div>
 <canvas id="rain" aria-hidden="true"></canvas>
 <div class="scanlines" aria-hidden="true"></div>
 
@@ -50,14 +60,15 @@
 
 <div id="palette" class="overlay" hidden>
   <div class="palette-backdrop"></div>
-  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="command prompt">
+  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="search and commands">
     <label class="palette-prompt">
-      <span aria-hidden="true">&gt;</span>
-      <input id="paletteInput" type="text" placeholder="run a command or search your entries" autocomplete="off" spellcheck="false"
+      <span class="palette-prompt-icon" data-icon="search"></span>
+      <input id="paletteInput" type="text" placeholder="search your entries or type a command" autocomplete="off" spellcheck="false"
              role="combobox" aria-expanded="false" aria-controls="paletteList" aria-autocomplete="list" />
+      <kbd>esc</kbd>
     </label>
     <ul id="paletteList" role="listbox" aria-label="results"></ul>
-    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>enter</kbd> run</span><span><kbd>esc</kbd> close</span></div>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>enter</kbd> open</span><span><kbd>esc</kbd> close</span></div>
   </div>
 </div>
 
@@ -66,9 +77,20 @@
   <div class="viewer-panel help-panel" role="dialog" aria-modal="true" aria-label="keyboard shortcuts">
     <header class="viewer-header">
       <div class="viewer-heading"><div class="viewer-date">keyboard shortcuts</div></div>
-      <button type="button" class="viewer-close" aria-label="close">✕</button>
+      <button type="button" class="viewer-close icon-btn" aria-label="close"><span data-icon="x"></span></button>
     </header>
     <div class="help-body"></div>
+  </div>
+</div>
+
+<div id="moreSheet" class="overlay sheet" hidden>
+  <div class="viewer-backdrop" data-more-close></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="more">
+    <span class="sheet-grip" aria-hidden="true"></span>
+    <a class="sheet-item" href="#goals" data-nav-target="goals"><span class="sheet-icon" data-icon="mountain-snow"></span><span><b>goals</b><small>what you're climbing toward</small></span></a>
+    <a class="sheet-item" href="#companion" data-nav-target="companion"><span class="sheet-icon" data-icon="sparkles"></span><span><b>companion</b><small>a daily brief and someone to ask</small></span></a>
+    <a class="sheet-item" href="#settings" data-nav-target="settings"><span class="sheet-icon" data-icon="settings"></span><span><b>settings</b><small>look, account, data</small></span></a>
+    <button type="button" class="sheet-item" data-command="palette"><span class="sheet-icon" data-icon="search"></span><span><b>search</b><small>entries and every command</small></span></button>
   </div>
 </div>
 
@@ -76,133 +98,139 @@
 
 <div id="appShell">
   <nav id="sidebarNav" class="sidebar-nav" aria-label="main">
-    <div class="sidebar-nav-brand">logbook<span class="brand-sub">private // local</span></div>
+    <div class="sidebar-nav-brand">
+      <span class="brand-mark" aria-hidden="true"><span data-icon="moon-star"></span></span>
+      <span class="brand-name">logbook</span>
+    </div>
 
-    <a class="sidebar-nav-item" href="#dashboard" data-nav-target="dashboard">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12L12 3l9 9v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>
-      <span class="nav-label">dashboard</span><kbd class="nav-key">1</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#journal" data-nav-target="journal">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm3 4v2h10V7H7zm0 4v2h10v-2H7zm0 4v2h7v-2H7z"/></svg></span>
-      <span class="nav-label">journal</span><kbd class="nav-key">2</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#calendar" data-nav-target="calendar">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v3h6V2h2v3h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2V2zm10 7H7v11h10V9z"/></svg></span>
-      <span class="nav-label">calendar</span><kbd class="nav-key">3</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#focus" data-nav-target="focus">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm1-13h-2v6l5.2 3.1 1-1.7-4.2-2.5z"/></svg></span>
-      <span class="nav-label">focus</span><kbd class="nav-key">4</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#goals" data-nav-target="goals">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2zm0 4a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V6zm0 4a2 2 0 1 0 2 2h-2v-2z"/></svg></span>
-      <span class="nav-label">goals</span><kbd class="nav-key">5</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#companion" data-nav-target="companion">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm3 5v2h2V9H7zm4 0v2h2V9h-2zm4 0v2h2V9h-2z"/></svg></span>
-      <span class="nav-label">companion</span><kbd class="nav-key">6</kbd>
-    </a>
-    <a class="sidebar-nav-item" href="#settings" data-nav-target="settings">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65-2-3.46-2.49 1a7.12 7.12 0 0 0-1.69-.98L15 2h-6l-.36 2.93c-.61.25-1.17.58-1.69.98l-2.49-1-2 3.46 2.11 1.65c-.05.32-.07.65-.07.98s.02.66.07.98L2.46 14.63l2 3.46 2.49-1c.52.4 1.08.73 1.69.98L9 21h6l.36-2.93c.61-.25 1.17-.58 1.69-.98l2.49 1 2-3.46-2.11-1.65zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg></span>
-      <span class="nav-label">settings</span><kbd class="nav-key">7</kbd>
-    </a>
+    <div class="nav-list">
+      <span class="nav-glow" aria-hidden="true"></span>
+      <a class="sidebar-nav-item" href="#dashboard" data-nav-target="dashboard">
+        <span class="nav-icon" data-icon="house"></span><span class="nav-label">today</span><kbd class="nav-key">1</kbd>
+      </a>
+      <a class="sidebar-nav-item" href="#journal" data-nav-target="journal">
+        <span class="nav-icon" data-icon="notebook-pen"></span><span class="nav-label">journal</span><kbd class="nav-key">2</kbd>
+      </a>
+      <a class="sidebar-nav-item" href="#calendar" data-nav-target="calendar">
+        <span class="nav-icon" data-icon="calendar-days"></span><span class="nav-label">calendar</span><kbd class="nav-key">3</kbd>
+      </a>
+      <a class="sidebar-nav-item" href="#focus" data-nav-target="focus">
+        <span class="nav-icon" data-icon="timer"></span><span class="nav-label">focus</span><kbd class="nav-key">4</kbd>
+      </a>
+      <a class="sidebar-nav-item nav-extra" href="#goals" data-nav-target="goals">
+        <span class="nav-icon" data-icon="mountain-snow"></span><span class="nav-label">goals</span><kbd class="nav-key">5</kbd>
+      </a>
+      <a class="sidebar-nav-item nav-extra" href="#companion" data-nav-target="companion">
+        <span class="nav-icon" data-icon="sparkles"></span><span class="nav-label">companion</span><kbd class="nav-key">6</kbd>
+      </a>
+      <a class="sidebar-nav-item nav-extra" href="#settings" data-nav-target="settings">
+        <span class="nav-icon" data-icon="settings"></span><span class="nav-label">settings</span><kbd class="nav-key">7</kbd>
+      </a>
+      <button type="button" class="sidebar-nav-item nav-more" data-more aria-haspopup="dialog" aria-expanded="false">
+        <span class="nav-icon" data-icon="ellipsis"></span><span class="nav-label">more</span>
+      </button>
+    </div>
 
     <div class="sidebar-foot">
-      <button type="button" class="palette-hint" data-command="palette"><span>commands</span><span><kbd>ctrl</kbd><kbd>k</kbd></span></button>
-      <button type="button" class="palette-hint" data-command="shortcuts"><span>shortcuts</span><kbd>?</kbd></button>
-      <div class="sidebar-status"><span id="statusDot" class="status-dot"></span><span id="statusLabel">checking…</span></div>
+      <button type="button" class="search-hint" data-command="palette">
+        <span data-icon="search"></span><span class="search-hint-text">search</span><span class="search-hint-keys"><kbd>ctrl</kbd><kbd>k</kbd></span>
+      </button>
+      <div class="sidebar-status">
+        <span id="statusDot" class="status-dot"></span><span id="statusLabel">checking…</span>
+        <button type="button" class="icon-btn icon-btn--sm" data-command="shortcuts" aria-label="keyboard shortcuts" title="keyboard shortcuts"><span data-icon="keyboard"></span></button>
+      </div>
     </div>
   </nav>
 
   <main id="app" tabindex="-1">
     <header id="pageHeader">
       <h1 id="pageTitle">dashboard</h1>
-      <button type="button" class="header-cmd" data-command="palette" aria-label="open command prompt"><kbd>ctrl</kbd><kbd>k</kbd></button>
+      <button type="button" class="header-cmd" data-command="palette" aria-label="search and commands">
+        <span data-icon="search"></span><span>search</span><kbd>ctrl</kbd><kbd>k</kbd>
+      </button>
     </header>
 
     <div id="storageWarning" role="alert" hidden></div>
 
-    <section class="nav-page" data-nav-page="dashboard" aria-label="dashboard">
-      <div id="todayConsole" class="today-console"></div>
+    <section class="nav-page" data-nav-page="dashboard" aria-label="today">
+      <div id="todayConsole" class="today-hero"></div>
 
       <div class="dash-grid">
         <div class="dash-main">
           <div id="dailyPage"></div>
         </div>
-        <aside class="dash-side" aria-label="overview">
+        <aside class="dash-side" aria-label="alongside today">
           <div id="habitsSection"></div>
-          <div class="verse-box">
-            <div class="verse-label">verse of the day</div>
-            <p class="verse-text" id="verseText"></p>
+          <figure class="verse-box">
+            <figcaption class="card-title"><span data-icon="book-open"></span><span>verse for today</span></figcaption>
+            <blockquote class="verse-text" id="verseText"></blockquote>
             <div class="verse-ref" id="verseRef"></div>
-          </div>
-
-          <div id="statsRow">
-            <div class="stat-card">
-              <div class="stat-label">uptime</div>
-              <div class="stat-value stat-value--good" id="uptimeValue">0 days</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">entries</div>
-              <div class="stat-value" id="totalValue">0</div>
-            </div>
-          </div>
-          <div id="statsBars"></div>
-
-          <div id="weekAgoSection" hidden></div>
-
-          <div id="constellation" hidden></div>
+          </figure>
+          <div id="weekAgoSection" class="replay-card" hidden></div>
         </aside>
       </div>
-
-      <div id="densityMapSection"></div>
-      <div id="analyticsSection"></div>
     </section>
 
     <section class="nav-page" data-nav-page="journal" aria-label="journal" hidden>
-      <div class="form-box">
-        <div class="form-head">
-          <span class="section-label" id="todayDate"></span>
-          <span class="form-hint"><kbd>ctrl</kbd><kbd>enter</kbd> to commit</span>
+      <div class="journal-grid">
+        <div class="journal-compose">
+          <div class="form-box">
+            <div class="form-head">
+              <h2 class="form-title">how's today?</h2>
+              <span class="form-date" id="todayDate"></span>
+            </div>
+            <div class="mood-row" role="group" aria-label="how the day feels">
+              <button type="button" class="mood-btn mood-good" data-mood="good" aria-pressed="false"><span data-icon="sun"></span><span>good</span></button>
+              <button type="button" class="mood-btn mood-okay" data-mood="okay" aria-pressed="false"><span data-icon="cloud-sun"></span><span>okay</span></button>
+              <button type="button" class="mood-btn mood-rough" data-mood="rough" aria-pressed="false"><span data-icon="cloud-rain"></span><span>rough</span></button>
+            </div>
+            <textarea id="entryText" rows="7" aria-label="entry" placeholder="what happened, and how did it feel? no need to dress it up."></textarea>
+            <div class="form-footer">
+              <span id="saveStatus" aria-live="polite"></span>
+              <span class="form-hint"><kbd>ctrl</kbd><kbd>enter</kbd></span>
+              <button type="button" id="saveBtn" class="primary-btn" disabled><span data-icon="feather"></span><span>save entry</span></button>
+            </div>
+          </div>
         </div>
-        <div class="mood-row" role="group" aria-label="status">
-          <button type="button" class="mood-btn mood-good" data-mood="good" aria-pressed="false">200 · OK</button>
-          <button type="button" class="mood-btn mood-okay" data-mood="okay" aria-pressed="false">102 · PROCESSING</button>
-          <button type="button" class="mood-btn mood-rough" data-mood="rough" aria-pressed="false">500 · ERROR</button>
-        </div>
-        <textarea id="entryText" rows="5" aria-label="entry" placeholder="&gt; log entry: what happened, what you felt. no need to dress it up."></textarea>
-        <div class="form-footer">
-          <span id="saveStatus" aria-live="polite"></span>
-          <button type="button" id="saveBtn" disabled>commit_entry ▸</button>
+
+        <div class="journal-list">
+          <div class="toolbar">
+            <label class="search-field">
+              <span data-icon="search"></span>
+              <input id="searchInput" type="search" placeholder="search entries" aria-label="search entries" />
+            </label>
+            <div class="filter-group" role="group" aria-label="filter by mood">
+              <button type="button" class="filter-chip chip-good" data-status="good" aria-pressed="false" title="good days"><span data-icon="sun"></span><span>good</span></button>
+              <button type="button" class="filter-chip chip-okay" data-status="okay" aria-pressed="false" title="okay days"><span data-icon="cloud-sun"></span><span>okay</span></button>
+              <button type="button" class="filter-chip chip-rough" data-status="rough" aria-pressed="false" title="rough days"><span data-icon="cloud-rain"></span><span>rough</span></button>
+            </div>
+            <div class="filter-group">
+              <button type="button" class="icon-btn" id="exportBtn" aria-label="export entries" title="export entries"><span data-icon="download"></span></button>
+              <button type="button" class="icon-btn" id="importBtn" aria-label="import entries" title="import entries"><span data-icon="upload"></span></button>
+            </div>
+            <input type="file" id="importFile" accept="application/json,.json" hidden />
+          </div>
+
+          <div class="list-head"><h2 class="list-title">past entries</h2><span class="list-count" id="entriesCount"></span></div>
+          <p id="entriesEmptyMsg" class="empty-line" hidden></p>
+          <div id="entriesList"></div>
         </div>
       </div>
-
-      <div class="toolbar">
-        <input id="searchInput" type="search" placeholder="grep entries..." aria-label="search entries" />
-        <div class="filter-group" role="group" aria-label="filter by status">
-          <button type="button" class="filter-chip chip-good" data-status="good" aria-pressed="false">200</button>
-          <button type="button" class="filter-chip chip-okay" data-status="okay" aria-pressed="false">102</button>
-          <button type="button" class="filter-chip chip-rough" data-status="rough" aria-pressed="false">500</button>
-        </div>
-        <div class="filter-group">
-          <button type="button" class="tool-btn" id="exportBtn">export</button>
-          <button type="button" class="tool-btn" id="importBtn">import</button>
-        </div>
-        <input type="file" id="importFile" accept="application/json,.json" hidden />
-      </div>
-
-      <div class="list-head"><span class="section-label">past entries</span><span class="list-count" id="entriesCount"></span></div>
-      <p id="entriesEmptyMsg" class="empty-line" hidden></p>
-      <div id="entriesList"></div>
     </section>
 
     <section class="nav-page" data-nav-page="calendar" aria-label="calendar" hidden>
       <div id="calendarSection"></div>
+      <div class="patterns">
+        <div id="analyticsSection"></div>
+        <div id="densityMapSection"></div>
+      </div>
     </section>
 
     <section class="nav-page" data-nav-page="focus" aria-label="focus" hidden>
-      <div id="pomodoroSection"></div>
-      <div id="musicSection"></div>
+      <div class="focus-grid">
+        <div id="pomodoroSection"></div>
+        <div id="musicSection"></div>
+      </div>
     </section>
 
     <section class="nav-page" data-nav-page="goals" aria-label="goals" hidden>

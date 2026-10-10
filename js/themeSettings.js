@@ -2,7 +2,7 @@
    picture, or fine-tune every detail. Anything generated is shown as a
    preview first; nothing changes for good until you press keep. */
 import {
-  BUILT_IN, BACKGROUNDS, GLYPHS, ROUNDNESS, FONTS,
+  BUILT_IN, BACKGROUNDS, GLYPHS, ROUNDNESS, FONTS, DEFAULT_THEME,
   allThemes, currentTheme, applyTheme, saveCustomTheme, deleteCustomTheme,
   normalizeTheme, fixContrast, contrast, themeFromVibe, themeFromImage,
   AI_THEME_PROMPT, themeFromAIReply
@@ -10,6 +10,7 @@ import {
 import { aiStatus, aiChat } from './ai.js';
 import { toast } from './toast.js';
 import { escapeHtml, submitForm } from './utils.js';
+import { icon } from './icons.js';
 
 var COLORS = [
   ["bg", "background"], ["surface", "cards"], ["text", "text"], ["text2", "soft text"], ["muted", "muted"],
@@ -17,6 +18,7 @@ var COLORS = [
 ];
 
 var EXAMPLES = [
+  "rainy tokyo apartment, lofi",
   "cozy coffee shop at night",
   "neon tokyo cyberpunk",
   "calm ocean morning, light and airy",
@@ -32,10 +34,10 @@ var SURPRISE = [
 ];
 
 var LABELS = {
-  background: { rain: "rain", stars: "stars", snow: "snow", fireflies: "fireflies", none: "nothing" },
+  background: { night: "night sky over the mountain", window: "rain on the window", rain: "falling code", stars: "stars", snow: "snow", fireflies: "fireflies", none: "nothing" },
   glyphs: { binary: "01 binary", katakana: "katakana", hex: "hex", dots: "dots" },
   roundness: { sharp: "sharp", soft: "soft", round: "round" },
-  font: { mono: "monospace", sans: "clean sans", serif: "book serif", rounded: "rounded" }
+  font: { maru: "soft rounded + mincho", mono: "monospace", sans: "clean sans", serif: "book serif", rounded: "rounded" }
 };
 
 var card = null;
@@ -61,14 +63,14 @@ function swatch(t, activeId) {
     '<div class="theme-swatch-wrap">' +
       '<button type="button" class="theme-swatch" data-theme-id="' + escapeHtml(t.id) + '" aria-pressed="' + (t.id === activeId) + '" style="' + swatchStyle(t) + '"' +
         (t.note ? ' title="' + escapeHtml(t.note) + '"' : "") + ">" +
-        '<span class="sw-preview' + (t.image ? " sw-preview--image" : "") + '"' + (t.image ? ' style="background-image:url(&quot;' + escapeHtml(t.image) + '&quot;)"' : "") + ">" +
+        '<span class="sw-preview' + (t.image ? " sw-preview--image" : "") + (t.background === "night" || t.background === "window" ? " sw-preview--scene" : "") + '"' + (t.image ? ' style="background-image:url(&quot;' + escapeHtml(t.image) + '&quot;)"' : "") + ">" +
           '<span class="sw-card"><span class="sw-aa">Aa</span><span class="sw-line"></span><span class="sw-line sw-line--short"></span></span>' +
           '<span class="sw-dots"><i></i><i></i><i></i></span>' +
-          (t.id === "terminal" ? '<span class="sw-badge">default</span>' : "") +
+          (t.id === DEFAULT_THEME ? '<span class="sw-badge">default</span>' : "") +
         "</span>" +
         '<span class="sw-name">' + escapeHtml(t.name) + "</span>" +
       "</button>" +
-      (custom ? '<button type="button" class="sw-delete" data-delete-theme="' + escapeHtml(t.id) + '" aria-label="delete ' + escapeHtml(t.name) + '">✕</button>' : "") +
+      (custom ? '<button type="button" class="sw-delete" data-delete-theme="' + escapeHtml(t.id) + '" aria-label="delete ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" : "") +
     "</div>"
   );
 }
@@ -118,15 +120,15 @@ function render() {
   var active = currentTheme().id;
   card.innerHTML =
     '<div class="theme-head">' +
-      '<h3 class="daily-section-title">look &amp; feel</h3>' +
+      '<h3 class="daily-section-title">' + icon("palette") + "<span>look &amp; feel</span></h3>" +
       '<span class="theme-current">now: <b>' + escapeHtml(t.name) + "</b>" + (preview ? " <em>(preview)</em>" : "") + "</span>" +
     "</div>" +
-    '<p class="setting-hint">pick a look, describe the vibe you want, or make one from a picture. terminal is the default and is always one tap away.</p>' +
+    '<p class="setting-hint">night is the default. pick another look, describe the vibe you want, or make one from a picture. nothing changes for good until you keep it.</p>' +
     '<div class="theme-gallery" role="group" aria-label="themes">' + allThemes().map(function (x) { return swatch(x, preview ? "" : active); }).join("") + "</div>" +
     '<div class="theme-preview-bar"' + (preview ? "" : " hidden") + ' role="status">' +
       '<span>previewing <b>' + escapeHtml(preview ? preview.name : "") + "</b>. not saved yet.</span>" +
       '<span class="theme-preview-actions">' +
-        '<button type="button" class="primary-btn" data-preview="keep">keep it</button>' +
+        '<button type="button" class="primary-btn" data-preview="keep">' + icon("check") + "<span>keep it</span></button>" +
         '<button type="button" class="tool-btn" data-preview="tweak">tweak</button>' +
         '<button type="button" class="tool-btn" data-preview="undo">undo</button>' +
       "</span>" +
@@ -137,26 +139,26 @@ function render() {
         '<textarea class="text-input vibe-input" id="vibeText" rows="2" maxlength="300" placeholder="e.g. cozy coffee shop at night, rain on the window, warm and calm"></textarea>' +
         '<div class="vibe-examples">' + EXAMPLES.map(function (x) { return '<button type="button" class="chip" data-vibe="' + escapeHtml(x) + '">' + escapeHtml(x) + "</button>"; }).join("") + "</div>" +
         '<div class="settings-actions">' +
-          '<button type="submit" class="primary-btn">make it</button>' +
-          '<button type="button" class="tool-btn" id="vibeAI" hidden>✦ make it with AI</button>' +
-          '<button type="button" class="tool-btn" id="vibeSurprise">🎲 surprise me</button>' +
+          '<button type="submit" class="primary-btn">' + icon("wand-sparkles") + "<span>make it</span></button>" +
+          '<button type="button" class="tool-btn" id="vibeAI" hidden>' + icon("sparkles") + "<span>make it with AI</span></button>" +
+          '<button type="button" class="tool-btn" id="vibeSurprise">' + icon("dices") + "<span>surprise me</span></button>" +
         "</div>" +
         '<p class="setting-hint" id="vibeHint">' + OFFLINE_HINT + "</p>" +
       "</form>" +
       '<div class="theme-maker">' +
         '<span class="theme-maker-title">from a picture</span>' +
         '<p class="setting-hint">a wallpaper, a photo, album art. the colors are picked out on this device; the picture never leaves it.</p>' +
-        '<label class="file-pick"><input type="file" accept="image/*" id="themePicture"><span>choose a picture</span></label>' +
+        '<label class="file-pick"><input type="file" accept="image/*" id="themePicture"><span>' + icon("image") + "choose a picture</span></label>" +
         '<label class="setting-row"><span class="setting-text"><span class="setting-label">use it as a faint backdrop</span></span>' +
           '<input type="checkbox" class="switch" id="themePictureBackdrop" checked></label>' +
       "</div>" +
     "</div>" +
     '<details class="theme-editor" id="themeEditor"><summary>fine-tune every detail</summary><form class="theme-editor-form" autocomplete="off"></form></details>' +
     '<div class="settings-actions theme-io">' +
-      '<button type="button" class="tool-btn" id="themeExport">export this theme</button>' +
-      '<button type="button" class="tool-btn" id="themeImport">import a theme</button>' +
+      '<button type="button" class="tool-btn" id="themeExport">' + icon("download") + "<span>export this theme</span></button>" +
+      '<button type="button" class="tool-btn" id="themeImport">' + icon("upload") + "<span>import a theme</span></button>" +
       '<input type="file" id="themeImportFile" accept="application/json,.json" hidden>' +
-      (active !== "terminal" || preview ? '<button type="button" class="link-btn" id="themeDefault">back to terminal</button>' : "") +
+      (active !== DEFAULT_THEME || preview ? '<button type="button" class="link-btn" id="themeDefault">back to night</button>' : "") +
     "</div>";
 
   fillEditor();
@@ -291,8 +293,8 @@ function readFileText(file) {
 
 async function makeWithAI(vibe, btn) {
   btn.disabled = true;
-  var label = btn.textContent;
-  btn.textContent = "designing…";
+  var label = btn.innerHTML;
+  btn.innerHTML = icon("sparkles") + "<span>designing…</span>";
   try {
     var reply = await aiChat([{ role: "user", content: "The vibe: " + vibe }], AI_THEME_PROMPT, 600);
     showPreview(themeFromAIReply(reply, vibe), "the AI made you a theme. keep it if you like it.");
@@ -301,7 +303,7 @@ async function makeWithAI(vibe, btn) {
     showPreview(themeFromVibe(vibe));
   } finally {
     var again = card.querySelector("#vibeAI");
-    if (again) { again.disabled = false; again.textContent = label; }
+    if (again) { again.disabled = false; again.innerHTML = label; }
   }
 }
 
@@ -352,25 +354,25 @@ function wire() {
       return;
     }
 
-    if (e.target.id === "vibeAI") {
+    if (e.target.closest("#vibeAI")) {
       var vibe = card.querySelector("#vibeText").value.trim();
       if (!vibe) return toast("describe the vibe first", "warn");
-      return makeWithAI(vibe, e.target);
+      return makeWithAI(vibe, e.target.closest("#vibeAI"));
     }
-    if (e.target.id === "vibeSurprise") {
+    if (e.target.closest("#vibeSurprise")) {
       var v = SURPRISE[Math.floor(Math.random() * SURPRISE.length)];
       card.querySelector("#vibeText").value = v;
       return showPreview(themeFromVibe(v), "surprise: " + v);
     }
-    if (e.target.id === "themeDefault") return pick("terminal");
-    if (e.target.id === "themeExport") {
+    if (e.target.closest("#themeDefault")) return pick(DEFAULT_THEME);
+    if (e.target.closest("#themeExport")) {
       var cur = onScreen();
       var out = Object.assign({}, cur);
       delete out.imageDropped;
       download({ logbook_theme: 1, theme: out }, "logbook-theme-" + cur.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".json");
       return toast("theme exported. send the file to anyone with logbook.");
     }
-    if (e.target.id === "themeImport") return card.querySelector("#themeImportFile").click();
+    if (e.target.closest("#themeImport")) return card.querySelector("#themeImportFile").click();
   });
 
   card.addEventListener("submit", function (e) {

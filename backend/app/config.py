@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_prefix="LOGBOOK_", extra="ignore")
 
     app_name: str = "Logbook"
-    app_version: str = "2.1.0"
+    app_version: str = "2.2.0"
     environment: str = "development"
 
     # DATABASE_URL is the name hosting providers (Render, Neon) use.

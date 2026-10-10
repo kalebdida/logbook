@@ -1,12 +1,15 @@
 import { escapeHtml, formatDate } from './utils.js';
 import { dateKey } from './dayRecord.js';
+import { icon } from './icons.js';
 
-/* Colors are CSS variables, so every theme recolors moods too.
-   tint(a) gives a translucent version for backgrounds. */
-function mood(key, code, label) {
+/* Moods are weather: a clear day, some clouds, rain. Colors are CSS
+   variables, so every theme recolors them too. tint(a) gives a
+   translucent version for backgrounds. */
+function mood(key, label, iconName) {
   return {
-    code: code,
+    key: key,
     label: label,
+    icon: iconName,
     color: "var(--mood-" + key + ")",
     glow: "rgb(var(--mood-" + key + "-rgb) / 0.5)",
     tint: function (alpha) { return "rgb(var(--mood-" + key + "-rgb) / " + alpha + ")"; }
@@ -14,19 +17,28 @@ function mood(key, code, label) {
 }
 
 export var STATUS = {
-  good: mood("good", "200", "OK"),
-  okay: mood("okay", "102", "PROCESSING"),
-  rough: mood("rough", "500", "ERROR")
+  good: mood("good", "good", "sun"),
+  okay: mood("okay", "okay", "cloud-sun"),
+  rough: mood("rough", "rough", "cloud-rain")
 };
+
+/* A small colored label: icon + word. */
+export function moodTag(key, extraClass) {
+  var s = STATUS[key];
+  if (!s) return "";
+  return '<span class="mood-tag mood-tag--' + key + (extraClass ? " " + extraClass : "") + '">' + icon(s.icon) + "<span>" + s.label + "</span></span>";
+}
 
 function reduceMotion() {
   try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
 }
 
+/* Opening an entry: the terminal theme types it out in binary; every other
+   look just lets it fade in (CSS). */
 export function runDecrypt(id, text) {
   var el = document.getElementById("decrypt-" + id);
   if (!el) return;
-  if (reduceMotion()) { el.textContent = text; return; }
+  if (reduceMotion() || document.documentElement.dataset.theme !== "terminal") { el.textContent = text; return; }
   var frame = 0;
   var totalFrames = 12;
   var chars = "01";
@@ -46,25 +58,6 @@ export function runDecrypt(id, text) {
     }
     el.textContent = out;
   }, 30);
-}
-
-export function renderConstellation(entries) {
-  var el = document.getElementById("constellation");
-  if (!el) return;
-  if (entries.length === 0) {
-    el.hidden = true;
-    return;
-  }
-  el.hidden = false;
-  var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
-  el.innerHTML =
-    '<div class="card-title">every entry, oldest first</div><div class="stars">' +
-    sorted.map(function (e) {
-      var s = STATUS[e.mood];
-      var title = escapeHtml(formatDate(e.date) + " " + s.code);
-      return '<button type="button" class="star" data-entry-id="' + escapeHtml(e.id) + '" title="' + title + '" aria-label="' + title + '" style="background:' + s.color + ";box-shadow:0 0 8px " + s.glow + '"></button>';
-    }).join("") +
-    "</div>";
 }
 
 /* "On this day": the oldest anniversary that has an entry wins:
@@ -99,18 +92,19 @@ export function renderWeekAgo(entries, onOpen) {
   }
   var found = replay.entry;
   el.hidden = false;
-  var s = STATUS[found.mood];
-  var preview = found.text.length > 140 ? found.text.slice(0, 140) + "…" : found.text;
+  var preview = found.text.length > 160 ? found.text.slice(0, 160) + "…" : found.text;
   el.innerHTML =
-    '<div class="replay-header"><span>on this day</span><span class="replay-tag">' + replay.label + "</span></div>" +
-    '<div class="entry-card-top">' +
-      '<span class="dot" style="background:' + s.color + ";box-shadow:0 0 6px " + s.glow + '"></span>' +
-      '<span class="entry-date">' + formatDate(found.date) + "</span>" +
-      '<span class="entry-status" style="color:' + s.color + '">' + s.code + " " + s.label + "</span>" +
+    '<div class="card-head">' +
+      '<h3 class="card-title">' + icon("history") + "<span>on this day</span></h3>" +
+      '<span class="card-meta">' + replay.label + "</span>" +
     "</div>" +
+    '<div class="replay-meta">' + moodTag(found.mood) + '<span class="entry-date">' + formatDate(found.date) + "</span></div>" +
     '<p class="week-ago-text">' + escapeHtml(preview.replace(/\n+/g, " ")) + "</p>" +
-    '<button type="button" class="link-btn replay-hint">open that day</button>';
+    '<span class="replay-hint">open that day ' + icon("arrow-right") + "</span>";
+  el.tabIndex = 0;
+  el.setAttribute("role", "button");
   el.onclick = function () { onOpen(dateKey(found.date)); };
+  el.onkeydown = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(dateKey(found.date)); } };
 }
 
 function highlight(text, query) {
@@ -159,7 +153,7 @@ export function renderEntries(entries, opts) {
   if (entries.length === 0 || filtered.length === 0) {
     container.innerHTML = "";
     emptyMsg.textContent = entries.length === 0
-      ? "nothing logged yet. write the first entry above."
+      ? "nothing here yet. your first entry will show up here."
       : "no entries match that search.";
     emptyMsg.hidden = false;
     return;
@@ -192,25 +186,24 @@ export function renderEntries(entries, opts) {
 }
 
 function entryCard(e, opts, q) {
-  var s = STATUS[e.mood];
   var isOpen = opts.expandedId === e.id;
   var isEditing = opts.editingId === e.id;
   var id = escapeHtml(e.id);
+  var moodClass = STATUS[e.mood] ? " entry-card--" + e.mood : "";
 
   var top =
     '<div class="entry-card-top">' +
-      '<span class="dot" style="background:' + s.color + ";box-shadow:0 0 6px " + s.glow + '"></span>' +
       '<span class="entry-date">' + timeOf(e.date) + "</span>" +
-      '<span class="entry-status" style="color:' + s.color + '">' + s.code + " " + s.label + "</span>" +
+      moodTag(e.mood, "entry-status") +
     "</div>";
 
   if (isEditing) {
     var moods = Object.keys(STATUS).map(function (m) {
       var st = STATUS[m];
-      return '<button type="button" class="mood-btn mood-' + m + (m === e.mood ? " active" : "") + '" data-edit-mood="' + m + '">' + st.code + " " + st.label + "</button>";
+      return '<button type="button" class="mood-btn mood-' + m + (m === e.mood ? " active" : "") + '" data-edit-mood="' + m + '">' + icon(st.icon) + "<span>" + st.label + "</span></button>";
     }).join("");
     return (
-      '<div class="entry-card is-open is-editing" data-id="' + id + '">' + top +
+      '<div class="entry-card is-open is-editing' + moodClass + '" data-id="' + id + '">' + top +
         '<form class="entry-edit" data-edit-form="' + id + '">' +
           '<div class="mood-row">' + moods + "</div>" +
           '<textarea class="text-area" rows="5" aria-label="entry text">' + escapeHtml(e.text) + "</textarea>" +
@@ -224,19 +217,19 @@ function entryCard(e, opts, q) {
   }
 
   var body = isOpen
-    ? (opts.animateId === e.id ? '<span id="decrypt-' + id + '" class="decrypt-text"></span>' : '<span class="decrypt-text">' + highlight(e.text, q) + "</span>")
+    ? (opts.animateId === e.id ? '<span id="decrypt-' + id + '" class="decrypt-text is-revealing"></span>' : '<span class="decrypt-text">' + highlight(e.text, q) + "</span>")
     : '<div class="clamp">' + highlight(e.text.replace(/\n+/g, " "), q) + "</div>";
 
   var actions = isOpen
     ? '<div class="entry-actions">' +
-        '<button type="button" class="tool-btn" data-entry-action="day">view day</button>' +
-        '<button type="button" class="tool-btn" data-entry-action="edit">edit</button>' +
-        '<button type="button" class="tool-btn danger-btn" data-entry-action="delete">delete</button>' +
+        '<button type="button" class="tool-btn" data-entry-action="day">' + icon("calendar-days") + "<span>view day</span></button>" +
+        '<button type="button" class="tool-btn" data-entry-action="edit">' + icon("pencil") + "<span>edit</span></button>" +
+        '<button type="button" class="tool-btn danger-btn" data-entry-action="delete">' + icon("trash-2") + "<span>delete</span></button>" +
       "</div>"
     : "";
 
   return (
-    '<div class="entry-card' + (isOpen ? " is-open" : "") + '" data-id="' + id + '"' + (isOpen ? "" : ' tabindex="0" role="button" aria-expanded="false"') + ">" +
+    '<div class="entry-card' + (isOpen ? " is-open" : "") + moodClass + '" data-id="' + id + '"' + (isOpen ? "" : ' tabindex="0" role="button" aria-expanded="false"') + ">" +
       top + '<div class="entry-body">' + body + "</div>" + actions +
     "</div>"
   );

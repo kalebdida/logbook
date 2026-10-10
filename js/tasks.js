@@ -1,5 +1,6 @@
 import { apiListTasks, apiCreateTask, apiUpdateTask, apiDeleteTask } from './api.js';
-import { categoryById, categoryOptions } from './categories.js';
+import { categoryById, categoryOptions, categoryIcon } from './categories.js';
+import { icon } from './icons.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
@@ -35,13 +36,13 @@ function draw() {
   var carry = state.carry.length
     ? '<div class="carry-hint carry-hint--tasks">' +
         "<span>" + state.carry.length + " unfinished from earlier days</span>" +
-        '<button type="button" class="link-btn" data-task-action="carry">bring to today</button>' +
+        '<button type="button" class="link-btn" data-task-action="carry">bring them to today</button>' +
       "</div>"
     : "";
 
   var list = state.tasks.length
     ? '<ul class="task-list">' + state.tasks.map(taskRow).join("") + "</ul>"
-    : '<p class="empty-line">no tasks yet. add the first one below.</p>';
+    : '<p class="empty-line">nothing on the list yet. add the first thing below.</p>';
 
   state.container.innerHTML =
     carry +
@@ -50,7 +51,7 @@ function draw() {
     '<form class="inline-form" data-form="task" autocomplete="off">' +
       '<input class="text-input" name="title" maxlength="300" placeholder="add a task" aria-label="new task" required>' +
       '<select class="select-input" name="category" aria-label="life area">' + categoryOptions("", "area") + "</select>" +
-      '<button type="submit" class="tool-btn">add</button>' +
+      '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>add</span></button>" +
     "</form>";
 }
 
@@ -59,11 +60,12 @@ function taskRow(t) {
   return (
     '<li class="task-row' + (t.completed ? " is-done" : "") + '" data-task-id="' + t.id + '">' +
       '<label class="task-check">' +
-        '<input type="checkbox" data-task-toggle="' + t.id + '"' + (t.completed ? " checked" : "") + ">" +
+        '<input type="checkbox" class="check" data-task-toggle="' + t.id + '"' + (t.completed ? " checked" : "") + ">" +
+        '<span class="check-box" aria-hidden="true">' + icon("check") + "</span>" +
         '<span class="task-title">' + escapeHtml(t.title) + "</span>" +
       "</label>" +
-      (cat ? '<span class="area-tag" title="' + cat.label + '">' + cat.icon + " " + cat.label.toLowerCase() + "</span>" : "") +
-      '<button type="button" class="icon-btn" data-task-action="delete" data-task-id="' + t.id + '" aria-label="delete task">×</button>' +
+      (cat ? '<span class="area-tag" title="' + cat.label + '">' + categoryIcon(cat) + "<span>" + cat.label.toLowerCase() + "</span></span>" : "") +
+      '<button type="button" class="icon-btn icon-btn--quiet" data-task-action="delete" data-task-id="' + t.id + '" aria-label="delete task">' + icon("x") + "</button>" +
     "</li>"
   );
 }

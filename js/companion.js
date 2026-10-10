@@ -12,6 +12,9 @@ import { greeting } from './today.js';
 import { escapeHtml } from './utils.js';
 import { habitSummary } from './habits.js';
 import { renderChatCard } from './companionChat.js';
+import { icon } from './icons.js';
+
+var MARKS = { hello: "sparkles", ok: "circle-check", warn: "bell", care: "heart", info: "info", memory: "history" };
 
 /* Companion. The daily brief is local: plain rules over your own data
    (where today stands, what needs attention, a memory, a question), no AI,
@@ -68,7 +71,7 @@ async function buildBrief() {
   // today
   if (todays.length) {
     var last = todays.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); })[0];
-    lines.push({ kind: "ok", text: "you've written " + plural(todays.length, "entry", "entries") + " today. last status: " + STATUS[last.mood].code + " " + STATUS[last.mood].label + "." });
+    lines.push({ kind: "ok", text: "you've written " + plural(todays.length, "entry", "entries") + " today. the latest one felt " + STATUS[last.mood].label + "." });
   } else if (streak > 0) {
     lines.push({ kind: "warn", text: "nothing written yet today. your " + streak + "-day streak ends at midnight unless you log something.", action: { label: "write now", command: "write" } });
   } else {
@@ -116,9 +119,9 @@ async function buildBrief() {
   var recent = entries.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); }).slice(0, 7);
   var rough = recent.filter(function (e) { return e.mood === "rough"; }).length;
   if (recent.length >= 4 && rough >= 3) {
-    lines.push({ kind: "care", text: rough + " of your last " + recent.length + " entries were 500 ERROR. heavy stretch. rest counts as progress, and talking to someone you trust helps." });
+    lines.push({ kind: "care", text: rough + " of your last " + recent.length + " entries were rough days. heavy stretch. rest counts as progress, and talking to someone you trust helps." });
   } else if (recent.length >= 4 && rough === 0) {
-    lines.push({ kind: "ok", text: "no 500s in your last " + recent.length + " entries." });
+    lines.push({ kind: "ok", text: "no rough days in your last " + recent.length + " entries." });
   }
   if (density && density.inactiveCategories && density.inactiveCategories[0]) {
     var gap = density.inactiveCategories[0];
@@ -157,23 +160,25 @@ export async function renderCompanion(force) {
 
   var prompt = promptOfTheDay();
   el.innerHTML =
-    '<div class="companion-card">' +
-      '<header class="companion-head">' +
-        '<h3 class="daily-section-title">daily brief</h3>' +
-        '<span class="companion-mode" title="built from your own entries, tasks, goals, and focus time. nothing is sent anywhere.">local mode</span>' +
-      "</header>" +
-      '<ol class="brief">' + lines.map(function (l, i) {
-        var action = l.action
-          ? ' <button type="button" class="link-btn"' + (l.action.command ? ' data-command="' + l.action.command + '"' : ' data-open-day="' + l.action.day + '"') + ">" + l.action.label + "</button>"
-          : "";
-        return '<li class="brief-line brief-line--' + l.kind + '" style="--i:' + i + '"><span class="brief-mark" aria-hidden="true">&gt;</span><span>' + escapeHtml(l.text) + action + "</span></li>";
-      }).join("") + "</ol>" +
-      '<button type="button" class="tool-btn" id="companionRefresh">refresh</button>' +
-    "</div>" +
-    '<div class="companion-card prompt-card">' +
-      '<h3 class="daily-section-title">question for today</h3>' +
-      '<p class="prompt-text">' + escapeHtml(prompt) + "</p>" +
-      '<button type="button" class="primary-btn" data-command="write-prompt" data-prompt="' + escapeHtml(prompt) + '">answer in journal</button>' +
+    '<div class="companion-col">' +
+      '<div class="companion-card prompt-card">' +
+        '<h3 class="daily-section-title">' + icon("feather") + "<span>a question for today</span></h3>" +
+        '<p class="prompt-text">' + escapeHtml(prompt) + "</p>" +
+        '<button type="button" class="primary-btn" data-command="write-prompt" data-prompt="' + escapeHtml(prompt) + '">' + icon("pen-line") + "<span>answer in your journal</span></button>" +
+      "</div>" +
+      '<div class="companion-card">' +
+        '<header class="companion-head">' +
+          '<h3 class="daily-section-title">' + icon("sparkles") + "<span>today's brief</span></h3>" +
+          '<span class="companion-mode" title="built from your own entries, tasks, goals, and focus time. nothing is sent anywhere.">' + icon("shield-check") + "<span>stays on your side</span></span>" +
+          '<button type="button" class="icon-btn" id="companionRefresh" aria-label="refresh the brief" title="refresh">' + icon("refresh-cw") + "</button>" +
+        "</header>" +
+        '<ol class="brief">' + lines.map(function (l, i) {
+          var action = l.action
+            ? ' <button type="button" class="link-btn"' + (l.action.command ? ' data-command="' + l.action.command + '"' : ' data-open-day="' + l.action.day + '"') + ">" + l.action.label + "</button>"
+            : "";
+          return '<li class="brief-line brief-line--' + l.kind + '" style="--i:' + i + '"><span class="brief-mark" aria-hidden="true">' + icon(MARKS[l.kind] || "info") + "</span><span>" + escapeHtml(l.text) + action + "</span></li>";
+        }).join("") + "</ol>" +
+      "</div>" +
     "</div>" +
     '<div class="companion-card chat-card" id="companionChat"></div>';
 

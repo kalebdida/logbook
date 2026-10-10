@@ -2,6 +2,7 @@
    password, and, for the admin, invites and the list of people. The admin
    sees names and join dates only; there's nothing here (or on the server)
    that shows anyone else's logbook. */
+import { icon } from './icons.js';
 import {
   apiAuthStatus, apiMe, apiChangePassword, apiLogoutEverywhere, apiDeleteAccount,
   apiListInvites, apiCreateInvite, apiCancelInvite, apiListUsers, apiResetCode, apiRemoveUser
@@ -84,7 +85,7 @@ export async function renderAccountCard(el) {
   }
 
   el.innerHTML =
-    '<h3 class="daily-section-title">account</h3>' +
+    '<h3 class="daily-section-title">' + icon("user") + "<span>account</span></h3>" +
     '<p class="storage-now"><span class="status-dot is-online"></span> logged in as <strong>' + escapeHtml(me.username) + "</strong>" +
       (me.is_admin ? ' <span class="people-badge">admin</span>' : "") + "</p>" +
     (me.is_admin

@@ -4,6 +4,7 @@ import { calcStreak, bar } from "./stats.js";
 import { getGoals, getGoalStats } from "./goals.js";
 import { getDensityData, calculateDensityStats } from "./densityMap.js";
 import { getPomodoroHistory } from "./pomodoro.js";
+import { icon } from "./icons.js";
 
 var WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 var NOT_ENOUGH_DATA = "Not enough data yet. Keep logging.";
@@ -367,8 +368,8 @@ function renderDashboard(data) {
       '<div class="analytics-card">' +
       renderHeading() +
       '<div class="analytics-empty">' +
-      '<div class="section-label">no data yet</div>' +
-      "<p>" + NOT_ENOUGH_DATA + " Analytics reads from your daily page, focus sessions, and goals \u2014 once a few days are logged, patterns will start showing up here.</p>" +
+      icon("sprout") +
+      "<p>nothing to see yet. patterns show up here once a few days are logged: daily pages, focus sessions, goals.</p>" +
       "</div>" +
       "</div>"
     );
@@ -377,11 +378,11 @@ function renderDashboard(data) {
   return (
     '<div class="analytics-card">' +
     renderHeading() +
-    renderOverview(data.overview) +
-    renderTrends(data) +
-    renderBalance(data.balance) +
-    renderStreaks(data.streaks) +
-    renderInsights(data.insights) +
+    '<div class="analytics-body">' +
+      renderOverview(data.overview) +
+      renderTrends(data) +
+      renderStreaks(data.streaks) +
+    "</div>" +
     "</div>"
   );
 }
@@ -389,8 +390,9 @@ function renderDashboard(data) {
 function renderHeading() {
   return (
     '<div class="analytics-heading">' +
-    '<div class="daily-section-title">// analytics</div>' +
-    '<div class="analytics-view-switch" role="group" aria-label="Analytics period">' +
+    '<div><h3 class="daily-section-title">' + icon("chart-column") + "<span>your patterns</span></h3>" +
+    '<p class="density-subtitle">how consistent the days have been</p></div>' +
+    '<div class="segmented analytics-view-switch" role="group" aria-label="period">' +
     viewButton("week") +
     viewButton("month") +
     viewButton("year") +
@@ -402,40 +404,25 @@ function renderHeading() {
 function viewButton(view) {
   var active = state.view === view;
   return (
-    '<button class="tool-btn' + (active ? " active" : "") + '" type="button" data-analytics-view="' + view +
+    '<button class="seg-btn' + (active ? " active" : "") + '" type="button" data-analytics-view="' + view +
     '" aria-pressed="' + active + '">' + view + "</button>"
   );
 }
 
 function renderOverview(overview) {
-  var todayCards = [
-    statCard("focus", formatMinutes(overview.today.focusMinutes)),
-    statCard("goals done", String(overview.today.goalsCompleted)),
-    statCard("reflection", overview.today.reflectionLogged ? "logged" : "not yet")
-  ];
-  if (overview.today.tasks) {
-    todayCards.push(statCard("tasks", overview.today.tasks.done + " / " + overview.today.tasks.total));
-  }
-
   var weekCards = [
-    statCard("focus time", formatMinutes(overview.week.focusMinutes)),
-    statCard("active days", overview.week.activeDays + " / " + overview.week.daysElapsed),
-    statCard("goals done", String(overview.week.goalsCompleted)),
-    statCard("reflections", String(overview.week.reflectionDays))
+    statCard("focus this week", formatMinutes(overview.week.focusMinutes), "timer"),
+    statCard("active days", overview.week.activeDays + " of " + overview.week.daysElapsed, "calendar-check"),
+    statCard("goals done", String(overview.week.goalsCompleted), "flag"),
+    statCard("reflections", String(overview.week.reflectionDays), "moon")
   ];
 
-  return (
-    '<div class="analytics-overview">' +
-    '<div class="section-label">today</div>' +
-    '<div class="analytics-summary">' + todayCards.join("") + "</div>" +
-    '<div class="section-label">this week</div>' +
-    '<div class="analytics-summary">' + weekCards.join("") + "</div>" +
-    "</div>"
-  );
+  return '<div class="analytics-overview"><div class="analytics-summary">' + weekCards.join("") + "</div></div>";
 }
 
-function statCard(label, value) {
-  return '<div class="stat-card analytics-stat-card"><div class="stat-label">' + label + '</div><div class="stat-value">' + value + "</div></div>";
+function statCard(label, value, iconName) {
+  return '<div class="stat-card analytics-stat-card">' + (iconName ? '<span class="stat-icon">' + icon(iconName) + "</span>" : "") +
+    '<div class="stat-label">' + label + '</div><div class="stat-value">' + value + "</div></div>";
 }
 
 function formatMinutes(minutes) {
@@ -448,7 +435,7 @@ function formatMinutes(minutes) {
 function renderTrends(data) {
   return (
     '<div class="analytics-trends">' +
-    '<div class="section-label">trends \u00b7 ' + data.periodLabel + "</div>" +
+    '<div class="section-label">focus ' + data.periodLabel + "</div>" +
     renderFocusTrend(data.trend) +
     '<div class="bar-row">' +
     '<span class="bar-label">consistency</span>' +
@@ -463,7 +450,7 @@ function renderTrends(data) {
     '<div class="bar-row">' +
     '<span class="bar-label">goals</span>' +
     "<span>" + bar(data.goalProgress.overallProgress) + "</span>" +
-    '<span class="bar-pct">' + data.goalProgress.completed + " done \u00b7 " + data.goalProgress.active + " active</span>" +
+    '<span class="bar-pct">' + data.goalProgress.completed + " done, " + data.goalProgress.active + " active</span>" +
     "</div>" +
     "</div>"
   );
@@ -482,7 +469,7 @@ function renderFocusTrend(trend) {
   }).join("");
 
   var rangeLabel = trend.points.length > 1
-    ? formatShortDate(trend.points[0].date) + " \u2192 " + formatShortDate(trend.points[trend.points.length - 1].date)
+    ? formatShortDate(trend.points[0].date) + " to " + formatShortDate(trend.points[trend.points.length - 1].date)
     : formatShortDate(trend.points[0].date);
 
   return (
@@ -490,7 +477,7 @@ function renderFocusTrend(trend) {
     '<div class="analytics-trend-chart">' + bars + "</div>" +
     '<div class="analytics-trend-range">' +
     "<span>" + rangeLabel + "</span>" +
-    "<span>" + formatMinutes(trend.total) + " total focus</span>" +
+    "<span>" + formatMinutes(trend.total) + " in all</span>" +
     "</div>" +
     "</div>"
   );
@@ -532,13 +519,17 @@ function formatSignals(value) {
 
 function renderStreaks(streaks) {
   var cards = [
-    statCard("logging streak", streaks.loggingCurrent + "d"),
-    statCard("longest logging", streaks.loggingLongest + "d"),
-    statCard("focus streak", streaks.focusCurrent + "d"),
-    statCard("goal streak", streaks.goalCurrent + "d")
+    statCard("writing streak", days(streaks.loggingCurrent), "flame"),
+    statCard("longest streak", days(streaks.loggingLongest), "trophy"),
+    statCard("focus streak", days(streaks.focusCurrent), "timer"),
+    statCard("goal streak", days(streaks.goalCurrent), "mountain-snow")
   ];
 
   return '<div class="analytics-streaks"><div class="section-label">streaks</div><div class="analytics-summary">' + cards.join("") + "</div></div>";
+}
+
+function days(n) {
+  return n + (n === 1 ? " day" : " days");
 }
 
 function renderInsights(insights) {

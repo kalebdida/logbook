@@ -1,0 +1,57 @@
+/* =====================================================================
+   themes.css: the few things a theme changes beyond its tokens.
+   ===================================================================== */
+
+/* neon glow (a theme switch) */
+html[data-glow="on"] .console-clock,
+html[data-glow="on"] .pomodoro-timer,
+html[data-glow="on"] .sidebar-nav-brand,
+html[data-glow="on"] #pageTitle { text-shadow: 0 0 14px rgb(var(--accent-rgb) / 0.45), 0 0 2px rgb(var(--accent-rgb) / 0.7); }
+html[data-glow="off"] .console-clock { text-shadow: none; }
+
+/* light themes: cards are paper, not glass */
+html[data-theme-mode="light"] {
+  --card-bg: rgb(var(--surface-rgb) / 0.96);
+  --card-blur: none;
+  --shadow-card: 0 1px 0 rgb(var(--ink-rgb) / 0.02) inset, 0 14px 30px -22px rgb(var(--shade-rgb) / 0.45);
+  --field: rgb(var(--bg-rgb) / 0.6);
+}
+html[data-theme-mode="light"] #rain { opacity: 0.35; }
+html[data-theme-mode="light"] .sidebar-nav { background: rgb(var(--surface-rgb) / 0.75); }
+html[data-theme-mode="light"] .entry-card,
+html[data-theme-mode="light"] .goal-card { background: rgb(var(--surface-rgb) / 0.9); }
+html[data-theme-mode="light"] .today-hero { box-shadow: 0 20px 40px -30px rgb(var(--shade-rgb) / 0.5); }
+
+/* themes without the night scene: the dashboard top is a plain card */
+html:not([data-background="night"]):not([data-background="window"]) .console-clock { color: var(--accent); }
+
+/* ---------- terminal: the original look keeps its habits ---------- */
+html[data-theme="terminal"] .sidebar-nav-item::before {
+  content: ">";
+  position: absolute;
+  left: 4px;
+  color: var(--accent2);
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+html[data-theme="terminal"] .sidebar-nav-item.active::before { opacity: 1; }
+html[data-theme="terminal"] #pageTitle { font-size: 17px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
+html[data-theme="terminal"] #pageTitle::before { content: "> "; color: var(--accent2); }
+html[data-theme="terminal"] #pageTitle::after { content: ".exe"; color: var(--faint); }
+html[data-theme="terminal"] .console-greeting::before { content: "> "; color: var(--accent2); }
+html[data-theme="terminal"] .today-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgb(var(--shade-rgb) / 0.18) 3px);
+  opacity: 0.35;
+}
+html[data-theme="terminal"][data-scanlines="off"] .today-hero::after,
+body.no-scanlines .today-hero::after { display: none; }
+html[data-theme="terminal"] .primary-btn,
+html[data-theme="terminal"] .tool-btn,
+html[data-theme="terminal"] .seg-btn,
+html[data-theme="terminal"] .chip { border-radius: var(--r-sm); }

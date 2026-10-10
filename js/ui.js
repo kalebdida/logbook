@@ -30,13 +30,15 @@ export function showStorageWarning(kind) {
     : "this browser is blocking local storage, so settings and the live focus timer won't be remembered here. your journal data is safe on the server.";
 }
 
-/* The boot sequence. Any key or click skips it; it can be turned off in settings. */
+/* The terminal theme's boot sequence. Any key or click skips it; it can be
+   turned off in settings. Every other look just fades in. */
 export function startBoot(entryCount) {
   var bootEl = document.getElementById("boot");
   var app = document.getElementById("app");
   var prefs = getPrefs();
   var reduce = false;
   try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  var terminal = document.documentElement.dataset.theme === "terminal";
 
   function finish() {
     if (bootEl.dataset.done) return;
@@ -49,7 +51,7 @@ export function startBoot(entryCount) {
     document.body.classList.add("is-booted");
   }
 
-  if (!prefs.boot || reduce) {
+  if (!prefs.boot || reduce || !terminal) {
     bootEl.hidden = true;
     bootEl.dataset.done = "1";
     document.body.classList.add("is-booted");

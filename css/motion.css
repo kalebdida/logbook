@@ -1,0 +1,106 @@
+/* =====================================================================
+   motion.css: every keyframe in one place. Motion answers what you do
+   (pages settle in, presses sink, checks pop); the only motion nobody
+   asked for is the night itself, and it stops for reduced motion.
+   ===================================================================== */
+
+/* the app fades in once it knows what to show */
+#app, .sidebar-nav { transition: opacity 0.6s ease; }
+body:not(.is-booted) #app { opacity: 0; }
+
+.page-enter { animation: pageEnter 0.45s var(--ease-out) both; }
+.page-enter .today-hero { animation: heroIn 0.9s var(--ease-out) both; }
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes heroIn {
+  from { opacity: 0; transform: scale(0.985); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes inkIn {
+  from { opacity: 0; filter: blur(3px); }
+  to { opacity: 1; filter: none; }
+}
+@keyframes growUp {
+  from { transform: scaleY(0); }
+  to { transform: none; }
+}
+@keyframes pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(0.82); }
+  70% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes ripple {
+  from { opacity: 0.9; transform: scale(0.9); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+@keyframes celebrate {
+  0% { transform: translateY(0); box-shadow: 0 0 0 rgb(var(--accent-rgb) / 0); }
+  40% { transform: translateY(-4px); box-shadow: 0 0 34px rgb(var(--accent-rgb) / 0.4); }
+  100% { transform: translateY(0); box-shadow: 0 0 0 rgb(var(--accent-rgb) / 0); }
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
+@keyframes chatDot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* the night */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.15; }
+}
+@keyframes flick {
+  0%, 62% { opacity: 0.85; }
+  63%, 100% { opacity: 0; }
+}
+@keyframes hum {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.82; }
+}
+@keyframes train {
+  0% { transform: translateX(1260px); }
+  60%, 100% { transform: translateX(-200px); }
+}
+@keyframes rainfall {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: -18px 160px, -24px 220px; }
+}
+
+/* terminal theme */
+@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.cursor-blink { animation: blink 1s step-start infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scene-train { display: none; }
+}

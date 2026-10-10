@@ -1,0 +1,197 @@
+/* =====================================================================
+   scene.css: the night. The page sky for the night and rainy-window
+   themes, the dashboard's window onto Fuji (js/scene.js), and the lock
+   screen. Scene colors are mixed from the theme tokens, so a custom
+   theme with the night background still matches itself.
+   ===================================================================== */
+
+:root {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 55%, black);
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 90%, var(--accent2));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 74%, var(--accent2));
+  --scene-star: var(--text);
+  --scene-moon: color-mix(in srgb, var(--text) 78%, var(--accent));
+  --scene-far: color-mix(in srgb, var(--bg) 84%, var(--accent2));
+  --scene-peak: color-mix(in srgb, var(--bg) 72%, var(--accent2));
+  --scene-ridge: color-mix(in srgb, var(--bg) 82%, black);
+  --scene-ground: color-mix(in srgb, var(--bg) 52%, black);
+  --scene-snow: color-mix(in srgb, var(--text) 94%, var(--accent2));
+  --scene-snow-shade: color-mix(in srgb, var(--accent2) 42%, var(--bg));
+  --scene-window: var(--accent);
+  --scene-shop-light: color-mix(in srgb, var(--accent) 45%, white);
+  --scene-lamp: color-mix(in srgb, var(--accent2) 45%, white);
+  --scene-sign: color-mix(in srgb, var(--accent2) 62%, var(--bg));
+}
+
+/* ---------- the page sky ---------- */
+html[data-background="night"] #sky {
+  background:
+    radial-gradient(90% 55% at 72% 112%, rgb(var(--accent-rgb) / 0.09), transparent 62%),
+    radial-gradient(70% 50% at 10% -10%, rgb(var(--accent2-rgb) / 0.08), transparent 60%),
+    linear-gradient(180deg, var(--scene-sky-top) 0%, var(--bg) 46%, var(--scene-sky-mid) 100%);
+}
+/* a far mountain at the foot of every page, so the dashboard's window
+   isn't the only place it's night */
+html[data-background="night"] #sky::after {
+  content: "";
+  position: absolute;
+  right: -4vw;
+  bottom: 0;
+  width: min(1100px, 92vw);
+  height: 26vh;
+  background: linear-gradient(180deg, var(--scene-peak), var(--scene-ridge));
+  opacity: 0.55;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 260' preserveAspectRatio='none'%3E%3Cpath d='M0 260 C110 256 210 236 300 204 C390 150 470 80 520 34 Q540 18 560 34 C620 86 720 160 830 196 C900 222 960 240 1000 250 L1000 260 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 260' preserveAspectRatio='none'%3E%3Cpath d='M0 260 C110 256 210 236 300 204 C390 150 470 80 520 34 Q540 18 560 34 C620 86 720 160 830 196 C900 222 960 240 1000 250 L1000 260 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+html[data-background="night"] #rain { opacity: 0.95; }
+
+html[data-background="window"] #sky {
+  background:
+    radial-gradient(60% 40% at 20% 100%, rgb(var(--accent-rgb) / 0.08), transparent 70%),
+    radial-gradient(50% 40% at 85% 90%, rgb(var(--accent2-rgb) / 0.08), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, black) 0%, var(--bg) 60%, color-mix(in srgb, var(--bg) 88%, var(--accent2)) 100%);
+}
+html[data-background="window"] #rain { opacity: 1; }
+
+/* ---------- the dashboard window ---------- */
+.today-hero {
+  position: relative;
+  min-height: 340px;
+  margin-bottom: 24px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgb(var(--ink-rgb) / 0.09);
+  border-radius: var(--r-xl);
+  background: var(--card-bg);
+  box-shadow: 0 40px 80px -40px rgb(var(--shade-rgb) / 0.9), 0 0 0 1px rgb(var(--shade-rgb) / 0.2);
+}
+
+.hero-scene { position: absolute; inset: 0; z-index: -1; display: none; }
+html[data-background="night"] .hero-scene,
+html[data-background="window"] .hero-scene { display: block; }
+.scene { display: block; width: 100%; height: 100%; }
+
+.hero-body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  min-height: 340px;
+  padding: 28px 32px 26px;
+}
+html[data-background="night"] .hero-body,
+html[data-background="window"] .hero-body {
+  background: linear-gradient(90deg, rgb(var(--bg-rgb) / 0.66) 0%, rgb(var(--bg-rgb) / 0.3) 40%, rgb(var(--bg-rgb) / 0) 66%);
+}
+
+.console-date { color: var(--text-2); font-size: 14px; letter-spacing: 0.02em; }
+.console-greeting {
+  margin-top: 4px;
+  color: var(--text);
+  font: 500 clamp(26px, 3.2vw, 38px)/1.15 var(--font-display);
+  letter-spacing: 0.01em;
+}
+.console-clock {
+  margin-top: 8px;
+  color: var(--text);
+  font: 500 clamp(56px, 8vw, 96px)/0.95 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 40px rgb(var(--accent-rgb) / 0.22);
+}
+
+.console-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-self: end;
+  gap: 10px;
+}
+.readout-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 16px 8px 10px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.11);
+  border-radius: var(--r-md);
+  background: rgb(var(--bg-rgb) / 0.48);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.readout-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--wash-strong);
+  color: var(--accent2);
+  font-size: 16px;
+}
+.readout-text { display: flex; flex-direction: column; min-width: 0; }
+.readout-key { color: var(--muted); font-size: 11.5px; line-height: 1.3; }
+.readout-val { color: var(--text); font-size: 15px; font-weight: 700; line-height: 1.35; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.readout-cell.is-warn { border-color: rgb(var(--warm-rgb) / 0.45); }
+.readout-cell.is-warn .readout-icon { background: rgb(var(--warm-rgb) / 0.16); color: var(--warm); }
+.readout-cell.is-warn .readout-key { color: var(--warm-text); }
+.readout-cell.is-live .readout-icon { animation: breathe 2.4s ease-in-out infinite; background: rgb(var(--accent-rgb) / 0.16); color: var(--accent); }
+.readout-cell--good .readout-icon { background: rgb(var(--mood-good-rgb) / 0.16); color: var(--mood-good); }
+.readout-cell--okay .readout-icon { background: rgb(var(--mood-okay-rgb) / 0.16); color: var(--mood-okay); }
+.readout-cell--rough .readout-icon { background: rgb(var(--mood-rough-rgb) / 0.16); color: var(--mood-rough); }
+
+.console-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* rain on the glass, for the rainy window theme */
+.hero-rain { position: absolute; inset: 0; display: none; pointer-events: none; }
+html[data-background="window"] .hero-rain {
+  display: block;
+  background:
+    repeating-linear-gradient(100deg, transparent 0 22px, rgb(var(--text-rgb) / 0.07) 22px 23px, transparent 23px 61px),
+    repeating-linear-gradient(97deg, transparent 0 37px, rgb(var(--text-rgb) / 0.05) 37px 38px, transparent 38px 89px);
+  background-size: 100% 160px, 100% 220px;
+  animation: rainfall 0.9s linear infinite;
+}
+html[data-background="window"] .scene { filter: blur(1.4px) saturate(1.1); }
+
+/* scene motion: a few stars breathe, one window goes dark now and then,
+   a small train crosses at the foot of the mountain */
+.scene .tw { animation: twinkle 5.5s ease-in-out infinite; }
+.scene .flick { animation: flick 46s steps(1) infinite; }
+.scene-train { animation: train 64s linear infinite; }
+.shop-glow { animation: hum 7s ease-in-out infinite; }
+
+/* ---------- lock screen ---------- */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  padding: max(24px, 7vh) 16px 30vh;
+  overflow: auto;
+  background: linear-gradient(180deg, var(--scene-sky-top), var(--scene-sky-mid) 70%, var(--scene-sky-low));
+}
+.lock-scene { position: fixed; right: 0; bottom: 0; left: 0; height: 44vh; pointer-events: none; }
+.lock-scene .scene-sky { display: none; }
+@media (min-width: 900px) and (min-aspect-ratio: 6/5) {
+  .lock-screen { align-content: center; justify-items: start; padding: 24px 24px 24px max(24px, 8vw); }
+  .lock-scene { height: 64vh; }
+}
+html:not([data-background="night"]):not([data-background="window"]) .lock-screen { background: rgb(var(--bg-rgb) / 0.97); }
+html:not([data-background="night"]):not([data-background="window"]) .lock-scene { display: none; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 760px) {
+  .today-hero { min-height: 0; margin: -6px -4px 20px; border-radius: var(--r-lg); }
+  .hero-body { gap: 14px; min-height: 380px; padding: 22px 18px 18px; }
+  html[data-background="night"] .hero-body,
+  html[data-background="window"] .hero-body {
+    background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.5) 0%, rgb(var(--bg-rgb) / 0.08) 45%, rgb(var(--bg-rgb) / 0.55) 100%);
+  }
+  .console-readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .readout-cell { padding: 7px 10px 7px 8px; }
+  .readout-icon { width: 28px; height: 28px; font-size: 14px; }
+  .console-actions .primary-btn { flex: 1 1 auto; }
+  html[data-background="night"] #sky::after { height: 18vh; }
+}

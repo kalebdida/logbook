@@ -3,8 +3,8 @@
    {
      id, name, mode: "dark" | "light",
      colors: { bg, surface, text, text2, muted, accent, accent2, warm, danger },   // hex
-     font: "mono" | "sans" | "serif" | "rounded",
-     background: "rain" | "stars" | "snow" | "fireflies" | "none",
+     font: "maru" | "mono" | "sans" | "serif" | "rounded",
+     background: "night" | "window" | "rain" | "stars" | "snow" | "fireflies" | "none",
      glyphs: "binary" | "katakana" | "hex" | "dots",       // for rain
      scanlines: bool, glow: bool,
      roundness: "sharp" | "soft" | "round",
@@ -14,26 +14,38 @@
 
    Everything else (borders, dim text, tints) is derived, and generated
    themes are pushed to readable contrast before they're applied.
-   "terminal" is the default and matches the CSS defaults exactly. */
+   "night" is the default and matches the CSS defaults in base.css exactly. */
 
 var THEME_KEY = "logbook-theme";          // id of the active theme
 var CUSTOM_KEY = "logbook-custom-themes";  // themes you made
 var VARS_KEY = "logbook-theme-vars";       // precomputed CSS vars, read by index.html before first paint
 
-export var BACKGROUNDS = ["rain", "stars", "snow", "fireflies", "none"];
+export var BACKGROUNDS = ["night", "window", "rain", "stars", "snow", "fireflies", "none"];
+export var DEFAULT_THEME = "night";
 export var GLYPHS = ["binary", "katakana", "hex", "dots"];
 export var ROUNDNESS = ["sharp", "soft", "round"];
 
 export var FONTS = {
+  maru: '"Zen Maru Gothic", ui-rounded, "SF Pro Rounded", system-ui, sans-serif',
   mono: 'var(--mono)',
   sans: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
   rounded: 'ui-rounded, "SF Pro Rounded", Nunito, Quicksand, "Varela Round", system-ui, sans-serif'
 };
 
-var ROUND = { sharp: [2, 3, 4], soft: [6, 9, 13], round: [10, 16, 22] };
+var ROUND = { sharp: [2, 3, 4], soft: [6, 9, 13], round: [10, 14, 20] };
+
+/* headings, the clock, the verse: a book face for the softer fonts */
+var MINCHO = '"Shippori Mincho", "Iowan Old Style", "Palatino Linotype", Georgia, serif';
+var DISPLAY = { maru: MINCHO, serif: FONTS.serif, mono: FONTS.mono, sans: FONTS.sans, rounded: FONTS.rounded };
 
 export var BUILT_IN = [
+  { id: "night", name: "night", note: "fuji under the stars. deep blue, warm windows, a slow sky.", mode: "dark",
+    colors: { bg: "#0a1430", surface: "#121e3d", text: "#edf0fa", text2: "#bcc5df", muted: "#8792b5", accent: "#f4c56c", accent2: "#8ec8ff", warm: "#f5ad7a", danger: "#ec8f95" },
+    font: "maru", background: "night", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+  { id: "window", name: "rainy window", note: "a small apartment, rain on the glass, the city blurred behind it.", mode: "dark",
+    colors: { bg: "#0c111d", surface: "#151c2c", text: "#e9edf5", text2: "#b8c0d2", muted: "#848ea6", accent: "#ffc977", accent2: "#9cc3e8", warm: "#f0a77e", danger: "#e98d93" },
+    font: "maru", background: "window", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "terminal", name: "terminal", note: "the original. phosphor green, matrix rain, scanlines.", mode: "dark",
     colors: { bg: "#050806", surface: "#0c1410", text: "#eafff2", text2: "#c8c4b8", muted: "#8890a8", accent: "#7ce8a0", accent2: "#4dd0c4", warm: "#e8b95c", danger: "#c96a6a" },
     font: "mono", background: "rain", glyphs: "binary", scanlines: true, glow: true, roundness: "soft" },
@@ -133,7 +145,7 @@ export function normalizeTheme(t) {
     if (!/^#[0-9a-fA-F]{6}$/.test(out.colors[k])) out.colors[k] = base.colors[k];
   });
   if (["dark", "light"].indexOf(out.mode) < 0) out.mode = luminance(out.colors.bg) > 0.35 ? "light" : "dark";
-  if (!FONTS[out.font]) out.font = "mono";
+  if (!FONTS[out.font]) out.font = "maru";
   if (BACKGROUNDS.indexOf(out.background) < 0) out.background = "none";
   if (GLYPHS.indexOf(out.glyphs) < 0) out.glyphs = "binary";
   if (!ROUND[out.roundness]) out.roundness = "soft";
@@ -175,13 +187,14 @@ export function themeVars(theme) {
     "--faint": mix(c.muted, c.surface, 0.18), "--dim": mix(c.muted, c.surface, 0.3), "--placeholder": mix(c.muted, c.surface, 0.5),
     "--danger-text": mix(c.danger, c.text, light ? 0.15 : 0.4), "--warm-text": mix(c.warm, c.text, light ? 0.15 : 0.5),
     "--warm-dim": mix(c.warm, c.surface, 0.2), "--warm-faint": mix(c.warm, c.surface, 0.42), "--on-accent": onAccent,
-    "--font-ui": FONTS[t.font], "--glow": t.glow ? "1" : "0",
+    "--font-ui": FONTS[t.font], "--font-display": DISPLAY[t.font],
+    "--serif": t.font === "maru" ? MINCHO : FONTS.serif, "--glow": t.glow ? "1" : "0",
     "--r-sm": r[0] + "px", "--r-md": r[1] + "px", "--r-lg": r[2] + "px",
     "color-scheme": t.mode
   };
   if (t.id === "terminal") {
     // pixel-for-pixel the original
-    Object.assign(vars, { "--surface-deep": "#07100b", "--text-3": "#a8b6ac", "--faint": "#6b7394", "--dim": "#5b6482", "--placeholder": "#44504a",
+    Object.assign(vars, { "--serif": "Georgia, \"Iowan Old Style\", \"Times New Roman\", serif", "--surface-deep": "#07100b", "--text-3": "#a8b6ac", "--faint": "#6b7394", "--dim": "#5b6482", "--placeholder": "#44504a",
       "--danger-text": "#e3a3a3", "--warm-text": "#f0d9a8", "--warm-dim": "#b98f4a", "--warm-faint": "#8a7040", "--on-accent": "#052b12" });
   }
   return vars;
@@ -221,7 +234,7 @@ export function findTheme(id) {
 var current = null;
 
 export function currentTheme() {
-  return current || findTheme(readJson(THEME_KEY, "terminal"));
+  return current || findTheme(readJson(THEME_KEY, DEFAULT_THEME));
 }
 
 /* Apply a theme to the page. persist=false previews without saving. */
@@ -248,7 +261,7 @@ export function applyTheme(theme, persist) {
   if (scheme) scheme.setAttribute("content", t.mode);
   if (persist !== false) {
     writeJson(THEME_KEY, t.id);
-    writeJson(VARS_KEY, { vars: vars, mode: t.mode, bg: t.colors.bg, scanlines: t.scanlines, glow: t.glow, css: t.css });
+    writeJson(VARS_KEY, { id: t.id, vars: vars, mode: t.mode, bg: t.colors.bg, background: t.background, scanlines: t.scanlines, glow: t.glow, css: t.css });
   }
   document.dispatchEvent(new CustomEvent("logbook:theme-changed", { detail: { theme: t } }));
   return t;
@@ -274,7 +287,15 @@ export function deleteCustomTheme(id) {
   if (currentTheme().id === id) applyTheme(BUILT_IN[0]);
 }
 
+/* The look changed in 2.2: night replaced terminal as the default. Anyone
+   still on terminal got it by default, not by choice, so move them once.
+   (index.html skips the saved terminal colors for the same reason.) */
+var LOOK_KEY = "logbook-look";
 export function initThemes() {
+  if (readJson(LOOK_KEY, 0) < 2) {
+    if (readJson(THEME_KEY, DEFAULT_THEME) === "terminal") writeJson(THEME_KEY, DEFAULT_THEME);
+    writeJson(LOOK_KEY, 2);
+  }
   applyTheme(currentTheme(), true);
 }
 
@@ -343,8 +364,10 @@ export function themeFromVibe(text) {
     : any(ws, ["rounded", "cute", "playful", "kawaii", "bubbly", "friendly", "soft"]) ? "rounded"
     : any(ws, ["terminal", "code", "hacker", "retro", "crt", "matrix", "cyber", "cyberpunk", "pixel", "arcade"]) ? "mono"
     : any(ws, ["modern", "clean", "minimal", "sleek", "apple", "simple", "pro"]) ? "sans"
-    : light ? "sans" : "mono";
-  var background = any(ws, ["rain", "matrix", "hacker", "code", "cyber", "cyberpunk", "terminal", "digital"]) ? "rain"
+    : light ? "sans" : "maru";
+  var background = any(ws, ["matrix", "hacker", "code", "cyber", "cyberpunk", "terminal", "digital"]) ? "rain"
+    : any(ws, ["rain", "rainy", "window", "apartment", "lofi", "storm", "drizzle"]) ? "window"
+    : any(ws, ["ghibli", "fuji", "mountain", "mountains", "japan", "japanese", "anime", "konbini"]) ? "night"
     : any(ws, ["space", "galaxy", "stars", "starry", "cosmic", "dream", "dreamy", "night"]) ? "stars"
     : any(ws, ["snow", "winter", "christmas", "frost", "cold"]) ? "snow"
     : any(ws, ["firefly", "fireflies", "cozy", "summer", "campfire", "magic", "magical", "fairy", "warm", "candle"]) ? "fireflies"
@@ -409,7 +432,7 @@ export function themeFromImage(file) {
             bg: hsl(bh, bs, 6), surface: hsl(bh, bs * 0.9, 10), text: hsl(bh, 20, 93), text2: hsl(bh, 14, 80), muted: hsl(bh, 10, 62),
             accent: accent, accent2: accent2, warm: hsl(40, 78, 64), danger: hsl(356, 70, 66)
           },
-          font: light ? "sans" : "mono", background: "none", scanlines: false, glow: !light, roundness: "soft"
+          font: light ? "sans" : "maru", background: "none", scanlines: false, glow: false, roundness: "round"
         }));
         // small backdrop copy (fits comfortably in browser storage)
         var big = document.createElement("canvas");
@@ -434,9 +457,9 @@ export function themeFromImage(file) {
 export var AI_THEME_PROMPT =
   "You design color themes for a journaling app. Reply with ONLY a JSON object, no prose, matching:\n" +
   '{"name": short lowercase name, "mode": "dark"|"light", "colors": {"bg","surface","text","text2","muted","accent","accent2","warm","danger"} as #rrggbb hex, ' +
-  '"font": "mono"|"sans"|"serif"|"rounded", "background": "rain"|"stars"|"snow"|"fireflies"|"none", "glyphs": "binary"|"katakana"|"hex"|"dots", ' +
+  '"font": "maru"|"mono"|"sans"|"serif"|"rounded", "background": "night"|"window"|"rain"|"stars"|"snow"|"fireflies"|"none", "glyphs": "binary"|"katakana"|"hex"|"dots", ' +
   '"scanlines": bool, "glow": bool, "roundness": "sharp"|"soft"|"round"}\n' +
-  "surface is a card color slightly off bg. text must be very readable on surface. accent is the main highlight, accent2 a second one, warm a warm highlight, danger for errors. Match the vibe the user describes.";
+  "night is a starry sky over a mountain, window is rain on glass with city lights, rain is falling code glyphs. surface is a card color slightly off bg. text must be very readable on surface. accent is the main highlight, accent2 a second one, warm a warm highlight, danger for errors. Match the vibe the user describes.";
 
 export function themeFromAIReply(reply, vibe) {
   var match = String(reply).match(/\{[\s\S]*\}/);

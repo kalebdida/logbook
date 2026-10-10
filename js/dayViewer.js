@@ -1,8 +1,9 @@
 import { apiListEntries, apiGetDay, apiListTasks, apiListActivities, apiGetPomodoroDay, apiListHabits, apiHabitLogs } from './api.js';
 import { dateKey, deriveTimelineFromEntries, deriveMoodFromEntries } from './dayRecord.js';
-import { categoryById } from './categories.js';
+import { categoryById, habitIcon } from './categories.js';
 import { escapeHtml } from './utils.js';
-import { STATUS } from './entries.js';
+import { STATUS, moodTag } from './entries.js';
+import { icon } from './icons.js';
 
 /* Everything recorded for one day, in one panel. Opened from the
    calendar, the density map, journal entries, and "on this day". */
@@ -64,7 +65,7 @@ export async function openDayViewer(dateStr) {
 
   var entries = data[0], day = data[1], tasks = data[2], activities = data[3], focus = data[4];
   var habitNames = {};
-  data[5][0].forEach(function (h) { habitNames[h.id] = (h.icon ? h.icon + " " : "") + h.name; });
+  data[5][0].forEach(function (h) { habitNames[h.id] = habitIcon(h) + "<span>" + escapeHtml(h.name) + "</span>"; });
   var habitsDone = data[5][1].map(function (l) { return habitNames[l.habitId]; }).filter(Boolean);
   var timeline = deriveTimelineFromEntries(entries, dateStr);
   var mood = deriveMoodFromEntries(entries, dateStr);
@@ -72,7 +73,7 @@ export async function openDayViewer(dateStr) {
   var moodHtml = "";
   if (mood && STATUS[mood]) {
     var s = STATUS[mood];
-    moodHtml = '<div class="viewer-mood"><span class="dot" style="background:' + s.color + ";box-shadow:0 0 6px " + s.glow + '"></span><span style="color:' + s.color + '">' + s.code + " " + s.label + "</span><span class=\"viewer-mood-note\">last status of the day</span></div>";
+    moodHtml = '<div class="viewer-mood">' + moodTag(mood) + '<span class="viewer-mood-note">how the day ended</span></div>';
   }
 
   var stats = [];
@@ -87,20 +88,20 @@ export async function openDayViewer(dateStr) {
     ? '<ol class="viewer-timeline">' + timeline.map(function (t) {
         var st = STATUS[t.mood];
         var time = new Date(t.time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
-        return '<li><span class="viewer-time">' + time + '</span><span class="dot" style="background:' + st.color + '"></span><span class="viewer-text">' + escapeHtml(t.text) + "</span></li>";
+        return '<li><span class="viewer-time">' + time + '</span><span class="viewer-mood-icon mood-tag--' + t.mood + '" title="' + st.label + '">' + icon(st.icon) + '</span><span class="viewer-text">' + escapeHtml(t.text) + "</span></li>";
       }).join("") + "</ol>"
     : "";
 
   var tasksHtml = tasks.length
     ? '<ul class="viewer-list">' + tasks.map(function (t) {
-        return '<li class="' + (t.completed ? "is-done" : "") + '"><span aria-hidden="true">' + (t.completed ? "[x]" : "[ ]") + "</span> " + escapeHtml(t.title) + "</li>";
+        return '<li class="' + (t.completed ? "is-done" : "") + '">' + icon(t.completed ? "circle-check" : "clock") + "<span>" + escapeHtml(t.title) + "</span></li>";
       }).join("") + "</ul>"
     : "";
 
   var activitiesHtml = activities.length
     ? '<ul class="viewer-list">' + activities.map(function (a) {
         var cat = categoryById(a.activityCategory);
-        return "<li>" + (cat ? cat.icon + " " : "") + escapeHtml(a.title) + (a.durationMinutes ? ' <span class="viewer-dim">' + a.durationMinutes + " min</span>" : "") + "</li>";
+        return "<li>" + (cat ? icon(cat.icon) : icon("activity")) + "<span>" + escapeHtml(a.title) + "</span>" + (a.durationMinutes ? ' <span class="viewer-dim">' + a.durationMinutes + " min</span>" : "") + "</li>";
       }).join("") + "</ul>"
     : "";
 
@@ -111,8 +112,8 @@ export async function openDayViewer(dateStr) {
     block("entries", timelineHtml) +
     block("tasks", tasksHtml) +
     block("activity", activitiesHtml) +
-    block("habits", habitsDone.length ? '<ul class="viewer-list">' + habitsDone.map(function (h) { return "<li><span aria-hidden=\"true\">[x]</span> " + escapeHtml(h) + "</li>"; }).join("") + "</ul>" : "") +
-    block("journal", text(day.journal)) +
+    block("habits", habitsDone.length ? '<ul class="viewer-list viewer-list--habits">' + habitsDone.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul>" : "") +
+    block("notes", text(day.journal)) +
     block("wins", text(n.wins)) +
     block("lessons", text(n.lessons)) +
     block("gratitude", text(n.gratitude)) +
@@ -123,13 +124,13 @@ export async function openDayViewer(dateStr) {
   var panel = overlay.querySelector(".viewer-panel");
   panel.innerHTML =
     '<header class="viewer-header">' +
-      '<button type="button" class="viewer-nav" data-viewer-shift="-1" aria-label="previous day">‹</button>' +
+      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="-1" aria-label="previous day">' + icon("chevron-left") + "</button>" +
       '<div class="viewer-heading">' +
         '<div class="viewer-date">' + parseKey(dateStr).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toLowerCase() + "</div>" +
-        (stats.length ? '<div class="viewer-stats">' + stats.join("<span aria-hidden=\"true\"> / </span>") + "</div>" : "") +
+        (stats.length ? '<div class="viewer-stats">' + stats.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
       "</div>" +
-      '<button type="button" class="viewer-nav" data-viewer-shift="1" aria-label="next day"' + (isFuture ? " disabled" : "") + ">›</button>" +
-      '<button type="button" class="viewer-close" id="dayViewerClose" aria-label="close">✕</button>' +
+      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="1" aria-label="next day"' + (isFuture ? " disabled" : "") + ">" + icon("chevron-right") + "</button>" +
+      '<button type="button" class="viewer-close icon-btn" id="dayViewerClose" aria-label="close">' + icon("x") + "</button>" +
     "</header>" +
     moodHtml +
     (body || '<p class="viewer-empty">nothing recorded on this day.</p>');

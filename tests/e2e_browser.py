@@ -196,7 +196,7 @@ with sync_playwright() as p:
     page.keyboard.press("Enter")
     page.wait_for_function("location.hash === '#journal'")
     page.wait_for_selector(".entry-card.is-open")
-    page.wait_for_timeout(600)  # let the decrypt animation finish
+    page.wait_for_timeout(700)  # let the reveal animation finish
     check("palette finds and opens an entry", "a week ago entry" in page.text_content(".entry-card.is-open"))
 
     # ---------- day viewer ----------
@@ -242,8 +242,8 @@ with sync_playwright() as p:
     check("companion brief reflects today's data", "1 of 2 tasks done" in brief or "2 tasks" in brief or "tasks done" in brief, brief[:400])
     page.click('[data-command="write-prompt"]')
     page.wait_for_function("location.hash === '#journal'")
-    page.wait_for_function("document.getElementById('entryText').value.startsWith('> ')", timeout=3000)
-    check("reflection question pre-fills the journal", page.input_value("#entryText").startswith("> "))
+    page.wait_for_function("document.getElementById('entryText').value.includes('?')", timeout=3000)
+    check("reflection question pre-fills the journal", "?" in page.input_value("#entryText"))
 
     # ---------- settings: backup + legacy import ----------
     page.goto(BASE + "/#settings")

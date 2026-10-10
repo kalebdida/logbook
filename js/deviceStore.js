@@ -24,7 +24,7 @@ var TABLES = {
   habit_logs: "key",
   meta: "key"
 };
-var VERSION = "2.1.0";
+var VERSION = "2.2.0";
 
 var MOODS = ["good", "okay", "rough"];
 var AREAS = CATEGORIES.map(function (c) { return c.id; });

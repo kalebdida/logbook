@@ -1,10 +1,10 @@
 # logbook
 
-A personal OS in a terminal skin: journal, daily pages, tasks, habits, activity
-log, focus timer with a soundtrack, goals, calendar, a life-balance density map,
-analytics, and a companion that briefs you on your day and (if you connect an
-AI) talks with you about it. Restyle all of it with themes, including ones made
-from a sentence or a picture.
+A quiet personal OS under a night sky: journal, daily pages, tasks, habits,
+activity log, focus timer with a soundtrack, goals, calendar, patterns, and a
+companion that briefs you on your day and (if you connect an AI) talks with you
+about it. The default look is Fuji at night; restyle all of it with themes,
+including ones made from a sentence or a picture.
 
 Runs three ways: on your computer, as a web app that keeps everything in the
 browser, or on your own server that every device shares. The Android app is
@@ -31,9 +31,9 @@ Open **http://127.0.0.1:8000**. The backend serves the page itself.
 
 | page | what it does |
 |---|---|
-| dashboard | live clock and today's readout, habits (check today, last 7 days, streaks), the daily page (intention, main focus, tasks, activity log, night reflection, brain dump), verse of the day, "on this day", density map, analytics |
-| journal | entries with a status (200 / 102 / 500), grouped by day, search with highlighting, edit, delete with undo, import and export |
-| calendar | month and year views, click any day for its full record (habits included) |
+| today | a window onto the night with the time and today at a glance, the daily page (morning, tasks, what you did, tonight, brain dump) with a floating save bar, habits (check today, last 7 days, streaks), verse of the day, "on this day" |
+| journal | entries with a mood (good, okay, rough: sun, clouds, rain), grouped by day, search with highlighting, edit, delete with undo, import and export |
+| calendar | a full-width month (each day shows its mood and the start of what you wrote) and a year view, click any day for its full record; below it, your patterns (focus trend, consistency, streaks) and life areas (where your time went) |
 | focus | pomodoro timer with progress ring, plus the soundtrack: your own music files, generated ambient sound (rain, waves, wind, fireplace, noise, a focus tone), or Spotify. It can start with each focus block and pause on breaks |
 | goals | categories, priorities, target dates, progress, and a life area so finished goals count on the density map |
 | companion | a daily brief built from your own data (local rules, nothing sent), a question to reflect on, and "ask your logbook": an AI chat for weekly reviews, planning tomorrow, and patterns |
@@ -41,10 +41,10 @@ Open **http://127.0.0.1:8000**. The backend serves the page itself.
 
 ### Themes
 
-- seven built in: terminal (the default), amber crt, paper, glacier, dusk, forest, high contrast
+- nine built in: night (the default: Fuji under the stars), rainy window, terminal (the original), amber crt, paper, glacier, dusk, forest, high contrast
 - **describe a vibe** ("cozy coffee shop at night", "ethiopian highlands", "neon tokyo"): it builds a theme offline from your words, or with AI if you've connected one
 - **from a picture**: colors picked from a photo or wallpaper, optionally as a faint backdrop
-- **fine-tune**: every color, font, background effect (rain with 4 glyph sets, stars, snow, fireflies, none), scanlines, glow, corner roundness, plus custom CSS
+- **fine-tune**: every color, font, background (night sky, rain on the window, falling code with 4 glyph sets, stars, snow, fireflies, none), scanlines, glow, corner roundness, plus custom CSS
 - readability is checked and fixable in one click; themes export to a file you can share
 
 ### Music

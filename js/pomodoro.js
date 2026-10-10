@@ -1,4 +1,5 @@
 import { dateKey } from "./dayRecord.js";
+import { icon } from './icons.js';
 import { apiRecordPomodoroSession, apiListPomodoroDays } from "./api.js";
 import { getPrefs } from "./prefs.js";
 import { emitChange } from "./bus.js";
@@ -43,29 +44,32 @@ export function renderPomodoro() {
 
   container.innerHTML = `
     <div class="pomodoro-card" data-pomodoro-mode="focus">
-      <h3 class="daily-section-title">lock-in</h3>
-
-      <div class="pomodoro-mode-row" role="group" aria-label="Timer mode">
-        <button class="tool-btn" type="button" data-pomodoro-action="mode" data-mode="focus">focus</button>
-        <button class="tool-btn" type="button" data-pomodoro-action="mode" data-mode="shortBreak">short break</button>
-        <button class="tool-btn" type="button" data-pomodoro-action="mode" data-mode="longBreak">long break</button>
+      <div class="pomodoro-head">
+        <h3 class="daily-section-title">${icon("timer")}<span>focus</span></h3>
+        <div class="segmented pomodoro-mode-row" role="group" aria-label="timer mode">
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="focus">focus</button>
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="shortBreak">short break</button>
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="longBreak">long break</button>
+        </div>
       </div>
 
       <div class="pomodoro-dial" id="pomodoroRing">
-        <div class="pomodoro-timer" id="pomodoroTime" role="timer">25:00</div>
-        <div class="pomodoro-status" id="pomodoroStatus" aria-live="polite">focus ready</div>
+        <div class="pomodoro-dial-inner">
+          <div class="pomodoro-timer" id="pomodoroTime" role="timer">25:00</div>
+          <div class="pomodoro-status" id="pomodoroStatus" aria-live="polite">focus ready</div>
+        </div>
+      </div>
+
+      <div class="pomodoro-controls" role="group" aria-label="timer controls">
+        <button class="icon-btn icon-btn--lg" type="button" data-pomodoro-action="reset" aria-label="reset" title="reset">${icon("rotate-ccw")}</button>
+        <button class="primary-btn pomodoro-go" id="pomodoroStart" type="button" data-pomodoro-action="start">${icon("play")}<span>start</span></button>
+        <button class="primary-btn pomodoro-go" id="pomodoroPause" type="button" data-pomodoro-action="pause" hidden>${icon("pause")}<span>pause</span></button>
+        <button class="icon-btn icon-btn--lg" id="pomodoroSkip" type="button" data-pomodoro-action="skip" aria-label="skip the break" title="skip the break">${icon("skip-forward")}</button>
       </div>
 
       <div class="pomodoro-summary">
-        <span id="pomodoroSessions">sessions today: 0</span>
-        <span id="pomodoroFocusTime">focus today: 0 min</span>
-      </div>
-
-      <div class="pomodoro-controls" role="group" aria-label="Pomodoro controls">
-        <button class="tool-btn" id="pomodoroStart" type="button" data-pomodoro-action="start">start</button>
-        <button class="tool-btn" id="pomodoroPause" type="button" data-pomodoro-action="pause">pause</button>
-        <button class="tool-btn" type="button" data-pomodoro-action="reset">reset</button>
-        <button class="tool-btn" id="pomodoroSkip" type="button" data-pomodoro-action="skip">skip break</button>
+        <span>${icon("circle-check")}<span id="pomodoroSessions">0 sessions today</span></span>
+        <span>${icon("hourglass")}<span id="pomodoroFocusTime">0 min focused today</span></span>
       </div>
     </div>
   `;
@@ -489,12 +493,17 @@ function updateView() {
 
   card.setAttribute("data-pomodoro-mode", timer.mode);
   document.getElementById("pomodoroStatus").textContent = statusText();
-  document.getElementById("pomodoroSessions").textContent = "sessions today: " + today.sessions;
-  document.getElementById("pomodoroFocusTime").textContent = "focus today: " + formatFocusTime(today.focusMs);
-  document.getElementById("pomodoroStart").textContent = timer.status === "paused" ? "resume" : "start";
-  document.getElementById("pomodoroStart").disabled = isRunning;
-  document.getElementById("pomodoroPause").disabled = !isRunning;
+  document.getElementById("pomodoroSessions").textContent = today.sessions + (today.sessions === 1 ? " session" : " sessions") + " today";
+  document.getElementById("pomodoroFocusTime").textContent = formatFocusTime(today.focusMs) + " focused today";
+  var start = document.getElementById("pomodoroStart");
+  start.querySelector("span").textContent = timer.status === "paused" ? "resume" : "start";
+  start.disabled = isRunning;
+  start.hidden = isRunning;
+  var pause = document.getElementById("pomodoroPause");
+  pause.disabled = !isRunning;
+  pause.hidden = !isRunning;
   document.getElementById("pomodoroSkip").disabled = !isBreak;
+  card.classList.toggle("is-running", isRunning);
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-pomodoro-action='mode']"), function (button) {
     var active = button.getAttribute("data-mode") === timer.mode;

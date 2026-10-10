@@ -6,6 +6,7 @@ import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 import { renderTasks } from './tasks.js';
 import { renderActivities } from './activities.js';
+import { icon } from './icons.js';
 
 /* field id -> where it lives in the day record */
 var FIELDS = {
@@ -30,6 +31,11 @@ function readPath(record, path) {
   return path.length === 1 ? record[path[0]] : (record[path[0]] || {})[path[1]];
 }
 
+function heading(id, iconName, text, note) {
+  return '<header class="daily-section-head"><h3 class="daily-section-title" id="' + id + '">' + icon(iconName) + "<span>" + text + "</span></h3>" +
+    (note ? '<span class="card-meta">' + note + "</span>" : "") + "</header>";
+}
+
 function field(id, label, rows, placeholder) {
   return (
     '<label class="daily-field" for="' + id + '">' +
@@ -52,31 +58,39 @@ export async function renderDailyPage() {
   currentDay = today;
   dirty = {};
 
+  // the old free-text "journal" box duplicated journal entries; it only shows
+  // when a day already has text in it, so nothing written there gets lost
+  var draft = loadDraft();
+  var legacyJournal = (record.journal || "").trim() !== "" ||
+    Boolean(draft && draft.date === today && draft.values && (draft.values.dailyJournal || "").trim());
+
   container.innerHTML =
     '<article class="daily-page-card">' +
       '<section class="daily-section daily-section--morning" aria-labelledby="morningTitle">' +
-        '<h3 class="daily-section-title" id="morningTitle">morning</h3>' +
+        heading("morningTitle", "sunrise", "morning") +
         (plannedYesterday && !record.morning.intention
           ? '<div class="carry-hint"><span>last night you planned:</span> <q>' + escapeHtml(plannedYesterday) + '</q>' +
             ' <button type="button" class="link-btn" id="usePlanBtn">use as intention</button></div>'
           : "") +
-        field("morningIntention", "intention", 2, "how do you want to show up today?") +
-        field("mainFocus", "main focus", 2, "the one thing that makes today count") +
+        '<div class="daily-field-pair">' +
+          field("morningIntention", "intention", 2, "how do you want to show up today?") +
+          field("mainFocus", "main focus", 2, "the one thing that makes today count") +
+        "</div>" +
       "</section>" +
 
-      '<section class="daily-section" aria-labelledby="tasksTitle">' +
-        '<h3 class="daily-section-title" id="tasksTitle">tasks</h3>' +
+      '<section class="daily-section daily-section--tasks" aria-labelledby="tasksTitle">' +
+        heading("tasksTitle", "list-checks", "tasks") +
         '<div id="dailyTasks"></div>' +
       "</section>" +
 
-      '<section class="daily-section" aria-labelledby="activityTitle">' +
-        '<h3 class="daily-section-title" id="activityTitle">activity log</h3>' +
+      '<section class="daily-section daily-section--activity" aria-labelledby="activityTitle">' +
+        heading("activityTitle", "activity", "what you did", "by life area") +
         '<div id="dailyActivities"></div>' +
       "</section>" +
 
       '<section class="daily-section daily-section--night" aria-labelledby="nightTitle">' +
-        '<h3 class="daily-section-title" id="nightTitle">night reflection</h3>' +
-        field("dailyJournal", "journal", 5, "what actually happened today") +
+        heading("nightTitle", "moon", "tonight") +
+        (legacyJournal ? field("dailyJournal", "notes", 4, "") : "") +
         '<div class="daily-field-pair">' +
           field("nightWins", "wins", 2, "") +
           field("nightLessons", "lessons", 2, "") +
@@ -87,24 +101,24 @@ export async function renderDailyPage() {
         "</div>" +
       "</section>" +
 
-      '<section class="daily-section" aria-labelledby="dumpTitle">' +
-        '<h3 class="daily-section-title" id="dumpTitle">brain dump</h3>' +
+      '<section class="daily-section daily-section--dump" aria-labelledby="dumpTitle">' +
+        heading("dumpTitle", "cloud", "brain dump") +
         field("brainDump", "anything still on your mind", 3, "get it out of your head") +
       "</section>" +
 
       '<footer class="daily-controls">' +
-        '<label class="toggle"><input type="checkbox" id="autoSaveToggle"><span>autosave</span></label>' +
+        '<label class="toggle"><input type="checkbox" class="switch" id="autoSaveToggle"><span>autosave</span></label>' +
         '<span id="dailySaveStatus" class="daily-save-status" aria-live="polite"></span>' +
-        '<button type="button" class="primary-btn" id="finishDayBtn">save day</button>' +
+        '<button type="button" class="primary-btn" id="finishDayBtn">' + icon("check") + "<span>save day</span></button>" +
       "</footer>" +
     "</article>";
 
   FIELD_IDS.forEach(function (id) {
-    document.getElementById(id).value = readPath(record, FIELDS[id]) || "";
+    var el = document.getElementById(id);
+    if (el) el.value = readPath(record, FIELDS[id]) || "";
   });
 
   // unsaved typing from this session wins over the stored record
-  var draft = loadDraft();
   if (draft && draft.date === today) {
     Object.keys(draft.values || {}).forEach(function (id) {
       var el = document.getElementById(id);
@@ -137,7 +151,8 @@ export async function renderDailyPage() {
     save(true);
   });
   FIELD_IDS.forEach(function (id) {
-    document.getElementById(id).addEventListener("input", function () { markDirty(id); });
+    var el = document.getElementById(id);
+    if (el) el.addEventListener("input", function () { markDirty(id); });
   });
 
   await Promise.all([renderTasks(document.getElementById("dailyTasks"), today), renderActivities(document.getElementById("dailyActivities"), today)]);
@@ -157,7 +172,9 @@ function buildPatch(ids) {
   var patch = {};
   ids.forEach(function (id) {
     var path = FIELDS[id];
-    var value = document.getElementById(id).value;
+    var el = document.getElementById(id);
+    if (!el) return;
+    var value = el.value;
     if (path.length === 1) patch[path[0]] = value;
     else {
       patch[path[0]] = patch[path[0]] || {};

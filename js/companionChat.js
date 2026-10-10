@@ -3,6 +3,7 @@
    (moods, task counts, focus minutes, habit check-ins, goal progress).
    Nothing is sent until you send a message. */
 import { aiStatus, aiChat, getAIConfig } from './ai.js';
+import { icon } from './icons.js';
 import { getEntries } from './journal.js';
 import { apiListDaysAsMap } from './api.js';
 import { getGoals } from './goals.js';
@@ -74,7 +75,7 @@ export async function buildContext() {
     var es = entries.filter(function (e) { return dateKey(e.date) === d; });
     var moods = {};
     es.forEach(function (e) { moods[e.mood] = (moods[e.mood] || 0) + 1; });
-    var moodText = Object.keys(moods).map(function (m) { return STATUS[m].code + " " + STATUS[m].label.toLowerCase() + " x" + moods[m]; }).join(", ") || "no entries";
+    var moodText = Object.keys(moods).map(function (m) { return STATUS[m].label + " x" + moods[m]; }).join(", ") || "no entries";
     var rec = dayMap[d] || {};
     var tasks = rec.tasks || [];
     var acts = (rec.activities || []).map(function (a) { return (shareText ? clip(a.title, 40) + " " : "") + (a.durationMinutes ? a.durationMinutes + "m" : "") + (a.activityCategory ? " (" + a.activityCategory + ")" : ""); });
@@ -116,7 +117,7 @@ export async function buildContext() {
     if (recent.length) {
       lines.push("");
       lines.push("most recent journal entries (newest first):");
-      recent.forEach(function (e) { lines.push("- [" + dateKey(e.date) + " " + STATUS[e.mood].code + "] " + clip(e.text, 280)); });
+      recent.forEach(function (e) { lines.push("- [" + dateKey(e.date) + ", " + STATUS[e.mood].label + "] " + clip(e.text, 280)); });
     }
   } else {
     lines.push("");
@@ -129,7 +130,7 @@ export async function buildContext() {
 function systemPrompt(context) {
   return (
     "You are the companion inside Logbook, the private journal and personal OS of " + getPrefs().name + ". " +
-    "Moods are logged as HTTP statuses: 200 OK = good, 102 PROCESSING = okay, 500 ERROR = rough. " +
+    "Each entry has a mood: good, okay, or rough. " +
     "Be warm, direct, and practical, like a friend who pays attention. Keep answers short (under 170 words) unless asked for more. " +
     "Use plain lowercase prose or a few short bullets. No therapy clichés, no lecturing, no emojis unless they use them. " +
     "Only use the data below. Never invent days, entries, or numbers. If the data doesn't answer something, say so. " +
@@ -156,7 +157,7 @@ function messagesHtml() {
   }
   return history.map(function (m, i) {
     return '<div class="chat-msg chat-msg--' + m.role + '">' +
-      '<span class="chat-who">' + (m.role === "user" ? "&gt; you" : "companion") + "</span>" +
+      '<span class="chat-who">' + (m.role === "user" ? "you" : "companion") + "</span>" +
       '<div class="chat-text">' + format(m.content) + "</div>" +
       (m.role === "assistant" ? '<button type="button" class="link-btn chat-copy" data-chat-copy="' + i + '">copy</button>' : "") +
     "</div>";
@@ -214,10 +215,11 @@ export async function renderChatCard(el) {
   var status = await aiStatus();
   if (!status.available) {
     el.innerHTML =
-      '<h3 class="daily-section-title">ask your logbook</h3>' +
+      '<h3 class="daily-section-title">' + icon("message-circle") + "<span>ask your logbook</span></h3>" +
+      '<div class="chat-off-art" aria-hidden="true">' + icon("message-circle") + "</div>" +
       '<p class="chat-off">connect an AI and you can talk to your logbook: weekly reviews, planning tomorrow, spotting patterns. ' +
         "use Claude or OpenAI with your own key, or a free model that runs on your own computer (Ollama). it's off until you turn it on.</p>" +
-      '<button type="button" class="primary-btn" data-chat-setup>set up AI</button>';
+      '<button type="button" class="primary-btn" data-chat-setup>' + icon("sparkles") + "<span>set up AI</span></button>";
     el.querySelector("[data-chat-setup]").addEventListener("click", function () {
       navigateTo("settings");
       setTimeout(function () { var c = document.getElementById("settingsAI"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 80);
@@ -227,14 +229,14 @@ export async function renderChatCard(el) {
   var share = getAIConfig().shareText;
   el.innerHTML =
     '<header class="companion-head">' +
-      '<h3 class="daily-section-title">ask your logbook</h3>' +
+      '<h3 class="daily-section-title">' + icon("message-circle") + "<span>ask your logbook</span></h3>" +
       '<span class="companion-mode" title="' + escapeHtml(status.via === "server" ? "through your server" : "from this device") + '">' + escapeHtml(status.model || status.provider) + "</span>" +
     "</header>" +
     '<div class="chat-quick">' + QUICK.map(function (q, i) { return '<button type="button" class="chip" data-chat-quick="' + i + '">' + q.label + "</button>"; }).join("") + "</div>" +
     '<div class="chat-log" aria-live="polite"></div>' +
     '<form class="chat-form" autocomplete="off">' +
       '<textarea class="text-input chat-input" name="q" rows="1" maxlength="2000" placeholder="ask about your week, your goals, anything"></textarea>' +
-      '<button type="submit" class="primary-btn">send</button>' +
+      '<button type="submit" class="primary-btn chat-send" aria-label="send">' + icon("send") + "</button>" +
     "</form>" +
     '<p class="chat-privacy">sends ' + (share ? "a summary of the last 2 weeks <strong>including what you wrote</strong>" : "<strong>numbers only</strong> (no text you wrote)") +
       ' when you ask. <button type="button" class="link-btn" data-chat-privacy>change</button>' +

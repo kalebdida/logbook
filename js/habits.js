@@ -3,18 +3,19 @@
    streak. A habit with a life area also counts in the density map. */
 import { apiListHabits, apiCreateHabit, apiUpdateHabit, apiDeleteHabit, apiHabitLogs, apiSetHabitDay } from './api.js';
 import { dateKey } from './dayRecord.js';
-import { categoryOptions, categoryById } from './categories.js';
+import { categoryOptions, categoryById, habitIcon, HABIT_ICONS } from './categories.js';
+import { icon } from './icons.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 
 var SUGGESTIONS = [
-  { name: "pray / devotion", icon: "🙏", category: "faith" },
-  { name: "read 10 pages", icon: "📖", category: "learning" },
-  { name: "workout", icon: "🏋", category: "fitness" },
-  { name: "drink 2L water", icon: "💧", category: "rest" },
-  { name: "code 1 hour", icon: "💻", category: "coding" },
-  { name: "no phone after 11", icon: "🌙", category: "rest" }
+  { name: "pray / devotion", icon: "cross", category: "faith" },
+  { name: "read 10 pages", icon: "book-open", category: "learning" },
+  { name: "workout", icon: "dumbbell", category: "fitness" },
+  { name: "drink 2L water", icon: "droplet", category: "rest" },
+  { name: "code 1 hour", icon: "code-xml", category: "coding" },
+  { name: "no phone after 11", icon: "moon", category: "rest" }
 ];
 
 var DAYS_SHOWN = 7;
@@ -22,6 +23,9 @@ var DAYS_SHOWN = 7;
 var habits = [];
 var done = {};            // "id|date" -> true
 var managing = false;
+var pickedIcon = "";       // the icon chosen for the next new habit
+var pickerOpen = false;
+var popId = null;          // the habit just checked, so only it animates
 
 function daysBack(n) {
   var out = [];
@@ -78,11 +82,11 @@ function rowHtml(h, days, today) {
   var cat = categoryById(h.category);
   var checked = has(h.id, today);
   return (
-    '<li class="habit' + (checked ? " is-done" : "") + '" data-habit="' + h.id + '">' +
+    '<li class="habit' + (checked ? " is-done" : "") + (popId === h.id ? " is-pop" : "") + '" data-habit="' + h.id + '">' +
       '<button type="button" class="habit-check" data-habit-toggle="today" aria-pressed="' + checked + '" aria-label="' + escapeHtml(h.name) + ' today">' +
-        '<span aria-hidden="true">' + (checked ? "✓" : "") + "</span></button>" +
+        '<span class="habit-glyph" aria-hidden="true">' + habitIcon(h) + '</span><span class="habit-tick" aria-hidden="true">' + icon("check") + "</span></button>" +
       '<span class="habit-main">' +
-        '<span class="habit-name">' + (h.icon ? '<span class="habit-icon">' + escapeHtml(h.icon) + "</span>" : "") + escapeHtml(h.name) + "</span>" +
+        '<span class="habit-name">' + escapeHtml(h.name) + "</span>" +
         '<span class="habit-week" role="group" aria-label="last ' + DAYS_SHOWN + ' days">' +
           days.map(function (d) {
             var on = has(h.id, d);
@@ -90,7 +94,7 @@ function rowHtml(h, days, today) {
           }).join("") +
         "</span>" +
       "</span>" +
-      '<span class="habit-streak' + (streak >= 7 ? " is-hot" : "") + '" title="' + streak + ' day streak' + (cat ? ", counts toward " + cat.label.toLowerCase() : "") + '">' + (streak ? streak + "d" : "") + "</span>" +
+      '<span class="habit-streak' + (streak >= 7 ? " is-hot" : "") + '" title="' + streak + ' day streak' + (cat ? ", counts toward " + cat.label.toLowerCase() : "") + '">' + (streak ? icon("flame") + "<span>" + streak + "</span>" : "") + "</span>" +
       (managing
         ? '<span class="habit-manage"><button type="button" class="link-btn" data-habit-rename>rename</button><button type="button" class="link-btn" data-habit-archive>archive</button><button type="button" class="link-btn habit-del" data-habit-delete>delete</button></span>'
         : "") +
@@ -107,21 +111,36 @@ function render() {
   el.innerHTML =
     '<div class="habits-card">' +
       '<div class="habits-head">' +
-        '<h3 class="daily-section-title">habits</h3>' +
+        '<h3 class="daily-section-title">' + icon("sprout") + "<span>habits</span></h3>" +
         (habits.length ? '<span class="habits-count">' + s.doneToday + "/" + s.total + " today</span>" : "") +
         (habits.length ? '<button type="button" class="link-btn" data-habits-manage>' + (managing ? "done" : "edit") + "</button>" : "") +
       "</div>" +
+      (habits.length ? '<div class="habits-progress" aria-hidden="true"><i style="width:' + Math.round(s.total ? s.doneToday / s.total * 100 : 0) + '%"></i></div>' : "") +
       (habits.length
         ? '<ul class="habit-list">' + habits.map(function (h) { return rowHtml(h, days, today); }).join("") + "</ul>"
         : '<p class="habits-empty">small things you want to do every day. one tap to check them off.</p>' +
-          '<div class="habit-suggestions">' + SUGGESTIONS.map(function (x, i) { return '<button type="button" class="chip" data-habit-suggest="' + i + '">' + x.icon + " " + escapeHtml(x.name) + "</button>"; }).join("") + "</div>") +
+          '<div class="habit-suggestions">' + SUGGESTIONS.map(function (x, i) { return '<button type="button" class="chip" data-habit-suggest="' + i + '">' + icon(x.icon) + "<span>" + escapeHtml(x.name) + "</span></button>"; }).join("") + "</div>") +
       '<form class="habit-add" autocomplete="off">' +
-        '<input class="text-input habit-add-icon" name="icon" maxlength="4" placeholder="✦" aria-label="icon (optional)">' +
+        '<input type="hidden" name="icon" value="' + escapeHtml(pickedIcon) + '">' +
+        '<button type="button" class="icon-pick" data-icon-pick aria-expanded="' + pickerOpen + '" aria-label="choose an icon" title="choose an icon">' + (pickedIcon ? icon(pickedIcon) : icon("sparkle")) + "</button>" +
         '<input class="text-input" name="name" maxlength="80" placeholder="new habit" aria-label="new habit" required>' +
         '<select class="select-input" name="category" aria-label="life area">' + categoryOptions("", "area") + "</select>" +
-        '<button type="submit" class="tool-btn">add</button>' +
+        '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>add</span></button>" +
       "</form>" +
+      '<div class="icon-grid" role="group" aria-label="habit icons"' + (pickerOpen ? "" : " hidden") + ">" +
+        HABIT_ICONS.map(function (n) { return '<button type="button" class="icon-btn' + (n === pickedIcon ? " is-on" : "") + '" data-icon-choice="' + n + '" aria-label="' + n.replace(/-/g, " ") + '">' + icon(n) + "</button>"; }).join("") +
+      "</div>" +
     "</div>";
+}
+
+/* re-render without losing what's typed in the add form */
+function renderKeepingInput() {
+  var form = document.querySelector("#habitsSection .habit-add");
+  var name = form ? form.elements.name.value : "";
+  var cat = form ? form.elements.category.value : "";
+  render();
+  form = document.querySelector("#habitsSection .habit-add");
+  if (form) { form.elements.name.value = name; form.elements.category.value = cat; }
 }
 
 /* One request at a time per check-box, so fast double taps reach the
@@ -132,7 +151,9 @@ function toggle(id, day) {
   var key = id + "|" + day;
   var next = !done[key];
   if (next) done[key] = true; else delete done[key];
+  popId = next && day === dateKey(new Date()) ? id : null;
   render();
+  popId = null;
   var run = function () { return save(id, day, next); };
   queue[key] = (queue[key] || Promise.resolve()).then(run, run);
   return queue[key];
@@ -180,6 +201,17 @@ function wire(el) {
     if (sug) return create(SUGGESTIONS[Number(sug.getAttribute("data-habit-suggest"))]);
 
     if (t.closest("[data-habits-manage]")) { managing = !managing; return render(); }
+    if (t.closest("[data-icon-pick]")) { pickerOpen = !pickerOpen; return renderKeepingInput(); }
+    var choice = t.closest("[data-icon-choice]");
+    if (choice) {
+      var n = choice.getAttribute("data-icon-choice");
+      pickedIcon = pickedIcon === n ? "" : n;
+      pickerOpen = false;
+      renderKeepingInput();
+      var nameInput = document.querySelector('#habitsSection .habit-add [name="name"]');
+      if (nameInput) nameInput.focus();
+      return;
+    }
 
     var h = habits.find(function (x) { return x.id === id; });
     if (!h) return;
@@ -214,7 +246,10 @@ function wire(el) {
     var f = e.target.elements;
     var name = f.name.value.trim();
     if (!name) return;
-    create({ name: name, icon: f.icon.value.trim(), category: f.category.value || null });
+    var chosen = f.icon.value.trim();
+    pickedIcon = "";
+    pickerOpen = false;
+    create({ name: name, icon: chosen, category: f.category.value || null });
   });
 }
 

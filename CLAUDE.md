@@ -1,10 +1,16 @@
 # Logbook: notes for Claude
 
-Personal OS. Kal runs the server; a few friends get invite-only accounts, each fully private. Default look is the terminal/CRT theme: near-black,
-phosphor green `#7ce8a0`, teal `#4dd0c4`, amber `#e8b95c`, red `#c96a6a`, monospace,
-serif italic only for the verse and the companion's question. Moods are HTTP-style
-statuses: good = 200 OK, okay = 102 PROCESSING, rough = 500 ERROR. Keep that voice
-(lowercase, short, plain) in all UI text.
+Personal OS. Kal runs the server; a few friends get invite-only accounts, each fully private.
+Default look is the "night" theme: Fuji under the stars, a quiet town, a lit corner shop.
+Deep navy `#0a1430`, glass cards, window gold `#f4c56c` for actions and what's active,
+street-lamp blue `#8ec8ff` for focus, links and selection, lantern `#f5ad7a`, soft red `#ec8f95`.
+Type: Zen Maru Gothic for UI, Shippori Mincho for headings, the clock, the verse and the
+companion's question (both self-hosted in `assets/fonts`, OFL). Moods are weather:
+good = sun, okay = cloud-sun, rough = cloud-rain (`STATUS` in `entries.js`).
+Voice: lowercase, short, plain, warm. No terminal jargon in the default look (no "> ",
+".exe", "commit", status codes); the terminal theme keeps those touches in `themes.css`.
+Icons, never emoji: `icon("name")` from `js/icons.js` (Lucide paths; add new names there),
+or `<span data-icon="name">` in static HTML.
 
 ## Run and test
 
@@ -33,18 +39,24 @@ statuses: good = 200 OK, okay = 102 PROCESSING, rough = 500 ERROR. Keep that voi
 
 ## Themes
 
-- Every color in the CSS is a token from `shell.css :root`. Colors with alpha use channel vars:
+- Every color in the CSS is a token from `base.css :root`. Colors with alpha use channel vars:
   `rgb(var(--accent-rgb) / 0.3)`. Never write a hex or rgba literal in CSS or inline styles;
   mood colors come from `STATUS` in `entries.js` (`s.color`, `s.tint(alpha)`).
-- `js/themes.js` turns a small theme object into those vars; the terminal theme reproduces the
+- `js/themes.js` turns a small theme object into those vars; the night theme reproduces the
   CSS defaults exactly. `index.html` applies the saved vars inline before first paint.
+  Scene colors (`scene.css`) are mixed from the tokens with `color-mix()`.
+- The dashboard window and the lock screen draw `js/scene.js` (SVG); `js/background.js` draws the
+  moving sky (night stars, rain on the window, falling code, snow, fireflies).
 - Theme switches show as attributes on `<html>`: `data-scanlines`, `data-glow`, `data-background`,
   `data-theme-mode`. `js/background.js` draws the animated layer from the theme's vars.
 
 ## CSS files
 
-`style.css` components, `shell.css` tokens and layout, `features.css` mid-era pieces,
-`extras.css` themes / lock / habits / music / chat, `animations.css`, `responsive.css`.
+`base.css` fonts, tokens, type, buttons, fields, cards; `layout.css` sidebar / tab bar, page
+grids, overlays; `scene.css` the night (page sky, dashboard window, lock screen); `components.css`
+every feature, in page order; `themes.css` per-theme touches; `motion.css` all keyframes.
+Buttons: `.primary-btn` (lit, one per area), `.tool-btn`, `.icon-btn`, `.chip`, `.seg-btn` in a
+`.segmented`. Motion answers the user (press, check, open); the only ambient motion is the sky.
 
 ## Backend
 

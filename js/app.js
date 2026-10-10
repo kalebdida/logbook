@@ -6,9 +6,9 @@ import { showLock } from './lock.js';
 import { getPrefs } from './prefs.js';
 import { onChange } from './bus.js';
 import { initNavigation, currentPage } from './navigation.js';
-import { loadEntries, getEntries, renderJournal, wireJournal, revealEntry } from './journal.js';
-import { renderConstellation, renderWeekAgo } from './entries.js';
-import { renderStats } from './stats.js';
+import { loadEntries, getEntries, renderJournal, wireJournal } from './journal.js';
+import { renderWeekAgo } from './entries.js';
+import { paintIcons } from './icons.js';
 import { renderVerse } from './verse.js';
 import { startBackground } from './background.js';
 import { initThemes } from './themes.js';
@@ -29,7 +29,6 @@ import { renderCompanion } from './companion.js';
 import { renderSettings, refreshDbStatus, refreshServerCards } from './settings.js';
 import { initPalette } from './palette.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
-import { navigateTo } from './navigation.js';
 
 function applyLook() {
   var p = getPrefs();
@@ -37,10 +36,7 @@ function applyLook() {
 }
 
 function renderEntryViews() {
-  var entries = getEntries();
-  renderStats(entries);
-  renderConstellation(entries);
-  renderWeekAgo(entries, openDayViewer);
+  renderWeekAgo(getEntries(), openDayViewer);
 }
 
 /* Heavy views (they re-read everything from the backend) refresh at most
@@ -86,6 +82,7 @@ function safe(label, fn) {
 
 async function init() {
   safe("theme", initThemes);
+  safe("icons", paintIcons);
   safe("offline + install", startPWA);
   safe("look", applyLook);
   if (!storageWorks()) showStorageWarning();
@@ -174,14 +171,6 @@ async function init() {
   document.addEventListener("logbook:prefs-changed", function (e) {
     applyLook();
     if ("name" in e.detail.patch) refreshReadout();
-  });
-
-  // stars in the constellation jump to their entry
-  document.getElementById("constellation").addEventListener("click", function (e) {
-    var star = e.target.closest("[data-entry-id]");
-    if (!star) return;
-    navigateTo("journal");
-    setTimeout(function () { revealEntry(star.getAttribute("data-entry-id")); }, 60);
   });
 
   // a new day started while the tab was open: reload today's views

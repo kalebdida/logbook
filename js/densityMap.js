@@ -4,6 +4,7 @@ import { getGoals } from "./goals.js";
 import { getPomodoroHistory } from "./pomodoro.js";
 import { CATEGORIES } from "./categories.js";
 import { openDayViewer } from "./dayViewer.js";
+import { icon } from "./icons.js";
 
 var DENSITY_UNIT_MINUTES = 25;
 var MAX_VISIBLE_CATEGORIES = 6;
@@ -115,10 +116,10 @@ function renderMap(density, stats) {
     <section class="density-map-card" aria-label="Life density map">
       <div class="density-heading">
         <div>
-          <div class="daily-section-title">// density map</div>
-          <p class="density-subtitle">where your logged energy is gathering</p>
+          <h3 class="daily-section-title">${icon("layout-grid")}<span>life areas</span></h3>
+          <p class="density-subtitle">where your time and energy went, from what you logged</p>
         </div>
-        <div class="density-view-switch" role="group" aria-label="Density map period">
+        <div class="segmented density-view-switch" role="group" aria-label="period">
           ${viewButton("weekly", "week")}
           ${viewButton("monthly", "month")}
           ${viewButton("yearly", "year")}
@@ -137,7 +138,7 @@ function renderContent(density, stats) {
   return `
     <div class="density-summary" aria-label="Density summary">
       ${summaryItem("tracked days", stats.trackedDays)}
-      ${summaryItem("strongest", stats.strongestCategory.icon + " " + stats.strongestCategory.label)}
+      ${summaryItem("strongest", icon(stats.strongestCategory.icon) + "<span>" + stats.strongestCategory.label.toLowerCase() + "</span>")}
       ${summaryItem("recorded activity", formatNumber(stats.totalActivity))}
     </div>
 
@@ -164,9 +165,9 @@ function renderContent(density, stats) {
 function renderEmptyState() {
   return `
     <div class="density-empty">
-      <div class="section-label">your density map is empty</div>
-      <p>Log an activity, finish a tagged task, or run a focus session and it shows up here.</p>
-      <p class="density-empty-note">Tip: write #fitness or #faith in an entry to tag it.</p>
+      ${icon("sprout")}
+      <p>log an activity, finish a task with a life area, or run a focus session and it shows up here.</p>
+      <p class="density-empty-note">tip: write #fitness or #faith in an entry to tag it.</p>
     </div>
   `;
 }
@@ -178,7 +179,7 @@ function renderCategoryRow(category, dates, dayByDate) {
   }).concat([0]));
 
   return `
-    <div class="density-category-label" title="${category.label}">${category.icon}<span>${category.label}</span></div>
+    <div class="density-category-label" title="${category.label}">${icon(category.icon)}<span>${category.label.toLowerCase()}</span></div>
     ${dates.map(function (date) {
       var day = dayByDate[date];
       var value = day ? day.categories[category.id] : 0;
@@ -196,7 +197,7 @@ function renderDayHeader(date) {
 
 function renderDensityCell(date, category, value, peak) {
   var level = densityLevel(value, peak);
-  var label = category.label + " · " + formatDateLabel(date) + " · " + (value ? formatNumber(value) + " activity signals" : "no signal");
+  var label = category.label.toLowerCase() + ", " + formatDateLabel(date) + ": " + (value ? formatNumber(value) + " logged" : "nothing logged");
   return `<button type="button" class="density-cell density-level-${level}" data-date="${date}" title="${label}" aria-label="${label}"></button>`;
 }
 
@@ -205,29 +206,19 @@ function renderInsights(stats) {
   var strongest = stats.strongestCategory;
   var share = strongest ? Math.round((strongest.value / stats.totalActivity) * 100) : 0;
 
-  if (strongest) {
-    insights.push("Your strongest area in this period is " + strongest.label + ".");
-    insights.push(strongest.label + " accounts for " + share + "% of recorded activity.");
-  }
-  if (stats.mostConsistentWeekday) {
-    insights.push("Your most consistently logged day is " + stats.mostConsistentWeekday + ".");
-  }
+  if (strongest) insights.push(strongest.label.toLowerCase() + " is " + share + "% of what you logged.");
+  if (stats.mostConsistentWeekday) insights.push("you log most on " + stats.mostConsistentWeekday + "s.");
   if (stats.inactiveCategories[0]) {
     var inactive = stats.inactiveCategories[0];
-    insights.push("You have not logged " + inactive.label + " in " + inactive.daysSince + " days.");
+    insights.push("no " + inactive.label.toLowerCase() + " for " + inactive.daysSince + " days.");
   }
-
-  return `
-    <div class="density-insights" aria-label="Density map insights">
-      <div class="section-label">patterns</div>
-      ${insights.slice(0, 3).map(function (insight) { return `<p>${insight}</p>`; }).join("")}
-    </div>
-  `;
+  if (!insights.length) return "";
+  return `<p class="density-insights">${icon("sparkle")}<span>${insights.slice(0, 3).join(" ")}</span></p>`;
 }
 
 function viewButton(view, label) {
   var active = state.view === view;
-  return `<button class="tool-btn${active ? " active" : ""}" type="button" data-density-view="${view}" aria-pressed="${active}">${label}</button>`;
+  return `<button class="seg-btn${active ? " active" : ""}" type="button" data-density-view="${view}" aria-pressed="${active}">${label}</button>`;
 }
 
 function summaryItem(label, value) {

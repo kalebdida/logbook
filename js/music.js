@@ -6,6 +6,7 @@
    A mini player shows what's playing from any page.
    Music is not part of backups; it stays on the device it was added on. */
 import { navigateTo } from './navigation.js';
+import { icon } from './icons.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 
@@ -361,14 +362,14 @@ function prev() {
    ===================================================================== */
 
 export var SOUNDS = [
-  { id: "rain", label: "rain", glyph: "⋮⋮" },
-  { id: "waves", label: "waves", glyph: "≈≈" },
-  { id: "wind", label: "wind", glyph: "~~" },
-  { id: "fire", label: "fireplace", glyph: "∴" },
-  { id: "brown", label: "brown noise", glyph: "▁▂" },
-  { id: "pink", label: "pink noise", glyph: "▂▃" },
-  { id: "white", label: "white noise", glyph: "▃▅" },
-  { id: "focus", label: "focus tone", glyph: "∿", hint: "10 Hz binaural beat. use headphones" }
+  { id: "rain", label: "rain", glyph: "cloud-rain" },
+  { id: "waves", label: "waves", glyph: "waves" },
+  { id: "wind", label: "wind", glyph: "wind" },
+  { id: "fire", label: "fireplace", glyph: "flame" },
+  { id: "brown", label: "brown noise", glyph: "audio-waveform" },
+  { id: "pink", label: "pink noise", glyph: "activity" },
+  { id: "white", label: "white noise", glyph: "radio" },
+  { id: "focus", label: "focus tone", glyph: "brain", hint: "10 Hz binaural beat. use headphones" }
 ];
 
 var MIXES = [
@@ -741,9 +742,9 @@ function renderMini() {
       '<span class="mini-eq" aria-hidden="true"><i></i><i></i><i></i></span>' +
       '<span class="mini-text"><span class="mini-title">' + escapeHtml(np.title) + '</span><span class="mini-sub">' + escapeHtml(np.sub) + "</span></span>" +
     "</button>" +
-    '<button type="button" class="mini-btn" data-music="toggle" aria-label="' + (np.playing ? "pause" : "play") + '">' + (np.playing ? "❚❚" : "▶") + "</button>" +
-    (np.kind === "local" ? '<button type="button" class="mini-btn" data-music="next" aria-label="next track">▶▶</button>' : "") +
-    '<button type="button" class="mini-btn mini-close" data-music="close" aria-label="stop">✕</button>';
+    '<button type="button" class="mini-btn mini-btn--main" data-music="toggle" aria-label="' + (np.playing ? "pause" : "play") + '">' + icon(np.playing ? "pause" : "play") + "</button>" +
+    (np.kind === "local" ? '<button type="button" class="mini-btn" data-music="next" aria-label="next track">' + icon("skip-forward") + "</button>" : "") +
+    '<button type="button" class="mini-btn mini-close" data-music="close" aria-label="stop">' + icon("x") + "</button>";
 }
 
 /* =====================================================================
@@ -758,8 +759,8 @@ function setBusy(text) {
 }
 
 function tabsHtml() {
-  return [["local", "my music"], ["ambient", "ambient"], ["spotify", "spotify"]].map(function (t) {
-    return '<button type="button" class="music-tab" role="tab" data-music-tab="' + t[0] + '" aria-selected="' + (settings.tab === t[0]) + '">' + t[1] + "</button>";
+  return [["local", "my music", "list-music"], ["ambient", "ambient", "cloud-rain"], ["spotify", "spotify", "music"]].map(function (t) {
+    return '<button type="button" class="music-tab seg-btn" role="tab" data-music-tab="' + t[0] + '" aria-selected="' + (settings.tab === t[0]) + '">' + icon(t[2]) + "<span>" + t[1] + "</span></button>";
   }).join("");
 }
 
@@ -769,10 +770,10 @@ function render() {
   el.innerHTML =
     '<div class="music-card" id="musicCard">' +
       '<div class="music-head">' +
-        '<h3 class="daily-section-title">soundtrack</h3>' +
+        '<h3 class="daily-section-title">' + icon("headphones") + "<span>soundtrack</span></h3>" +
         '<label class="music-link"><input type="checkbox" class="switch" id="musicLinkFocus"' + (settings.linkFocus ? " checked" : "") + '><span>play with the focus timer</span></label>' +
       "</div>" +
-      '<div class="music-tabs" role="tablist">' + tabsHtml() + "</div>" +
+      '<div class="music-tabs segmented" role="tablist">' + tabsHtml() + "</div>" +
       '<div class="music-panel" data-panel="local"' + (settings.tab === "local" ? "" : " hidden") + ' id="musicLocal"></div>' +
       '<div class="music-panel" data-panel="ambient"' + (settings.tab === "ambient" ? "" : " hidden") + ' id="musicAmbient"></div>' +
       '<div class="music-panel" data-panel="spotify"' + (settings.tab === "spotify" ? "" : " hidden") + ' id="musicSpotify"></div>' +
@@ -792,19 +793,19 @@ function renderLocal() {
       '<div class="player-now"><span class="player-title" id="playerTitle">' + escapeHtml(current ? current.name : "nothing playing") + '</span><span class="player-artist" id="playerArtist">' + escapeHtml(current ? current.artist : "pick a track or press play") + "</span></div>" +
       '<div class="player-seek"><span id="playerPos">0:00</span><input type="range" class="range" id="playerSeek" min="0" max="1000" value="0" aria-label="position"><span id="playerDur">0:00</span></div>' +
       '<div class="player-controls">' +
-        '<button type="button" class="player-btn' + (settings.shuffle ? " is-on" : "") + '" data-music="shuffle" aria-pressed="' + settings.shuffle + '" title="shuffle">⤮</button>' +
-        '<button type="button" class="player-btn" data-music="prev" title="previous">⏮</button>' +
-        '<button type="button" class="player-btn player-btn--main" data-music="play" id="playerPlay" title="play or pause">' + (localPlaying() ? "❚❚" : "▶") + "</button>" +
-        '<button type="button" class="player-btn" data-music="next" title="next">⏭</button>' +
-        '<button type="button" class="player-btn' + (settings.repeat !== "off" ? " is-on" : "") + '" data-music="repeat" title="repeat: ' + settings.repeat + '">' + (settings.repeat === "one" ? "↻1" : "↻") + "</button>" +
-        '<label class="player-volume"><span aria-hidden="true">vol</span><input type="range" class="range" id="playerVolume" min="0" max="100" value="' + Math.round(settings.volume * 100) + '" aria-label="volume"></label>' +
+        '<button type="button" class="player-btn' + (settings.shuffle ? " is-on" : "") + '" data-music="shuffle" aria-pressed="' + settings.shuffle + '" title="shuffle" aria-label="shuffle">' + icon("shuffle") + "</button>" +
+        '<button type="button" class="player-btn" data-music="prev" title="previous" aria-label="previous">' + icon("skip-back") + "</button>" +
+        '<button type="button" class="player-btn player-btn--main" data-music="play" id="playerPlay" title="play or pause" aria-label="' + (localPlaying() ? "pause" : "play") + '">' + icon(localPlaying() ? "pause" : "play") + "</button>" +
+        '<button type="button" class="player-btn" data-music="next" title="next" aria-label="next">' + icon("skip-forward") + "</button>" +
+        '<button type="button" class="player-btn' + (settings.repeat !== "off" ? " is-on" : "") + '" data-music="repeat" title="repeat: ' + settings.repeat + '" aria-label="repeat: ' + settings.repeat + '">' + icon(settings.repeat === "one" ? "repeat-1" : "repeat") + "</button>" +
+        '<label class="player-volume"><span aria-hidden="true">' + icon("volume-2") + '</span><input type="range" class="range" id="playerVolume" min="0" max="100" value="' + Math.round(settings.volume * 100) + '" aria-label="volume"></label>' +
       "</div>" +
     "</div>" +
     '<div class="music-drop" id="musicDrop">' +
       "<p>" + (tracks.length ? "add more" : "bring your own music. it's saved in this browser, plays offline, and never leaves the device.") + "</p>" +
       '<div class="settings-actions">' +
-        '<label class="file-pick"><input type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" multiple id="musicFiles"><span>add audio files</span></label>' +
-        (folderPickSupported() ? '<label class="file-pick"><input type="file" webkitdirectory multiple id="musicFolder"><span>add a folder</span></label>' : "") +
+        '<label class="file-pick"><input type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" multiple id="musicFiles"><span>' + icon("plus") + "add audio files</span></label>" +
+        (folderPickSupported() ? '<label class="file-pick"><input type="file" webkitdirectory multiple id="musicFolder"><span>' + icon("folder-plus") + "add a folder</span></label>" : "") +
       "</div>" +
       '<p class="setting-hint">or drop files here. mp3, m4a, ogg, opus, wav, flac (whatever this browser can play).</p>' +
       '<p class="music-busy" id="musicBusy"' + (busyText ? "" : " hidden") + ">" + escapeHtml(busyText) + "</p>" +
@@ -812,10 +813,10 @@ function renderLocal() {
     (tracks.length
       ? '<ol class="track-list">' + tracks.map(function (t, i) {
           return '<li class="track' + (t.id === playingId ? " is-current" : "") + '">' +
-            '<button type="button" class="track-play" data-play-track="' + t.id + '"><span class="track-n">' + (t.id === playingId && localPlaying() ? "▶" : String(i + 1).padStart(2, "0")) + "</span>" +
+            '<button type="button" class="track-play" data-play-track="' + t.id + '"><span class="track-n">' + (t.id === playingId && localPlaying() ? icon("audio-waveform") : String(i + 1).padStart(2, "0")) + "</span>" +
               '<span class="track-text"><span class="track-name">' + escapeHtml(t.name) + "</span>" + (t.artist ? '<span class="track-artist">' + escapeHtml(t.artist) + "</span>" : "") + "</span>" +
               '<span class="track-dur">' + (t.duration ? fmtTime(t.duration) : "") + "</span></button>" +
-            '<button type="button" class="track-del" data-del-track="' + t.id + '" aria-label="remove ' + escapeHtml(t.name) + '">✕</button>' +
+            '<button type="button" class="track-del" data-del-track="' + t.id + '" aria-label="remove ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" +
           "</li>";
         }).join("") + "</ol>" +
         '<p class="setting-hint music-foot">' + tracks.length + " track" + (tracks.length === 1 ? "" : "s") + ", " + fmtSize(total) + ' on this device. <button type="button" class="link-btn" data-music="clear">remove all</button></p>'
@@ -840,14 +841,14 @@ function renderAmbient() {
   if (!el) return;
   el.innerHTML =
     '<div class="ambient-top">' +
-      '<button type="button" class="primary-btn" data-music="ambient-toggle">' + (ambientOn ? "❚❚ pause" : "▶ play") + "</button>" +
+      '<button type="button" class="primary-btn" data-music="ambient-toggle">' + ambientLabel() + "</button>" +
       '<div class="ambient-mixes">' + MIXES.map(function (m, i) { return '<button type="button" class="chip" data-mix="' + i + '">' + escapeHtml(m.name) + "</button>"; }).join("") + "</div>" +
     "</div>" +
     '<div class="ambient-grid">' +
       SOUNDS.map(function (s) {
         var lv = settings.ambient[s.id] || 0;
         return '<label class="ambient-sound' + (lv > 0 ? " is-on" : "") + '"' + (s.hint ? ' title="' + escapeHtml(s.hint) + '"' : "") + ">" +
-          '<span class="ambient-glyph" aria-hidden="true">' + s.glyph + "</span>" +
+          '<span class="ambient-glyph" aria-hidden="true">' + icon(s.glyph) + "</span>" +
           '<span class="ambient-label">' + escapeHtml(s.label) + "</span>" +
           '<input type="range" class="range" min="0" max="100" value="' + Math.round(lv * 100) + '" data-ambient="' + s.id + '" aria-label="' + escapeHtml(s.label) + ' volume">' +
         "</label>";
@@ -857,6 +858,10 @@ function renderAmbient() {
     '<p class="setting-hint">made live in your browser, nothing downloads, works offline. slide any sound up to add it to the mix.</p>';
 }
 
+function ambientLabel() {
+  return ambientOn ? icon("pause") + "<span>pause</span>" : icon("play") + "<span>play</span>";
+}
+
 function renderSpotify() {
   var el = document.getElementById("musicSpotify");
   if (!el) return;
@@ -864,16 +869,16 @@ function renderSpotify() {
   el.innerHTML =
     '<form class="spotify-form" id="spotifyForm" autocomplete="off">' +
       '<input class="text-input" name="link" placeholder="paste a Spotify link: playlist, album, track, podcast" value="' + escapeHtml(settings.spotify.current || "") + '">' +
-      '<button type="submit" class="primary-btn">load</button>' +
+      '<button type="submit" class="primary-btn">' + icon("play") + "<span>load</span></button>" +
     "</form>" +
     (presets.length
       ? '<div class="spotify-presets">' + presets.map(function (p, i) {
-          return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">✕</button></span>';
+          return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
         }).join("") + "</div>"
       : "") +
     '<div id="spotifyEmbed" class="spotify-embed"></div>' +
     '<div class="settings-actions spotify-actions"' + (settings.spotify.current ? "" : " hidden") + '><button type="button" class="tool-btn" data-music="save-preset">save to my list</button>' +
-      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">find playlists on Spotify ↗</a></div>' +
+      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">find playlists on Spotify ' + icon("external-link") + "</a></div>" +
     '<p class="setting-hint">full songs if you\'re logged in to Spotify in this browser; otherwise Spotify plays 30-second previews. the player loads from Spotify, so it needs internet.</p>';
   // the player only loads when you open this tab or press load: nothing contacts Spotify before that
   if (parseSpotify(settings.spotify.current) && settings.tab === "spotify") {
@@ -883,7 +888,7 @@ function renderSpotify() {
 
 function refresh() {
   var play = document.getElementById("playerPlay");
-  if (play) play.textContent = localPlaying() ? "❚❚" : "▶";
+  if (play) { play.innerHTML = icon(localPlaying() ? "pause" : "play"); play.setAttribute("aria-label", localPlaying() ? "pause" : "play"); }
   var title = document.getElementById("playerTitle");
   if (title && current) {
     title.textContent = current.name;
@@ -893,10 +898,10 @@ function refresh() {
     var id = li.querySelector("[data-play-track]").getAttribute("data-play-track");
     var isCur = current && current.id === id;
     li.classList.toggle("is-current", Boolean(isCur));
-    li.querySelector(".track-n").textContent = isCur && localPlaying() ? "▶" : String(i + 1).padStart(2, "0");
+    li.querySelector(".track-n").innerHTML = isCur && localPlaying() ? icon("audio-waveform") : String(i + 1).padStart(2, "0");
   });
   var at = document.querySelector('[data-music="ambient-toggle"]');
-  if (at) at.textContent = ambientOn ? "❚❚ pause" : "▶ play";
+  if (at) at.innerHTML = ambientLabel();
   if ("mediaSession" in navigator) {
     try { navigator.mediaSession.playbackState = localPlaying() ? "playing" : current ? "paused" : "none"; } catch (e) {}
   }
@@ -959,8 +964,9 @@ function handleClick(e) {
     var nextRepeat = { off: "all", all: "one", one: "off" }[settings.repeat] || "all";
     save({ repeat: nextRepeat });
     act.classList.toggle("is-on", nextRepeat !== "off");
-    act.textContent = nextRepeat === "one" ? "↻1" : "↻";
+    act.innerHTML = icon(nextRepeat === "one" ? "repeat-1" : "repeat");
     act.title = "repeat: " + nextRepeat;
+    act.setAttribute("aria-label", "repeat: " + nextRepeat);
     toast("repeat: " + nextRepeat);
   }
   if (a === "clear" && confirm("remove all " + tracks.length + " tracks from this device?")) clearLibrary().catch(function (er) { toast(er.message, "error"); });
@@ -991,7 +997,7 @@ function renderSpotifyList() {
   var div = document.createElement("div");
   div.className = "spotify-presets";
   div.innerHTML = presets.map(function (p, i) {
-    return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">✕</button></span>';
+    return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
   }).join("");
   form.after(div);
 }
@@ -1030,7 +1036,7 @@ function wire() {
     if (e.target.id !== "spotifyForm") return;
     e.preventDefault();
     var entity = parseSpotify(e.target.elements.link.value);
-    if (!entity) return toast("that doesn't look like a Spotify link. copy it from Share → Copy link", "warn");
+    if (!entity) return toast("that doesn't look like a Spotify link. in Spotify, use share, then copy link", "warn");
     loadSpotify(entity, true);
     var actions = document.querySelector(".spotify-actions");
     if (actions) actions.hidden = false;

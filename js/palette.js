@@ -1,4 +1,5 @@
-import { navigateTo, PAGES } from './navigation.js';
+import { navigateTo, PAGES, pageLabel } from './navigation.js';
+import { icon } from './icons.js';
 import { focusComposer, getEntries, revealEntry } from './journal.js';
 import { toggleFocusFromAnywhere, startFocusFromAnywhere } from './pomodoro.js';
 import { openDayViewer, closeDayViewer, isDayViewerOpen, shiftDayViewer } from './dayViewer.js';
@@ -29,9 +30,9 @@ function scrollFocus(selector) {
 
 var COMMANDS = [
   { id: "write", title: "write an entry", keys: "journal new log", key: "n", run: function () { navigateTo("journal"); afterNav(function () { focusComposer(); }); } },
-  { id: "write-good", title: "write an entry as 200 ok", keys: "good mood", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
-  { id: "write-okay", title: "write an entry as 102 processing", keys: "okay mood", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },
-  { id: "write-rough", title: "write an entry as 500 error", keys: "rough bad mood", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("rough"); }); } },
+  { id: "write-good", title: "write a good-day entry", keys: "good mood sun", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
+  { id: "write-okay", title: "write an okay-day entry", keys: "okay mood cloud", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },
+  { id: "write-rough", title: "write a rough-day entry", keys: "rough bad mood rain", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("rough"); }); } },
   { id: "add-task", title: "add a task for today", keys: "todo checklist", key: "t", run: function () { navigateTo("dashboard"); scrollFocus('#dailyTasks input[name="title"]'); } },
   { id: "log-activity", title: "log an activity", keys: "minutes area density", run: function () { navigateTo("dashboard"); scrollFocus("#dailyActivities .area-chip"); } },
   { id: "focus-toggle", title: "start or pause focus timer", keys: "pomodoro timer lock-in", key: "f", run: function () {
@@ -78,19 +79,31 @@ var COMMANDS = [
       navigateTo("journal");
       afterNav(function () {
         var ta = document.getElementById("entryText");
-        ta.value = "> " + prompt + "\n\n";
+        ta.value = prompt + "\n\n";
         ta.dispatchEvent(new Event("input", { bubbles: true }));
         focusComposer();
         ta.setSelectionRange(ta.value.length, ta.value.length);
       });
     } },
   { id: "shortcuts", title: "show keyboard shortcuts", keys: "help keys", key: "?", run: function () { openHelp(); } },
-  { id: "palette", title: "open the command prompt", keys: "", hidden: true, run: function () { openPalette(); } }
+  { id: "palette", title: "open search and commands", keys: "", hidden: true, run: function () { openPalette(); } }
 ].concat(BUILT_IN.map(function (t) {
   return { id: "theme-" + t.id, title: "theme: " + t.name, keys: "theme look " + t.note, run: function () { applyTheme(findTheme(t.id)); toast("theme: " + t.name); } };
 })).concat(PAGES.map(function (page, i) {
-  return { id: "go-" + page, title: "go to " + page, keys: "page open navigate", key: String(i + 1), run: function () { navigateTo(page); } };
+  return { id: "go-" + page, title: "go to " + pageLabel(page), keys: "page open navigate " + page, key: String(i + 1), run: function () { navigateTo(page); } };
 }));
+
+var ICONS = {
+  write: "feather", "write-good": "sun", "write-okay": "cloud-sun", "write-rough": "cloud-rain", "add-task": "list-checks",
+  "log-activity": "activity", "focus-toggle": "timer", "focus-start": "timer", "new-goal": "mountain-snow", search: "search",
+  "day-today": "calendar-days", "day-yesterday": "calendar-days", backup: "download", "music-toggle": "music", "music-ambient": "cloud-rain",
+  "music-open": "headphones", "theme-make": "wand-sparkles", "theme-next": "palette", "toggle-rain": "sparkle", "toggle-scanlines": "sparkle",
+  "write-prompt": "pen-line", shortcuts: "keyboard", "go-dashboard": "house", "go-journal": "notebook-pen", "go-calendar": "calendar-days",
+  "go-focus": "timer", "go-goals": "mountain-snow", "go-companion": "sparkles", "go-settings": "settings"
+};
+function cmdIcon(c) {
+  return icon(ICONS[c.id] || (c.id.indexOf("theme-") === 0 ? "palette" : "arrow-right"));
+}
 
 var BY_ID = {};
 COMMANDS.forEach(function (c) { BY_ID[c.id] = c; });
@@ -155,11 +168,11 @@ function drawList() {
     var active = i === pal.index ? " is-active" : "";
     if (it.type === "cmd") {
       return head + '<li class="palette-item' + active + '" role="option" id="pal-' + i + '" data-index="' + i + '" aria-selected="' + (i === pal.index) + '">' +
-        "<span>" + escapeHtml(it.cmd.title) + "</span>" + (it.cmd.key ? "<kbd>" + escapeHtml(it.cmd.key) + "</kbd>" : "") + "</li>";
+        '<span class="palette-icon">' + cmdIcon(it.cmd) + '</span><span class="palette-title">' + escapeHtml(it.cmd.title) + "</span>" + (it.cmd.key ? "<kbd>" + escapeHtml(it.cmd.key) + "</kbd>" : "") + "</li>";
     }
     var st = STATUS[it.entry.mood];
     return head + '<li class="palette-item palette-entry' + active + '" role="option" id="pal-' + i + '" data-index="' + i + '" aria-selected="' + (i === pal.index) + '">' +
-      '<span class="dot" style="background:' + st.color + '"></span><span class="palette-entry-text">' + snippet(it.entry.text, query) + "</span>" +
+      '<span class="palette-icon mood-tag--' + it.entry.mood + '">' + icon(st.icon) + '</span><span class="palette-entry-text">' + snippet(it.entry.text, query) + "</span>" +
       '<span class="palette-entry-date">' + new Date(it.entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toLowerCase() + "</span></li>";
   }).join("");
   document.getElementById("paletteInput").setAttribute("aria-activedescendant", "pal-" + pal.index);
@@ -210,7 +223,7 @@ export function closePalette(skipRefocus) {
 /* ---------- help ---------- */
 
 function shortcutRows() {
-  var rows = [["ctrl k", "command prompt"], ["ctrl enter", "commit the entry you're writing"]];
+  var rows = [["ctrl k", "search and commands"], ["ctrl enter", "save the entry you're writing"]];
   COMMANDS.forEach(function (c) { if (c.key) rows.push([c.key, c.title]); });
   rows.push(["← →", "previous / next day in the day view"], ["esc", "close whatever is open"]);
   return '<dl class="shortcut-list">' + rows.map(function (r) {

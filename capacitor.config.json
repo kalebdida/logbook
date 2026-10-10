@@ -2,9 +2,9 @@
   "appId": "com.kaleb.logbook",
   "appName": "Logbook",
   "webDir": "dist",
-  "backgroundColor": "#050806",
+  "backgroundColor": "#0a1430",
   "android": {
-    "backgroundColor": "#050806",
+    "backgroundColor": "#0a1430",
     "allowMixedContent": false
   },
   "server": {
