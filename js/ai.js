@@ -43,7 +43,7 @@ export async function aiStatus() {
   if (!isDevice()) {
     try {
       var s = await apiAIStatus();
-      if (s && s.available) return { available: true, via: "server", provider: s.provider, model: s.model };
+      if (s && s.available) return { available: true, via: "server", provider: s.provider, model: s.model, check: s.check || null };
     } catch (e) {}
   }
   var c = getAIConfig();
@@ -112,12 +112,19 @@ async function direct(c, messages, system, maxTokens) {
   return ((body.choices || [])[0] || {}).message ? body.choices[0].message.content || "" : "";
 }
 
-/* Gemini's native shape: a system instruction, and turns as "user" / "model". */
+/* Gemini's native shape: a system instruction, and turns as "user" / "model"
+   that alternate and start with the user (same as the server, app/ai.py). */
 export function geminiBody(messages, system, maxTokens) {
+  var contents = [];
+  messages.forEach(function (m) {
+    var role = m.role === "assistant" ? "model" : "user";
+    if (!contents.length && role === "model") return;
+    var last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts[0].text += "\n\n" + m.content;
+    else contents.push({ role: role, parts: [{ text: m.content }] });
+  });
   var body = {
-    contents: messages.map(function (m) {
-      return { role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] };
-    }),
+    contents: contents,
     generationConfig: { maxOutputTokens: Math.max(maxTokens || 0, GEMINI_MIN_TOKENS) }
   };
   if (system) body.systemInstruction = { parts: [{ text: system }] };
@@ -132,5 +139,7 @@ export function geminiText(body) {
   }
   var parts = (candidate.content && candidate.content.parts) || [];
   // skip the model's thinking if it ever comes back, keep only the answer
-  return parts.filter(function (p) { return typeof p.text === "string" && !p.thought; }).map(function (p) { return p.text; }).join("");
+  var text = parts.filter(function (p) { return typeof p.text === "string" && !p.thought; }).map(function (p) { return p.text; }).join("");
+  if (!text.trim() && candidate.finishReason === "MAX_TOKENS") throw new Error("Gemini ran out of room before answering. Try a shorter question.");
+  return text;
 }

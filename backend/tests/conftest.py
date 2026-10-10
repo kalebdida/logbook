@@ -37,6 +37,8 @@ def client():
     settings.gemini_api_key = ""
     settings.ai_base_url = ""
     settings.ai_model = ""
+    from app import ai
+    ai.last_check.update(ok=None, detail="")
     with TestClient(app) as c:  # runs the lifespan: migrations
         yield c
     settings.password = ""

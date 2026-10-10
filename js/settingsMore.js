@@ -134,6 +134,9 @@ export async function renderAICard(el) {
         ? "On, using <strong>" + escapeHtml(status.model || status.provider) + "</strong>" + (viaServer ? " through your server (the key stays on the server)." : " from this device.")
         : "Off. The companion still works with simple local rules.") +
     "</p>" +
+    (status.check && status.check.ok === false
+      ? '<p class="setting-hint storage-risk">The server tried its key and it didn\'t work: ' + escapeHtml(status.check.detail || "unknown error") + "</p>"
+      : "") +
     (viaServer ? "" :
       '<form id="aiForm" autocomplete="off">' +
         '<label class="setting-row"><span class="setting-text"><span class="setting-label">Provider</span></span>' +

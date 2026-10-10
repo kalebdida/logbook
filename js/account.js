@@ -7,7 +7,7 @@ import {
   apiAuthStatus, apiMe, apiChangePassword, apiLogoutEverywhere, apiDeleteAccount,
   apiListInvites, apiCreateInvite, apiCancelInvite, apiListUsers, apiResetCode, apiRemoveUser
 } from './api.js';
-import { isDevice, setConnection, serverBase } from './connection.js';
+import { isDevice, setConnection, serverBase, describeConnection } from './connection.js';
 import { logout, clearLocalTraces } from './lock.js';
 import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
@@ -17,7 +17,11 @@ function day(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+/* The address to send people to: the page you're on (the GitHub Pages front
+   door, say), not the API server behind it. Inside the Android app there's
+   no shareable page, so it falls back to the server. */
 function serverAddress() {
+  if (/^https?:$/.test(location.protocol)) return location.origin + location.pathname.replace(/index\.html$/, "");
   return serverBase() || location.origin;
 }
 
@@ -106,7 +110,7 @@ export async function renderAccountCard(el) {
       '<div class="account-who">' +
         '<p class="storage-now"><strong>' + escapeHtml(me.username) + "</strong>" +
           (me.is_admin ? ' <span class="people-badge">' + icon("shield-check") + "Admin</span>" : "") + "</p>" +
-        '<p class="account-sub"><span class="status-dot is-online"></span>Logged in on ' + escapeHtml(serverAddress().replace(/^https?:\/\//, "")) + "</p>" +
+        '<p class="account-sub"><span class="status-dot is-online"></span>Logged in · ' + escapeHtml(describeConnection()) + "</p>" +
       "</div>" +
       '<div class="account-actions">' +
         '<button type="button" class="tool-btn" data-logout>' + icon("log-out") + "<span>Log out</span></button>" +

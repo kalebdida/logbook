@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   backup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: check secrets
         id: check
@@ -56,7 +56,7 @@ jobs:
           echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
           ls -l "$name"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: steps.check.outputs.skip != 'true'
         with:
           name: ${{ env.BACKUP_FILE }}

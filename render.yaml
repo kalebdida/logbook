@@ -11,7 +11,11 @@ services:
     name: logbook
     runtime: python
     plan: free
-    region: frankfurt     # next to the Neon database (Frankfurt) and closest to Addis
+    # The live service was created in Oregon, and Render can't move a service
+    # to another region: a different region here makes every Blueprint sync
+    # fail. A brand-new setup can pick frankfurt (next to a Frankfurt Neon
+    # database, and closer to Addis).
+    region: oregon
     buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health

@@ -1,5 +1,6 @@
 """FastAPI application entrypoint. Serves the API and the frontend."""
 
+import asyncio
 import logging
 import mimetypes
 import os
@@ -37,7 +38,11 @@ async def lifespan(app: FastAPI):
         )
     if os.environ.get("RENDER") and settings.is_sqlite:
         log.warning("logbook: using SQLite on Render. Render's disk is wiped on every restart, so set DATABASE_URL to a Postgres database (e.g. Neon) or your data will be lost.")
+    # check the AI key once, in the background, so startup isn't held up
+    checking = asyncio.create_task(ai.check()) if ai.configured() else None
     yield
+    if checking and not checking.done():
+        checking.cancel()
 
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
@@ -76,6 +81,7 @@ def health(authorization: str | None = Header(default=None), db: Session = Depen
         "version": settings.app_version,
         "auth_required": auth_required(),
         "ai": ai.configured(),
+        "ai_ok": ai.last_check["ok"],
         "accounts": auth_required(),
     }
     user = optional_user(authorization, db)

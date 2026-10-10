@@ -33,7 +33,10 @@ def _allowed(user: User) -> bool:
 def ai_status(user: User = Depends(current_user)):
     if not _allowed(user):
         return {"available": False, "provider": None, "model": None}
-    return {"available": True, "provider": ai.provider_name() or None, "model": ai.model_name() or None}
+    body = {"available": True, "provider": ai.provider_name() or None, "model": ai.model_name() or None}
+    if ai.last_check["ok"] is not None:  # what the startup check found (a bad key shows up here)
+        body["check"] = {"ok": ai.last_check["ok"], "detail": ai.last_check["detail"]}
+    return body
 
 
 @router.post("/chat")

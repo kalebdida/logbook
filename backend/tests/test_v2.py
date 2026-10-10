@@ -150,45 +150,87 @@ def test_ai_provider_errors_are_reported_plainly(client, monkeypatch):
     assert r.status_code == 502 and "invalid x-api-key" in r.json()["detail"]
 
 
+def _gemini_reply(text):
+    return {"candidates": [{"content": {"role": "model", "parts": [{"text": "thinking...", "thought": True}, {"text": text}]}, "finishReason": "STOP"}]}
+
+
 def test_ai_gemini_request_shape(client, monkeypatch):
+    # Gemini goes through its own generateContent API with the key in
+    # x-goog-api-key: the newer "AQ." keys from AI Studio work there
     seen = {}
 
     def handler(request):
         seen["url"] = str(request.url)
+        seen["key"] = request.headers.get("x-goog-api-key")
         seen["auth"] = request.headers.get("authorization")
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "steady week."}}]})
+        return httpx.Response(200, json=_gemini_reply("steady week."))
 
     _fake_provider(monkeypatch, handler)
-    settings.ai_provider, settings.ai_api_key = "gemini", "AIza-test"
+    settings.ai_provider, settings.ai_api_key = "gemini", "AQ.test-key"
     assert client.get("/ai/status").json() == {"available": True, "provider": "gemini", "model": "gemini-3.5-flash-lite"}
     r = client.post("/ai/chat", json={"system": "be brief", "max_tokens": 20, "messages": [
-        {"role": "user", "content": "how am i doing?"}, {"role": "assistant", "content": "well"}, {"role": "user", "content": "more?"}]})
-    assert r.status_code == 200 and r.json() == {"text": "steady week.", "model": "gemini-3.5-flash-lite"}
-    assert seen["url"] == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-    assert seen["auth"] == "Bearer AIza-test"
-    assert seen["body"]["model"] == "gemini-3.5-flash-lite"
-    assert seen["body"]["max_tokens"] >= 1024  # room for the model's thinking, so a tiny cap can't come back empty
-    assert seen["body"]["messages"][0] == {"role": "system", "content": "be brief"}
-    assert [m["role"] for m in seen["body"]["messages"][1:]] == ["user", "assistant", "user"]
+        {"role": "user", "content": "how am i doing?"}, {"role": "assistant", "content": "well"},
+        {"role": "user", "content": "more?"}, {"role": "user", "content": "and?"}]})
+    assert r.status_code == 200 and r.json() == {"text": "steady week.", "model": "gemini-3.5-flash-lite"}  # thinking left out
+    assert seen["url"] == "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
+    assert seen["key"] == "AQ.test-key" and seen["auth"] is None  # one credential only
+    body = seen["body"]
+    assert body["systemInstruction"] == {"parts": [{"text": "be brief"}]}
+    assert body["generationConfig"]["maxOutputTokens"] >= 1024  # room for thinking, so a tiny cap can't come back empty
+    assert [c["role"] for c in body["contents"]] == ["user", "model", "user"]  # turns alternate
+    assert body["contents"][2]["parts"][0]["text"] == "more?\n\nand?"
 
 
 def test_ai_gemini_key_alone_means_gemini(client, monkeypatch):
     seen = {}
 
     def handler(request):
-        seen["auth"] = request.headers.get("authorization")
-        seen["model"] = json.loads(request.content)["model"]
-        return httpx.Response(200, json={"choices": [{"message": {"content": "hi"}}]})
+        seen["key"] = request.headers.get("x-goog-api-key")
+        seen["path"] = request.url.path
+        return httpx.Response(200, json=_gemini_reply("hi"))
 
     _fake_provider(monkeypatch, handler)
-    settings.gemini_api_key, settings.ai_model = "AIza-env", "gemini-3.8-flash"
+    settings.gemini_api_key, settings.ai_model = "AQ.env", "gemini-3.8-flash"
     assert client.get("/ai/status").json() == {"available": True, "provider": "gemini", "model": "gemini-3.8-flash"}
     assert client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]}).json()["text"] == "hi"
-    assert seen == {"auth": "Bearer AIza-env", "model": "gemini-3.8-flash"}
+    assert seen == {"key": "AQ.env", "path": "/v1beta/models/gemini-3.8-flash:generateContent"}
     # an explicit provider key still wins over the inference
     settings.ai_api_key = "sk-ant"
     assert client.get("/ai/status").json()["provider"] == "anthropic"
+
+
+def test_ai_gemini_blocked_or_empty_replies_say_so(client, monkeypatch):
+    replies = iter([{"promptFeedback": {"blockReason": "SAFETY"}},
+                    {"candidates": [{"content": {"parts": [{"text": "", "thought": True}]}, "finishReason": "MAX_TOKENS"}]}])
+    _fake_provider(monkeypatch, lambda req: httpx.Response(200, json=next(replies)))
+    settings.ai_provider, settings.ai_api_key = "gemini", "AQ.k"
+    first = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert first.status_code == 502 and "safety" in first.json()["detail"]
+    second = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert second.status_code == 502 and "ran out of room" in second.json()["detail"]
+
+
+def test_ai_startup_check_reports_a_bad_key(client, monkeypatch):
+    import asyncio
+    seen = {}
+
+    def handler(request):
+        seen["path"] = request.url.path
+        return httpx.Response(400, json={"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.", "status": "INVALID_ARGUMENT"}})
+
+    _fake_provider(monkeypatch, handler)
+    settings.ai_provider, settings.ai_api_key = "gemini", "AQ.bad"
+    result = asyncio.run(ai.check())
+    assert seen["path"] == "/v1beta/models/gemini-3.5-flash-lite:countTokens"  # counting tokens costs nothing
+    assert result["ok"] is False and "API key not valid" in result["detail"] and "AQ.bad" not in result["detail"]
+    assert client.get("/health").json()["ai_ok"] is False
+    assert client.get("/ai/status").json()["check"]["ok"] is False
+
+    monkeypatch.undo()  # back to the real client before faking a good answer
+    _fake_provider(monkeypatch, lambda req: httpx.Response(200, json={"totalTokens": 1}))
+    assert asyncio.run(ai.check())["ok"] is True
+    assert client.get("/health").json()["ai_ok"] is True
 
 
 def test_ai_gemini_needs_a_key(client):
@@ -197,7 +239,7 @@ def test_ai_gemini_needs_a_key(client):
 
 
 def test_ai_gemini_errors_are_reported_plainly(client, monkeypatch):
-    # Google's OpenAI-compatible endpoint can wrap its error in a list
+    # Google's endpoints can wrap their error in a list
     _fake_provider(monkeypatch, lambda req: httpx.Response(400, json=[{"error": {"code": 400, "message": "API key not valid", "status": "INVALID_ARGUMENT"}}]))
     settings.ai_provider, settings.ai_api_key = "gemini", "bad"
     r = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
