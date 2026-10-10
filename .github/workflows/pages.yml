@@ -58,7 +58,7 @@ jobs:
           python-version: "3.13"
       - run: python scripts/build_web.py
         env:
-          LOGBOOK_API_URL: ${{ vars.LOGBOOK_API_URL }}
+          LOGBOOK_API_URL: ${{ vars.LOGBOOK_API_URL || 'https://logbook-lt30.onrender.com' }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
