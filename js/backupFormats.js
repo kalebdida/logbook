@@ -124,7 +124,7 @@ export function toRestorePayload(parsed) {
   if (parsed && ("logbook-entries" in parsed || "logbook-days" in parsed || "logbook-goals" in parsed)) {
     return { payload: fromLegacyStorage(parsed), format: "old local data" };
   }
-  throw new Error("this file isn't a logbook export");
+  throw new Error("This file isn't a Logbook export");
 }
 
 /* Reads whatever the old localStorage version left in this browser.
@@ -162,5 +162,5 @@ export function summarizeRestore(result) {
     var n = r.added + r.merged;
     if (n) parts.push(n + " " + labels[k]);
   });
-  return parts.length ? "imported " + parts.join(", ") : "nothing new to import. you already have all of it.";
+  return parts.length ? "Imported " + parts.join(", ") : "Nothing new to import. You already have all of it.";
 }

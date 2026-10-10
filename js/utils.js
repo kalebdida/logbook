@@ -21,7 +21,7 @@ export function formatDate(iso) {
     minute: "2-digit"
   });
 
-  return date + ", " + time.toLowerCase();
+  return date + ", " + time;
 }
 
 export function dayOfYear(d) {

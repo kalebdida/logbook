@@ -369,7 +369,7 @@ function renderDashboard(data) {
       renderHeading() +
       '<div class="analytics-empty">' +
       icon("sprout") +
-      "<p>nothing to see yet. patterns show up here once a few days are logged: daily pages, focus sessions, goals.</p>" +
+      "<p>Nothing to see yet. Patterns show up here once a few days are logged: daily pages, focus sessions, goals.</p>" +
       "</div>" +
       "</div>"
     );
@@ -390,9 +390,9 @@ function renderDashboard(data) {
 function renderHeading() {
   return (
     '<div class="analytics-heading">' +
-    '<div><h3 class="daily-section-title">' + icon("chart-column") + "<span>your patterns</span></h3>" +
-    '<p class="density-subtitle">how consistent the days have been</p></div>' +
-    '<div class="segmented analytics-view-switch" role="group" aria-label="period">' +
+    '<div><h3 class="daily-section-title">' + icon("chart-column") + "<span>Your patterns</span></h3>" +
+    '<p class="density-subtitle">How consistent the days have been</p></div>' +
+    '<div class="segmented analytics-view-switch" role="group" aria-label="Period">' +
     viewButton("week") +
     viewButton("month") +
     viewButton("year") +
@@ -405,16 +405,16 @@ function viewButton(view) {
   var active = state.view === view;
   return (
     '<button class="seg-btn' + (active ? " active" : "") + '" type="button" data-analytics-view="' + view +
-    '" aria-pressed="' + active + '">' + view + "</button>"
+    '" aria-pressed="' + active + '">' + view.charAt(0).toUpperCase() + view.slice(1) + "</button>"
   );
 }
 
 function renderOverview(overview) {
   var weekCards = [
-    statCard("focus this week", formatMinutes(overview.week.focusMinutes), "timer"),
-    statCard("active days", overview.week.activeDays + " of " + overview.week.daysElapsed, "calendar-check"),
-    statCard("goals done", String(overview.week.goalsCompleted), "flag"),
-    statCard("reflections", String(overview.week.reflectionDays), "moon")
+    statCard("Focus this week", formatMinutes(overview.week.focusMinutes), "timer"),
+    statCard("Active days", overview.week.activeDays + " of " + overview.week.daysElapsed, "calendar-check"),
+    statCard("Goals done", String(overview.week.goalsCompleted), "flag"),
+    statCard("Reflections", String(overview.week.reflectionDays), "moon")
   ];
 
   return '<div class="analytics-overview"><div class="analytics-summary">' + weekCards.join("") + "</div></div>";
@@ -435,20 +435,20 @@ function formatMinutes(minutes) {
 function renderTrends(data) {
   return (
     '<div class="analytics-trends">' +
-    '<div class="section-label">focus ' + data.periodLabel + "</div>" +
+    '<div class="section-label">Focus ' + data.periodLabel + "</div>" +
     renderFocusTrend(data.trend) +
     '<div class="bar-row">' +
-    '<span class="bar-label">consistency</span>' +
+    '<span class="bar-label">Consistency</span>' +
     "<span>" + bar(data.consistency.pct) + "</span>" +
     '<span class="bar-pct">' + data.consistency.active + " / " + data.consistency.total + "</span>" +
     "</div>" +
     '<div class="bar-row">' +
-    '<span class="bar-label">reflection</span>' +
+    '<span class="bar-label">Reflection</span>' +
     "<span>" + bar(data.reflection.pct) + "</span>" +
     '<span class="bar-pct">' + data.reflection.active + " / " + data.reflection.total + "</span>" +
     "</div>" +
     '<div class="bar-row">' +
-    '<span class="bar-label">goals</span>' +
+    '<span class="bar-label">Goals</span>' +
     "<span>" + bar(data.goalProgress.overallProgress) + "</span>" +
     '<span class="bar-pct">' + data.goalProgress.completed + " done, " + data.goalProgress.active + " active</span>" +
     "</div>" +
@@ -458,13 +458,13 @@ function renderTrends(data) {
 
 function renderFocusTrend(trend) {
   if (trend.total === 0) {
-    return '<div class="analytics-trend"><div class="analytics-trend-empty">no focus sessions logged in this period yet.</div></div>';
+    return '<div class="analytics-trend"><div class="analytics-trend-empty">No focus sessions logged in this period yet.</div></div>';
   }
 
   var bars = trend.points.map(function (p) {
     var pct = trend.max > 0 ? p.minutes / trend.max : 0;
     var heightPx = Math.max(2, Math.round(pct * 64));
-    var label = (trend.bucket === "week" ? "week of " + formatShortDate(p.date) : formatShortDate(p.date)) + ": " + p.minutes + " min";
+    var label = (trend.bucket === "week" ? "Week of " + formatShortDate(p.date) : formatShortDate(p.date)) + ": " + p.minutes + " min";
     return '<div class="analytics-trend-bar" style="height:' + heightPx + 'px" title="' + label + '"></div>';
   }).join("");
 
@@ -492,7 +492,7 @@ function renderBalance(stats) {
   if (!stats.totalActivity) {
     return (
       '<div class="analytics-balance">' +
-      '<div class="section-label">life balance</div>' +
+      '<div class="section-label">Life balance</div>' +
       '<div class="analytics-balance-empty">' + NOT_ENOUGH_DATA + "</div>" +
       "</div>"
     );
@@ -510,7 +510,7 @@ function renderBalance(stats) {
     );
   }).join("");
 
-  return '<div class="analytics-balance"><div class="section-label">life balance</div>' + rows + "</div>";
+  return '<div class="analytics-balance"><div class="section-label">Life balance</div>' + rows + "</div>";
 }
 
 function formatSignals(value) {
@@ -519,13 +519,13 @@ function formatSignals(value) {
 
 function renderStreaks(streaks) {
   var cards = [
-    statCard("writing streak", days(streaks.loggingCurrent), "flame"),
-    statCard("longest streak", days(streaks.loggingLongest), "trophy"),
-    statCard("focus streak", days(streaks.focusCurrent), "timer"),
-    statCard("goal streak", days(streaks.goalCurrent), "mountain-snow")
+    statCard("Writing streak", days(streaks.loggingCurrent), "flame"),
+    statCard("Longest streak", days(streaks.loggingLongest), "trophy"),
+    statCard("Focus streak", days(streaks.focusCurrent), "timer"),
+    statCard("Goal streak", days(streaks.goalCurrent), "mountain-snow")
   ];
 
-  return '<div class="analytics-streaks"><div class="section-label">streaks</div><div class="analytics-summary">' + cards.join("") + "</div></div>";
+  return '<div class="analytics-streaks"><div class="section-label">Streaks</div><div class="analytics-summary">' + cards.join("") + "</div></div>";
 }
 
 function days(n) {
@@ -537,5 +537,5 @@ function renderInsights(insights) {
     ? insights.slice(0, 5).map(function (line) { return "<p>" + line + "</p>"; }).join("")
     : "<p>" + NOT_ENOUGH_DATA + "</p>";
 
-  return '<div class="analytics-insights"><div class="section-label">insights</div>' + body + "</div>";
+  return '<div class="analytics-insights"><div class="section-label">Insights</div>' + body + "</div>";
 }

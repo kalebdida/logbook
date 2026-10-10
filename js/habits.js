@@ -10,12 +10,12 @@ import { toast } from './toast.js';
 import { escapeHtml } from './utils.js';
 
 var SUGGESTIONS = [
-  { name: "pray / devotion", icon: "cross", category: "faith" },
-  { name: "read 10 pages", icon: "book-open", category: "learning" },
-  { name: "workout", icon: "dumbbell", category: "fitness" },
-  { name: "drink 2L water", icon: "droplet", category: "rest" },
-  { name: "code 1 hour", icon: "code-xml", category: "coding" },
-  { name: "no phone after 11", icon: "moon", category: "rest" }
+  { name: "Pray / devotion", icon: "cross", category: "faith" },
+  { name: "Read 10 pages", icon: "book-open", category: "learning" },
+  { name: "Workout", icon: "dumbbell", category: "fitness" },
+  { name: "Drink 2L water", icon: "droplet", category: "rest" },
+  { name: "Code 1 hour", icon: "code-xml", category: "coding" },
+  { name: "No phone after 11", icon: "moon", category: "rest" }
 ];
 
 var DAYS_SHOWN = 7;
@@ -72,9 +72,14 @@ async function load() {
   results[1].forEach(function (l) { done[l.habitId + "|" + l.date] = true; });
 }
 
+function iconName(n) {
+  var words = n.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 function dayLabel(key) {
   var d = new Date(key + "T12:00:00");
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }).toLowerCase();
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
 function rowHtml(h, days, today) {
@@ -87,7 +92,7 @@ function rowHtml(h, days, today) {
         '<span class="habit-glyph" aria-hidden="true">' + habitIcon(h) + '</span><span class="habit-tick" aria-hidden="true">' + icon("check") + "</span></button>" +
       '<span class="habit-main">' +
         '<span class="habit-name">' + escapeHtml(h.name) + "</span>" +
-        '<span class="habit-week" role="group" aria-label="last ' + DAYS_SHOWN + ' days">' +
+        '<span class="habit-week" role="group" aria-label="Last ' + DAYS_SHOWN + ' days">' +
           days.map(function (d) {
             var on = has(h.id, d);
             return '<button type="button" class="habit-dot' + (on ? " is-on" : "") + (d === today ? " is-today" : "") + '" data-habit-toggle="' + d + '" aria-pressed="' + on + '" title="' + dayLabel(d) + '" aria-label="' + escapeHtml(h.name) + ", " + dayLabel(d) + '"></button>';
@@ -96,7 +101,7 @@ function rowHtml(h, days, today) {
       "</span>" +
       '<span class="habit-streak' + (streak >= 7 ? " is-hot" : "") + '" title="' + streak + ' day streak' + (cat ? ", counts toward " + cat.label.toLowerCase() : "") + '">' + (streak ? icon("flame") + "<span>" + streak + "</span>" : "") + "</span>" +
       (managing
-        ? '<span class="habit-manage"><button type="button" class="link-btn" data-habit-rename>rename</button><button type="button" class="link-btn" data-habit-archive>archive</button><button type="button" class="link-btn habit-del" data-habit-delete>delete</button></span>'
+        ? '<span class="habit-manage"><button type="button" class="link-btn" data-habit-rename>Rename</button><button type="button" class="link-btn" data-habit-archive>Archive</button><button type="button" class="link-btn habit-del" data-habit-delete>Delete</button></span>'
         : "") +
     "</li>"
   );
@@ -111,24 +116,24 @@ function render() {
   el.innerHTML =
     '<div class="habits-card">' +
       '<div class="habits-head">' +
-        '<h3 class="daily-section-title">' + icon("sprout") + "<span>habits</span></h3>" +
+        '<h3 class="daily-section-title">' + icon("sprout") + "<span>Habits</span></h3>" +
         (habits.length ? '<span class="habits-count">' + s.doneToday + "/" + s.total + " today</span>" : "") +
-        (habits.length ? '<button type="button" class="link-btn" data-habits-manage>' + (managing ? "done" : "edit") + "</button>" : "") +
+        (habits.length ? '<button type="button" class="link-btn" data-habits-manage>' + (managing ? "Done" : "Edit") + "</button>" : "") +
       "</div>" +
       (habits.length ? '<div class="habits-progress" aria-hidden="true"><i style="width:' + Math.round(s.total ? s.doneToday / s.total * 100 : 0) + '%"></i></div>' : "") +
       (habits.length
         ? '<ul class="habit-list">' + habits.map(function (h) { return rowHtml(h, days, today); }).join("") + "</ul>"
-        : '<p class="habits-empty">small things you want to do every day. one tap to check them off.</p>' +
+        : '<p class="habits-empty">Small things you want to do every day. One tap to check them off.</p>' +
           '<div class="habit-suggestions">' + SUGGESTIONS.map(function (x, i) { return '<button type="button" class="chip" data-habit-suggest="' + i + '">' + icon(x.icon) + "<span>" + escapeHtml(x.name) + "</span></button>"; }).join("") + "</div>") +
       '<form class="habit-add" autocomplete="off">' +
         '<input type="hidden" name="icon" value="' + escapeHtml(pickedIcon) + '">' +
-        '<button type="button" class="icon-pick" data-icon-pick aria-expanded="' + pickerOpen + '" aria-label="choose an icon" title="choose an icon">' + (pickedIcon ? icon(pickedIcon) : icon("sparkle")) + "</button>" +
-        '<input class="text-input" name="name" maxlength="80" placeholder="new habit" aria-label="new habit" required>' +
-        '<select class="select-input" name="category" aria-label="life area">' + categoryOptions("", "area") + "</select>" +
-        '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>add</span></button>" +
+        '<button type="button" class="icon-pick" data-icon-pick aria-expanded="' + pickerOpen + '" aria-label="Choose an icon" title="Choose an icon">' + (pickedIcon ? icon(pickedIcon) : icon("sparkle")) + "</button>" +
+        '<input class="text-input" name="name" maxlength="80" placeholder="New habit" aria-label="New habit" required>' +
+        '<select class="select-input" name="category" aria-label="Life area">' + categoryOptions("", "Area") + "</select>" +
+        '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>Add</span></button>" +
       "</form>" +
-      '<div class="icon-grid" role="group" aria-label="habit icons"' + (pickerOpen ? "" : " hidden") + ">" +
-        HABIT_ICONS.map(function (n) { return '<button type="button" class="icon-btn' + (n === pickedIcon ? " is-on" : "") + '" data-icon-choice="' + n + '" aria-label="' + n.replace(/-/g, " ") + '">' + icon(n) + "</button>"; }).join("") +
+      '<div class="icon-grid" role="group" aria-label="Habit icons"' + (pickerOpen ? "" : " hidden") + ">" +
+        HABIT_ICONS.map(function (n) { return '<button type="button" class="icon-btn' + (n === pickedIcon ? " is-on" : "") + '" data-icon-choice="' + n + '" aria-label="' + iconName(n) + '">' + icon(n) + "</button>"; }).join("") +
       "</div>" +
     "</div>";
 }
@@ -167,12 +172,12 @@ async function save(id, day, next) {
     emitChange("habits");
     if (next && day === dateKey(new Date())) {
       var st = streakFor(id);
-      if (st > 1 && (st % 7 === 0 || st === 3 || st === 30 || st === 100)) toast(st + "-day streak. keep going");
+      if (st > 1 && (st % 7 === 0 || st === 3 || st === 30 || st === 100)) toast(st + "-day streak. Keep going");
     }
   } catch (e) {
     if (next) delete done[key]; else done[key] = true;
     render();
-    toast("couldn't save that check-in: " + (e.detail || e.message), "error");
+    toast("Couldn't save that check-in: " + (e.detail || e.message), "error");
   }
 }
 
@@ -185,7 +190,7 @@ async function create(values) {
     var input = document.querySelector('#habitsSection .habit-add [name="name"]');
     if (input) input.focus();
   } catch (e) {
-    toast("couldn't add the habit: " + (e.detail || e.message), "error");
+    toast("Couldn't add the habit: " + (e.detail || e.message), "error");
   }
 }
 
@@ -217,7 +222,7 @@ function wire(el) {
     if (!h) return;
     try {
       if (t.closest("[data-habit-rename]")) {
-        var name = prompt("rename habit", h.name);
+        var name = prompt("Rename habit", h.name);
         if (!name || !name.trim() || name.trim() === h.name) return;
         Object.assign(h, await apiUpdateHabit(id, { name: name.trim().slice(0, 80) }));
         render();
@@ -227,17 +232,17 @@ function wire(el) {
         habits = habits.filter(function (x) { return x.id !== id; });
         render();
         emitChange("habits");
-        toast("archived “" + h.name + "”. its history stays in your backups and density map.");
+        toast("Archived “" + h.name + "”. Its history stays in your backups and density map.");
       }
       if (t.closest("[data-habit-delete]")) {
-        if (!confirm("delete “" + h.name + "” and all its check-ins?")) return;
+        if (!confirm("Delete “" + h.name + "” and all its check-ins?")) return;
         await apiDeleteHabit(id);
         habits = habits.filter(function (x) { return x.id !== id; });
         render();
         emitChange("habits");
       }
     } catch (err) {
-      toast("couldn't change the habit: " + (err.detail || err.message), "error");
+      toast("Couldn't change the habit: " + (err.detail || err.message), "error");
     }
   });
   el.addEventListener("submit", function (e) {

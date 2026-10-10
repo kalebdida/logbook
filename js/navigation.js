@@ -1,8 +1,8 @@
 /* Page switching. The current page lives in the URL hash (#journal), so a
    refresh keeps you where you were and the back button works. On phones the
-   last three pages live behind "more" in the tab bar. */
+   last three pages live behind "More" in the tab bar. */
 export var PAGES = ["dashboard", "journal", "calendar", "focus", "goals", "companion", "settings"];
-var LABELS = { dashboard: "today" };
+var LABELS = { dashboard: "Today", journal: "Journal", calendar: "Calendar", focus: "Focus", goals: "Goals", companion: "Companion", settings: "Settings" };
 var EXTRA = ["goals", "companion", "settings"];
 var DEFAULT_TARGET = "dashboard";
 var current = null;
@@ -13,7 +13,7 @@ function targetFromHash() {
 }
 
 export function pageLabel(target) {
-  return LABELS[target] || target;
+  return LABELS[target] || (target.charAt(0).toUpperCase() + target.slice(1));
 }
 
 /* the soft light behind the active nav item slides to it */
@@ -57,13 +57,13 @@ function show(target) {
 
   var title = document.getElementById("pageTitle");
   if (title) title.textContent = pageLabel(target);
-  document.title = target === DEFAULT_TARGET ? "logbook" : pageLabel(target) + " · logbook";
+  document.title = target === DEFAULT_TARGET ? "Logbook" : pageLabel(target) + " · Logbook";
   window.scrollTo(0, 0);
   moveGlow();
   document.dispatchEvent(new CustomEvent("logbook:navigated", { detail: { page: target } }));
 }
 
-/* ---------- the "more" sheet (phones) ---------- */
+/* ---------- the "More" sheet (phones) ---------- */
 
 function openMore() {
   var sheet = document.getElementById("moreSheet");

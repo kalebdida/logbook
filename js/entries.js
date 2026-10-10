@@ -17,9 +17,9 @@ function mood(key, label, iconName) {
 }
 
 export var STATUS = {
-  good: mood("good", "good", "sun"),
-  okay: mood("okay", "okay", "cloud-sun"),
-  rough: mood("rough", "rough", "cloud-rain")
+  good: mood("good", "Good", "sun"),
+  okay: mood("okay", "Okay", "cloud-sun"),
+  rough: mood("rough", "Rough", "cloud-rain")
 };
 
 /* A small colored label: icon + word. */
@@ -95,12 +95,12 @@ export function renderWeekAgo(entries, onOpen) {
   var preview = found.text.length > 160 ? found.text.slice(0, 160) + "…" : found.text;
   el.innerHTML =
     '<div class="card-head">' +
-      '<h3 class="card-title">' + icon("history") + "<span>on this day</span></h3>" +
+      '<h3 class="card-title">' + icon("history") + "<span>On this day</span></h3>" +
       '<span class="card-meta">' + replay.label + "</span>" +
     "</div>" +
     '<div class="replay-meta">' + moodTag(found.mood) + '<span class="entry-date">' + formatDate(found.date) + "</span></div>" +
     '<p class="week-ago-text">' + escapeHtml(preview.replace(/\n+/g, " ")) + "</p>" +
-    '<span class="replay-hint">open that day ' + icon("arrow-right") + "</span>";
+    '<span class="replay-hint">Open that day ' + icon("arrow-right") + "</span>";
   el.tabIndex = 0;
   el.setAttribute("role", "button");
   el.onclick = function () { onOpen(dateKey(found.date)); };
@@ -119,15 +119,15 @@ function dayHeading(key) {
   var today = dateKey(new Date());
   var y = new Date();
   y.setDate(y.getDate() - 1);
-  if (key === today) return "today";
-  if (key === dateKey(y)) return "yesterday";
+  if (key === today) return "Today";
+  if (key === dateKey(y)) return "Yesterday";
   var parts = key.split("-");
   var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" }).toLowerCase();
+  return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
 }
 
 function timeOf(iso) {
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 /* opts: { query, filterStatus, expandedId, editingId, animateId } */
@@ -153,8 +153,8 @@ export function renderEntries(entries, opts) {
   if (entries.length === 0 || filtered.length === 0) {
     container.innerHTML = "";
     emptyMsg.textContent = entries.length === 0
-      ? "nothing here yet. your first entry will show up here."
-      : "no entries match that search.";
+      ? "Nothing here yet. Your first entry will show up here."
+      : "No entries match that search.";
     emptyMsg.hidden = false;
     return;
   }
@@ -206,10 +206,10 @@ function entryCard(e, opts, q) {
       '<div class="entry-card is-open is-editing' + moodClass + '" data-id="' + id + '">' + top +
         '<form class="entry-edit" data-edit-form="' + id + '">' +
           '<div class="mood-row">' + moods + "</div>" +
-          '<textarea class="text-area" rows="5" aria-label="entry text">' + escapeHtml(e.text) + "</textarea>" +
+          '<textarea class="text-area" rows="5" aria-label="Entry text">' + escapeHtml(e.text) + "</textarea>" +
           '<div class="entry-actions">' +
-            '<button type="button" class="tool-btn" data-entry-action="cancel">cancel</button>' +
-            '<button type="submit" class="primary-btn">save changes</button>' +
+            '<button type="button" class="tool-btn" data-entry-action="cancel">Cancel</button>' +
+            '<button type="submit" class="primary-btn">Save changes</button>' +
           "</div>" +
         "</form>" +
       "</div>"
@@ -222,9 +222,9 @@ function entryCard(e, opts, q) {
 
   var actions = isOpen
     ? '<div class="entry-actions">' +
-        '<button type="button" class="tool-btn" data-entry-action="day">' + icon("calendar-days") + "<span>view day</span></button>" +
-        '<button type="button" class="tool-btn" data-entry-action="edit">' + icon("pencil") + "<span>edit</span></button>" +
-        '<button type="button" class="tool-btn danger-btn" data-entry-action="delete">' + icon("trash-2") + "<span>delete</span></button>" +
+        '<button type="button" class="tool-btn" data-entry-action="day">' + icon("calendar-days") + "<span>View day</span></button>" +
+        '<button type="button" class="tool-btn" data-entry-action="edit">' + icon("pencil") + "<span>Edit</span></button>" +
+        '<button type="button" class="tool-btn danger-btn" data-entry-action="delete">' + icon("trash-2") + "<span>Delete</span></button>" +
       "</div>"
     : "";
 

@@ -29,48 +29,48 @@ function scrollFocus(selector) {
 }
 
 var COMMANDS = [
-  { id: "write", title: "write an entry", keys: "journal new log", key: "n", run: function () { navigateTo("journal"); afterNav(function () { focusComposer(); }); } },
-  { id: "write-good", title: "write a good-day entry", keys: "good mood sun", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
-  { id: "write-okay", title: "write an okay-day entry", keys: "okay mood cloud", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },
-  { id: "write-rough", title: "write a rough-day entry", keys: "rough bad mood rain", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("rough"); }); } },
-  { id: "add-task", title: "add a task for today", keys: "todo checklist", key: "t", run: function () { navigateTo("dashboard"); scrollFocus('#dailyTasks input[name="title"]'); } },
-  { id: "log-activity", title: "log an activity", keys: "minutes area density", run: function () { navigateTo("dashboard"); scrollFocus("#dailyActivities .area-chip"); } },
-  { id: "focus-toggle", title: "start or pause focus timer", keys: "pomodoro timer lock-in", key: "f", run: function () {
+  { id: "write", title: "Write an entry", keys: "journal new log", key: "n", run: function () { navigateTo("journal"); afterNav(function () { focusComposer(); }); } },
+  { id: "write-good", title: "Write a good-day entry", keys: "good mood sun", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
+  { id: "write-okay", title: "Write an okay-day entry", keys: "okay mood cloud", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },
+  { id: "write-rough", title: "Write a rough-day entry", keys: "rough bad mood rain", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("rough"); }); } },
+  { id: "add-task", title: "Add a task for today", keys: "todo checklist", key: "t", run: function () { navigateTo("dashboard"); scrollFocus('#dailyTasks input[name="title"]'); } },
+  { id: "log-activity", title: "Log an activity", keys: "minutes area density", run: function () { navigateTo("dashboard"); scrollFocus("#dailyActivities .area-chip"); } },
+  { id: "focus-toggle", title: "Start or pause focus timer", keys: "pomodoro timer lock-in", key: "f", run: function () {
       var r = toggleFocusFromAnywhere();
-      toast(r === "paused" ? "focus paused" : "focus started");
+      toast(r === "paused" ? "Focus paused" : "Focus started");
     } },
-  { id: "focus-start", title: "start a focus block", keys: "pomodoro timer", run: function () { startFocusFromAnywhere(); navigateTo("focus"); } },
-  { id: "new-goal", title: "create a goal", keys: "goals target", key: "g", run: function () {
+  { id: "focus-start", title: "Start a focus block", keys: "pomodoro timer", run: function () { startFocusFromAnywhere(); navigateTo("focus"); } },
+  { id: "new-goal", title: "Create a goal", keys: "goals target", key: "g", run: function () {
       navigateTo("goals");
       afterNav(function () { var b = document.querySelector('#goalsSection [data-goal-action="add"]'); if (b) b.click(); });
     } },
-  { id: "search", title: "search entries", keys: "grep find journal", key: "/", run: function () { navigateTo("journal"); scrollFocus("#searchInput"); } },
-  { id: "day-today", title: "open today's record", keys: "day viewer", key: "d", run: function () { openDayViewer(dateKey(new Date())); } },
-  { id: "day-yesterday", title: "open yesterday's record", keys: "day viewer", run: function () { var d = new Date(); d.setDate(d.getDate() - 1); openDayViewer(dateKey(d)); } },
-  { id: "backup", title: "download a full backup", keys: "export save data", run: async function () {
+  { id: "search", title: "Search entries", keys: "grep find journal", key: "/", run: function () { navigateTo("journal"); scrollFocus("#searchInput"); } },
+  { id: "day-today", title: "Open today's record", keys: "day viewer", key: "d", run: function () { openDayViewer(dateKey(new Date())); } },
+  { id: "day-yesterday", title: "Open yesterday's record", keys: "day viewer", run: function () { var d = new Date(); d.setDate(d.getDate() - 1); openDayViewer(dateKey(d)); } },
+  { id: "backup", title: "Download a full backup", keys: "export save data", run: async function () {
       try {
         var data = await apiExportBackup();
         var a = document.createElement("a");
         a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
         a.download = "logbook-backup-" + new Date().toISOString().slice(0, 10) + ".json";
         a.click();
-        toast("backup downloaded");
+        toast("Backup downloaded");
       } catch (e) {
-        toast("couldn't create the backup", "error");
+        toast("Couldn't create the backup", "error");
       }
     } },
-  { id: "music-toggle", title: "play or pause music", keys: "music sound soundtrack audio spotify ambient", key: "m", run: function () { musicCommand("toggle"); } },
-  { id: "music-ambient", title: "toggle ambient sound", keys: "music rain noise waves fire sound", run: function () { musicCommand("ambient"); } },
-  { id: "music-open", title: "open the soundtrack", keys: "music add songs files spotify", run: function () { navigateTo("focus"); scrollFocus("#musicCard .music-tab"); } },
-  { id: "theme-make", title: "make a theme from a vibe", keys: "theme look colors customize design vibe ui", run: function () { navigateTo("settings"); scrollFocus("#vibeText"); } },
-  { id: "theme-next", title: "next theme", keys: "theme look cycle", run: function () {
+  { id: "music-toggle", title: "Play or pause music", keys: "music sound soundtrack audio spotify ambient", key: "m", run: function () { musicCommand("toggle"); } },
+  { id: "music-ambient", title: "Toggle ambient sound", keys: "music rain noise waves fire sound", run: function () { musicCommand("ambient"); } },
+  { id: "music-open", title: "Open the soundtrack", keys: "music add songs files spotify", run: function () { navigateTo("focus"); scrollFocus("#musicCard .music-tab"); } },
+  { id: "theme-make", title: "Make a theme from a vibe", keys: "theme look colors customize design vibe ui", run: function () { navigateTo("settings"); scrollFocus("#vibeText"); } },
+  { id: "theme-next", title: "Next theme", keys: "theme look cycle", run: function () {
       var i = BUILT_IN.findIndex(function (t) { return t.id === currentTheme().id; });
       var t = applyTheme(BUILT_IN[(i + 1) % BUILT_IN.length]);
-      toast("theme: " + t.name);
+      toast("Theme: " + t.name);
     } },
-  { id: "toggle-rain", title: "toggle animated background", keys: "effects background rain matrix stars snow", run: function () { setPrefs({ rain: !getPrefs().rain }); } },
-  { id: "toggle-scanlines", title: "toggle crt scanlines", keys: "effects", run: function () { setPrefs({ scanlines: !getPrefs().scanlines }); } },
-  { id: "write-prompt", title: "answer today's reflection question", keys: "companion prompt", run: function (el) {
+  { id: "toggle-rain", title: "Toggle animated background", keys: "effects background rain matrix stars snow", run: function () { setPrefs({ rain: !getPrefs().rain }); } },
+  { id: "toggle-scanlines", title: "Toggle CRT scanlines", keys: "effects", run: function () { setPrefs({ scanlines: !getPrefs().scanlines }); } },
+  { id: "write-prompt", title: "Answer today's reflection question", keys: "companion prompt", run: function (el) {
       var prompt = el && el.getAttribute("data-prompt");
       if (!prompt) {
         navigateTo("companion");
@@ -85,12 +85,12 @@ var COMMANDS = [
         ta.setSelectionRange(ta.value.length, ta.value.length);
       });
     } },
-  { id: "shortcuts", title: "show keyboard shortcuts", keys: "help keys", key: "?", run: function () { openHelp(); } },
-  { id: "palette", title: "open search and commands", keys: "", hidden: true, run: function () { openPalette(); } }
+  { id: "shortcuts", title: "Show keyboard shortcuts", keys: "help keys", key: "?", run: function () { openHelp(); } },
+  { id: "palette", title: "Open search and commands", keys: "", hidden: true, run: function () { openPalette(); } }
 ].concat(BUILT_IN.map(function (t) {
-  return { id: "theme-" + t.id, title: "theme: " + t.name, keys: "theme look " + t.note, run: function () { applyTheme(findTheme(t.id)); toast("theme: " + t.name); } };
+  return { id: "theme-" + t.id, title: "Theme: " + t.name, keys: "theme look " + t.note, run: function () { applyTheme(findTheme(t.id)); toast("Theme: " + t.name); } };
 })).concat(PAGES.map(function (page, i) {
-  return { id: "go-" + page, title: "go to " + pageLabel(page), keys: "page open navigate " + page, key: String(i + 1), run: function () { navigateTo(page); } };
+  return { id: "go-" + page, title: "Go to " + pageLabel(page), keys: "page open navigate " + page, key: String(i + 1), run: function () { navigateTo(page); } };
 }));
 
 var ICONS = {
@@ -155,14 +155,14 @@ function drawList() {
   var list = document.getElementById("paletteList");
   var query = document.getElementById("paletteInput").value.trim().toLowerCase();
   if (!pal.items.length) {
-    list.innerHTML = '<li class="palette-empty">no command or entry matches “' + escapeHtml(query) + "”</li>";
+    list.innerHTML = '<li class="palette-empty">No command or entry matches “' + escapeHtml(query) + "”</li>";
     return;
   }
   var lastType = null;
   list.innerHTML = pal.items.map(function (it, i) {
     var head = "";
     if (it.type !== lastType) {
-      head = '<li class="palette-group" role="presentation">' + (it.type === "cmd" ? "commands" : "entries") + "</li>";
+      head = '<li class="palette-group" role="presentation">' + (it.type === "cmd" ? "Commands" : "Entries") + "</li>";
       lastType = it.type;
     }
     var active = i === pal.index ? " is-active" : "";
@@ -173,7 +173,7 @@ function drawList() {
     var st = STATUS[it.entry.mood];
     return head + '<li class="palette-item palette-entry' + active + '" role="option" id="pal-' + i + '" data-index="' + i + '" aria-selected="' + (i === pal.index) + '">' +
       '<span class="palette-icon mood-tag--' + it.entry.mood + '">' + icon(st.icon) + '</span><span class="palette-entry-text">' + snippet(it.entry.text, query) + "</span>" +
-      '<span class="palette-entry-date">' + new Date(it.entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toLowerCase() + "</span></li>";
+      '<span class="palette-entry-date">' + new Date(it.entry.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</span></li>";
   }).join("");
   document.getElementById("paletteInput").setAttribute("aria-activedescendant", "pal-" + pal.index);
   var activeEl = list.querySelector(".is-active");
@@ -223,9 +223,9 @@ export function closePalette(skipRefocus) {
 /* ---------- help ---------- */
 
 function shortcutRows() {
-  var rows = [["ctrl k", "search and commands"], ["ctrl enter", "save the entry you're writing"]];
-  COMMANDS.forEach(function (c) { if (c.key) rows.push([c.key, c.title]); });
-  rows.push(["← →", "previous / next day in the day view"], ["esc", "close whatever is open"]);
+  var rows = [["Ctrl K", "Search and commands"], ["Ctrl Enter", "Save the entry you're writing"]];
+  COMMANDS.forEach(function (c) { if (c.key) rows.push([c.key.length === 1 ? c.key.toUpperCase() : c.key, c.title]); });
+  rows.push(["← →", "Previous / next day in the day view"], ["Esc", "Close whatever is open"]);
   return '<dl class="shortcut-list">' + rows.map(function (r) {
     return "<div><dt>" + r[0].split(" ").map(function (k) { return "<kbd>" + escapeHtml(k) + "</kbd>"; }).join("") + "</dt><dd>" + escapeHtml(r[1]) + "</dd></div>";
   }).join("") + "</dl>";

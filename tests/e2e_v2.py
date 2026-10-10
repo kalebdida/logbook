@@ -136,7 +136,7 @@ try:
         # ---------- device mode ----------
         boot(page, STATIC + "/")
         check("static copy starts in device mode", page.evaluate("document.body.dataset.mode") == "device")
-        check("status says data is on this device", "device" in page.text_content("#statusLabel"), page.text_content("#statusLabel"))
+        check("status says data is on this device", "device" in page.text_content("#statusLabel").lower(), page.text_content("#statusLabel"))
 
         page.keyboard.press("n")
         page.click('.mood-btn[data-mood="good"]')
@@ -180,7 +180,7 @@ try:
 
         page.set_input_files("#themeImportFile", str(theme_file))
         page.wait_for_selector(".theme-preview-bar:not([hidden])")
-        check("a shared theme file imports as a preview", "imported sea" in page.text_content(".theme-preview-bar"))
+        check("a shared theme file imports as a preview", "imported sea" in page.text_content(".theme-preview-bar").lower())
         page.click('[data-preview="undo"]')
         page.click("#themeEditor summary")
         page.fill('.theme-editor-form [name="color-accent"]', "#ff3366")
@@ -204,7 +204,7 @@ try:
         page.click('[data-music-tab="ambient"]')
         page.click('[data-mix="3"]')
         page.wait_for_timeout(300)
-        check("ambient mix plays and takes over from the track", "brown noise" in page.text_content("#miniPlayer") and page.get_attribute("#playerPlay", "aria-label") == "play")
+        check("ambient mix plays and takes over from the track", "brown noise" in page.text_content("#miniPlayer").lower() and page.get_attribute("#playerPlay", "aria-label").lower() == "play")
         page.check("#musicLinkFocus")
         page.click('[data-music="ambient-toggle"]')
         page.click("#pomodoroStart")
@@ -281,7 +281,7 @@ try:
         page2.fill("#lockScreen input[type=password]", "wrong")
         page2.click("#lockScreen button[type=submit]")
         page2.wait_for_function("document.querySelector('.lock-error').textContent.length > 0")
-        check("wrong password is rejected", "wrong" in page2.text_content(".lock-error"))
+        check("wrong password is rejected", "wrong" in page2.text_content(".lock-error").lower())
         page2.fill("#lockScreen input[type=password]", PASSWORD)
         page2.click("#lockScreen button[type=submit]")
         page2.wait_for_selector("#lockScreen", state="detached", timeout=10000)

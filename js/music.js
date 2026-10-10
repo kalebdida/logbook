@@ -72,13 +72,13 @@ var dbPromise = null;
 function openDb() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise(function (resolve, reject) {
-    if (!window.indexedDB) return reject(new Error("this browser can't store music"));
+    if (!window.indexedDB) return reject(new Error("This browser can't store music"));
     var req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = function () {
       if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE, { keyPath: "id" });
     };
     req.onsuccess = function () { resolve(req.result); };
-    req.onerror = function () { reject(req.error || new Error("couldn't open music storage")); };
+    req.onerror = function () { reject(req.error || new Error("Couldn't open music storage")); };
   });
   dbPromise.catch(function () { dbPromise = null; });
   return dbPromise;
@@ -91,8 +91,8 @@ function run(mode, work) {
       var req = work(t.objectStore(STORE));
       t.oncomplete = function () { resolve(req ? req.result : undefined); };
       t.onabort = t.onerror = function () {
-        var err = t.error || (req && req.error) || new Error("storage error");
-        if (err && err.name === "QuotaExceededError") err = new Error("this device's storage is full");
+        var err = t.error || (req && req.error) || new Error("Storage error");
+        if (err && err.name === "QuotaExceededError") err = new Error("This device's storage is full");
         reject(err);
       };
     });
@@ -120,7 +120,7 @@ function getAudio() {
   audio.addEventListener("timeupdate", updateProgress);
   audio.addEventListener("loadedmetadata", updateProgress);
   audio.addEventListener("error", function () {
-    if (current) toast("can't play “" + current.name + "” in this browser", "error");
+    if (current) toast("Can't play “" + current.name + "” in this browser", "error");
   });
   return audio;
 }
@@ -169,7 +169,7 @@ export async function addFiles(fileList) {
     return (f.type && f.type.indexOf("audio/") === 0) || AUDIO_EXT.test(f.name);
   });
   if (!files.length) {
-    toast("no audio files in that", "warn");
+    toast("No audio files in that", "warn");
     return 0;
   }
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
@@ -177,7 +177,7 @@ export async function addFiles(fileList) {
   var added = 0, skipped = 0;
   var existing = {};
   tracks.forEach(function (t) { existing[t.name + "|" + t.size] = true; });
-  setBusy("adding " + files.length + " file" + (files.length === 1 ? "" : "s") + "…");
+  setBusy("Adding " + files.length + " file" + (files.length === 1 ? "" : "s") + "…");
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
     var meta = parseName(f.name);
@@ -188,17 +188,17 @@ export async function addFiles(fileList) {
       await run("readwrite", function (s) { return s.put(record); });
       existing[meta.name + "|" + f.size] = true; // the same file twice in one batch
       added++;
-      setBusy("added " + added + " of " + files.length + "…");
+      setBusy("Added " + added + " of " + files.length + "…");
     } catch (e) {
-      toast(e.message || "couldn't save " + f.name, "error");
+      toast(e.message || "Couldn't save " + f.name, "error");
       break;
     }
   }
   setBusy("");
   await loadTracks();
   renderLocal();
-  if (added) toast("added " + added + " track" + (added === 1 ? "" : "s") + (skipped ? " (" + skipped + " skipped: already here or can't play)" : ""));
-  else if (skipped) toast("nothing new: those are already here or this browser can't play them", "warn");
+  if (added) toast("Added " + added + " track" + (added === 1 ? "" : "s") + (skipped ? " (" + skipped + " skipped: already here or can't play)" : ""));
+  else if (skipped) toast("Nothing new: those are already here or this browser can't play them", "warn");
   return added;
 }
 
@@ -242,7 +242,7 @@ async function playTrack(id) {
   if (!meta) return;
   heard[id] = true;
   var record = await run("readonly", function (s) { return s.get(id); });
-  if (!record || !record.blob) return toast("that track is missing from storage", "error");
+  if (!record || !record.blob) return toast("That track is missing from storage", "error");
   var a = getAudio();
   if (objectUrl) URL.revokeObjectURL(objectUrl);
   objectUrl = URL.createObjectURL(record.blob);
@@ -253,7 +253,7 @@ async function playTrack(id) {
   try {
     await a.play();
   } catch (e) {
-    if (e.name !== "AbortError") toast("press play to start (the browser blocked autoplay)", "warn");
+    if (e.name !== "AbortError") toast("Press play to start (the browser blocked autoplay)", "warn");
   }
   refresh();
 }
@@ -298,7 +298,7 @@ export function localPlayPause() {
   if (!current) {
     var start = settings.lastTrack && tracks.some(function (t) { return t.id === settings.lastTrack; }) ? settings.lastTrack : order()[0];
     if (start) playTrack(start);
-    else toast("add some music first", "warn");
+    else toast("Add some music first", "warn");
     return;
   }
   if (a.paused) a.play().catch(function () {});
@@ -326,8 +326,8 @@ function setMediaSession() {
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: current.name,
-      artist: current.artist || "logbook",
-      album: "logbook",
+      artist: current.artist || "Logbook",
+      album: "Logbook",
       artwork: [{ src: "assets/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "assets/icon-512.png", sizes: "512x512", type: "image/png" }]
     });
   } catch (e) {}
@@ -362,21 +362,21 @@ function prev() {
    ===================================================================== */
 
 export var SOUNDS = [
-  { id: "rain", label: "rain", glyph: "cloud-rain" },
-  { id: "waves", label: "waves", glyph: "waves" },
-  { id: "wind", label: "wind", glyph: "wind" },
-  { id: "fire", label: "fireplace", glyph: "flame" },
-  { id: "brown", label: "brown noise", glyph: "audio-waveform" },
-  { id: "pink", label: "pink noise", glyph: "activity" },
-  { id: "white", label: "white noise", glyph: "radio" },
-  { id: "focus", label: "focus tone", glyph: "brain", hint: "10 Hz binaural beat. use headphones" }
+  { id: "rain", label: "Rain", glyph: "cloud-rain" },
+  { id: "waves", label: "Waves", glyph: "waves" },
+  { id: "wind", label: "Wind", glyph: "wind" },
+  { id: "fire", label: "Fireplace", glyph: "flame" },
+  { id: "brown", label: "Brown noise", glyph: "audio-waveform" },
+  { id: "pink", label: "Pink noise", glyph: "activity" },
+  { id: "white", label: "White noise", glyph: "radio" },
+  { id: "focus", label: "Focus tone", glyph: "brain", hint: "10 Hz binaural beat. Use headphones" }
 ];
 
 var MIXES = [
-  { name: "rainstorm", mix: { rain: 0.8, wind: 0.35, brown: 0.3 } },
-  { name: "by the fire", mix: { fire: 0.75, rain: 0.3 } },
-  { name: "ocean", mix: { waves: 0.85, wind: 0.2 } },
-  { name: "deep focus", mix: { brown: 0.6, focus: 0.35 } }
+  { name: "Rainstorm", mix: { rain: 0.8, wind: 0.35, brown: 0.3 } },
+  { name: "By the fire", mix: { fire: 0.75, rain: 0.3 } },
+  { name: "Ocean", mix: { waves: 0.85, wind: 0.2 } },
+  { name: "Deep focus", mix: { brown: 0.6, focus: 0.35 } }
 ];
 
 var ac = null, master = null, buffers = {}, playing = {};
@@ -385,7 +385,7 @@ var ambientOn = false;
 function ctx() {
   if (!ac) {
     var AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw new Error("this browser can't generate sound");
+    if (!AC) throw new Error("This browser can't generate sound");
     ac = new AC();
     master = ac.createGain();
     master.gain.value = settings.ambientVolume;
@@ -708,14 +708,14 @@ function onPomodoro(e) {
 
 function nowPlaying() {
   if (current && (localPlaying() || settings.source === "local")) {
-    return { kind: "local", title: current.name, sub: current.artist || "your music", playing: localPlaying() };
+    return { kind: "local", title: current.name, sub: current.artist || "Your music", playing: localPlaying() };
   }
   if (ambientOn || (settings.source === "ambient" && anyAmbientLevel() && ac)) {
     var names = SOUNDS.filter(function (s) { return (settings.ambient[s.id] || 0) > 0; }).map(function (s) { return s.label; });
-    return { kind: "ambient", title: names.slice(0, 3).join(" + ") || "ambient", sub: "ambient sound", playing: ambientOn };
+    return { kind: "ambient", title: names.slice(0, 3).join(" + ") || "Ambient", sub: "Ambient sound", playing: ambientOn };
   }
   if (spotify.frame && (settings.source === "spotify" || !spotify.paused)) {
-    return { kind: "spotify", title: "Spotify", sub: spotify.entity ? spotify.entity.type : "", playing: !spotify.paused };
+    return { kind: "spotify", title: "Spotify", sub: spotify.entity ? spotify.entity.type.charAt(0).toUpperCase() + spotify.entity.type.slice(1) : "", playing: !spotify.paused };
   }
   return null;
 }
@@ -738,13 +738,13 @@ function renderMini() {
   el.dataset.kind = np.kind;
   el.classList.toggle("is-playing", np.playing);
   el.innerHTML =
-    '<button type="button" class="mini-info" data-music="open" title="open the soundtrack">' +
+    '<button type="button" class="mini-info" data-music="open" title="Open the soundtrack">' +
       '<span class="mini-eq" aria-hidden="true"><i></i><i></i><i></i></span>' +
       '<span class="mini-text"><span class="mini-title">' + escapeHtml(np.title) + '</span><span class="mini-sub">' + escapeHtml(np.sub) + "</span></span>" +
     "</button>" +
-    '<button type="button" class="mini-btn mini-btn--main" data-music="toggle" aria-label="' + (np.playing ? "pause" : "play") + '">' + icon(np.playing ? "pause" : "play") + "</button>" +
-    (np.kind === "local" ? '<button type="button" class="mini-btn" data-music="next" aria-label="next track">' + icon("skip-forward") + "</button>" : "") +
-    '<button type="button" class="mini-btn mini-close" data-music="close" aria-label="stop">' + icon("x") + "</button>";
+    '<button type="button" class="mini-btn mini-btn--main" data-music="toggle" aria-label="' + (np.playing ? "Pause" : "Play") + '">' + icon(np.playing ? "pause" : "play") + "</button>" +
+    (np.kind === "local" ? '<button type="button" class="mini-btn" data-music="next" aria-label="Next track">' + icon("skip-forward") + "</button>" : "") +
+    '<button type="button" class="mini-btn mini-close" data-music="close" aria-label="Stop">' + icon("x") + "</button>";
 }
 
 /* =====================================================================
@@ -759,7 +759,7 @@ function setBusy(text) {
 }
 
 function tabsHtml() {
-  return [["local", "my music", "list-music"], ["ambient", "ambient", "cloud-rain"], ["spotify", "spotify", "music"]].map(function (t) {
+  return [["local", "My music", "list-music"], ["ambient", "Ambient", "cloud-rain"], ["spotify", "Spotify", "music"]].map(function (t) {
     return '<button type="button" class="music-tab seg-btn" role="tab" data-music-tab="' + t[0] + '" aria-selected="' + (settings.tab === t[0]) + '">' + icon(t[2]) + "<span>" + t[1] + "</span></button>";
   }).join("");
 }
@@ -770,8 +770,8 @@ function render() {
   el.innerHTML =
     '<div class="music-card" id="musicCard">' +
       '<div class="music-head">' +
-        '<h3 class="daily-section-title">' + icon("headphones") + "<span>soundtrack</span></h3>" +
-        '<label class="music-link"><input type="checkbox" class="switch" id="musicLinkFocus"' + (settings.linkFocus ? " checked" : "") + '><span>play with the focus timer</span></label>' +
+        '<h3 class="daily-section-title">' + icon("headphones") + "<span>Soundtrack</span></h3>" +
+        '<label class="music-link"><input type="checkbox" class="switch" id="musicLinkFocus"' + (settings.linkFocus ? " checked" : "") + '><span>Play with the focus timer</span></label>' +
       "</div>" +
       '<div class="music-tabs segmented" role="tablist">' + tabsHtml() + "</div>" +
       '<div class="music-panel" data-panel="local"' + (settings.tab === "local" ? "" : " hidden") + ' id="musicLocal"></div>' +
@@ -790,24 +790,24 @@ function renderLocal() {
   var playingId = current ? current.id : "";
   el.innerHTML =
     '<div class="player"' + (tracks.length ? "" : " hidden") + ">" +
-      '<div class="player-now"><span class="player-title" id="playerTitle">' + escapeHtml(current ? current.name : "nothing playing") + '</span><span class="player-artist" id="playerArtist">' + escapeHtml(current ? current.artist : "pick a track or press play") + "</span></div>" +
-      '<div class="player-seek"><span id="playerPos">0:00</span><input type="range" class="range" id="playerSeek" min="0" max="1000" value="0" aria-label="position"><span id="playerDur">0:00</span></div>' +
+      '<div class="player-now"><span class="player-title" id="playerTitle">' + escapeHtml(current ? current.name : "Nothing playing") + '</span><span class="player-artist" id="playerArtist">' + escapeHtml(current ? current.artist : "Pick a track or press play") + "</span></div>" +
+      '<div class="player-seek"><span id="playerPos">0:00</span><input type="range" class="range" id="playerSeek" min="0" max="1000" value="0" aria-label="Position"><span id="playerDur">0:00</span></div>' +
       '<div class="player-controls">' +
-        '<button type="button" class="player-btn' + (settings.shuffle ? " is-on" : "") + '" data-music="shuffle" aria-pressed="' + settings.shuffle + '" title="shuffle" aria-label="shuffle">' + icon("shuffle") + "</button>" +
-        '<button type="button" class="player-btn" data-music="prev" title="previous" aria-label="previous">' + icon("skip-back") + "</button>" +
-        '<button type="button" class="player-btn player-btn--main" data-music="play" id="playerPlay" title="play or pause" aria-label="' + (localPlaying() ? "pause" : "play") + '">' + icon(localPlaying() ? "pause" : "play") + "</button>" +
-        '<button type="button" class="player-btn" data-music="next" title="next" aria-label="next">' + icon("skip-forward") + "</button>" +
-        '<button type="button" class="player-btn' + (settings.repeat !== "off" ? " is-on" : "") + '" data-music="repeat" title="repeat: ' + settings.repeat + '" aria-label="repeat: ' + settings.repeat + '">' + icon(settings.repeat === "one" ? "repeat-1" : "repeat") + "</button>" +
-        '<label class="player-volume"><span aria-hidden="true">' + icon("volume-2") + '</span><input type="range" class="range" id="playerVolume" min="0" max="100" value="' + Math.round(settings.volume * 100) + '" aria-label="volume"></label>' +
+        '<button type="button" class="player-btn' + (settings.shuffle ? " is-on" : "") + '" data-music="shuffle" aria-pressed="' + settings.shuffle + '" title="Shuffle" aria-label="Shuffle">' + icon("shuffle") + "</button>" +
+        '<button type="button" class="player-btn" data-music="prev" title="Previous" aria-label="Previous">' + icon("skip-back") + "</button>" +
+        '<button type="button" class="player-btn player-btn--main" data-music="play" id="playerPlay" title="Play or pause" aria-label="' + (localPlaying() ? "Pause" : "Play") + '">' + icon(localPlaying() ? "pause" : "play") + "</button>" +
+        '<button type="button" class="player-btn" data-music="next" title="Next" aria-label="Next">' + icon("skip-forward") + "</button>" +
+        '<button type="button" class="player-btn' + (settings.repeat !== "off" ? " is-on" : "") + '" data-music="repeat" title="Repeat: ' + settings.repeat + '" aria-label="Repeat: ' + settings.repeat + '">' + icon(settings.repeat === "one" ? "repeat-1" : "repeat") + "</button>" +
+        '<label class="player-volume"><span aria-hidden="true">' + icon("volume-2") + '</span><input type="range" class="range" id="playerVolume" min="0" max="100" value="' + Math.round(settings.volume * 100) + '" aria-label="Volume"></label>' +
       "</div>" +
     "</div>" +
     '<div class="music-drop" id="musicDrop">' +
-      "<p>" + (tracks.length ? "add more" : "bring your own music. it's saved in this browser, plays offline, and never leaves the device.") + "</p>" +
+      "<p>" + (tracks.length ? "Add more" : "Bring your own music. It's saved in this browser, plays offline, and never leaves the device.") + "</p>" +
       '<div class="settings-actions">' +
-        '<label class="file-pick"><input type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" multiple id="musicFiles"><span>' + icon("plus") + "add audio files</span></label>" +
-        (folderPickSupported() ? '<label class="file-pick"><input type="file" webkitdirectory multiple id="musicFolder"><span>' + icon("folder-plus") + "add a folder</span></label>" : "") +
+        '<label class="file-pick"><input type="file" accept="audio/*,.mp3,.m4a,.aac,.ogg,.opus,.wav,.flac,.webm" multiple id="musicFiles"><span>' + icon("plus") + "Add audio files</span></label>" +
+        (folderPickSupported() ? '<label class="file-pick"><input type="file" webkitdirectory multiple id="musicFolder"><span>' + icon("folder-plus") + "Add a folder</span></label>" : "") +
       "</div>" +
-      '<p class="setting-hint">or drop files here. mp3, m4a, ogg, opus, wav, flac (whatever this browser can play).</p>' +
+      '<p class="setting-hint">Or drop files here. MP3, M4A, OGG, Opus, WAV, FLAC (whatever this browser can play).</p>' +
       '<p class="music-busy" id="musicBusy"' + (busyText ? "" : " hidden") + ">" + escapeHtml(busyText) + "</p>" +
     "</div>" +
     (tracks.length
@@ -816,10 +816,10 @@ function renderLocal() {
             '<button type="button" class="track-play" data-play-track="' + t.id + '"><span class="track-n">' + (t.id === playingId && localPlaying() ? icon("audio-waveform") : String(i + 1).padStart(2, "0")) + "</span>" +
               '<span class="track-text"><span class="track-name">' + escapeHtml(t.name) + "</span>" + (t.artist ? '<span class="track-artist">' + escapeHtml(t.artist) + "</span>" : "") + "</span>" +
               '<span class="track-dur">' + (t.duration ? fmtTime(t.duration) : "") + "</span></button>" +
-            '<button type="button" class="track-del" data-del-track="' + t.id + '" aria-label="remove ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" +
+            '<button type="button" class="track-del" data-del-track="' + t.id + '" aria-label="Remove ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" +
           "</li>";
         }).join("") + "</ol>" +
-        '<p class="setting-hint music-foot">' + tracks.length + " track" + (tracks.length === 1 ? "" : "s") + ", " + fmtSize(total) + ' on this device. <button type="button" class="link-btn" data-music="clear">remove all</button></p>'
+        '<p class="setting-hint music-foot">' + tracks.length + " track" + (tracks.length === 1 ? "" : "s") + ", " + fmtSize(total) + ' on this device. <button type="button" class="link-btn" data-music="clear">Remove all</button></p>'
       : "");
   updateProgress();
 }
@@ -854,12 +854,12 @@ function renderAmbient() {
         "</label>";
       }).join("") +
     "</div>" +
-    '<label class="player-volume ambient-master"><span>master</span><input type="range" class="range" id="ambientVolume" min="0" max="100" value="' + Math.round(settings.ambientVolume * 100) + '" aria-label="ambient volume"></label>' +
-    '<p class="setting-hint">made live in your browser, nothing downloads, works offline. slide any sound up to add it to the mix.</p>';
+    '<label class="player-volume ambient-master"><span>Master</span><input type="range" class="range" id="ambientVolume" min="0" max="100" value="' + Math.round(settings.ambientVolume * 100) + '" aria-label="Ambient volume"></label>' +
+    '<p class="setting-hint">Made live in your browser, nothing downloads, works offline. Slide any sound up to add it to the mix.</p>';
 }
 
 function ambientLabel() {
-  return ambientOn ? icon("pause") + "<span>pause</span>" : icon("play") + "<span>play</span>";
+  return ambientOn ? icon("pause") + "<span>Pause</span>" : icon("play") + "<span>Play</span>";
 }
 
 function renderSpotify() {
@@ -868,27 +868,27 @@ function renderSpotify() {
   var presets = settings.spotify.presets || [];
   el.innerHTML =
     '<form class="spotify-form" id="spotifyForm" autocomplete="off">' +
-      '<input class="text-input" name="link" placeholder="paste a Spotify link: playlist, album, track, podcast" value="' + escapeHtml(settings.spotify.current || "") + '">' +
-      '<button type="submit" class="primary-btn">' + icon("play") + "<span>load</span></button>" +
+      '<input class="text-input" name="link" placeholder="Paste a Spotify link: playlist, album, track, podcast" value="' + escapeHtml(settings.spotify.current || "") + '">' +
+      '<button type="submit" class="primary-btn">' + icon("play") + "<span>Load</span></button>" +
     "</form>" +
     (presets.length
       ? '<div class="spotify-presets">' + presets.map(function (p, i) {
-          return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
+          return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="Remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
         }).join("") + "</div>"
       : "") +
     '<div id="spotifyEmbed" class="spotify-embed"></div>' +
-    '<div class="settings-actions spotify-actions"' + (settings.spotify.current ? "" : " hidden") + '><button type="button" class="tool-btn" data-music="save-preset">save to my list</button>' +
-      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">find playlists on Spotify ' + icon("external-link") + "</a></div>" +
-    '<p class="setting-hint">full songs if you\'re logged in to Spotify in this browser; otherwise Spotify plays 30-second previews. the player loads from Spotify, so it needs internet.</p>';
+    '<div class="settings-actions spotify-actions"' + (settings.spotify.current ? "" : " hidden") + '><button type="button" class="tool-btn" data-music="save-preset">Save to my list</button>' +
+      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">Find playlists on Spotify ' + icon("external-link") + "</a></div>" +
+    '<p class="setting-hint">Full songs if you\'re logged in to Spotify in this browser; otherwise Spotify plays 30-second previews. The player loads from Spotify, so it needs internet.</p>';
   // the player only loads when you open this tab or press load: nothing contacts Spotify before that
   if (parseSpotify(settings.spotify.current) && settings.tab === "spotify") {
-    document.getElementById("spotifyEmbed").innerHTML = '<button type="button" class="tool-btn" data-music="spotify-resume">load the Spotify player</button>';
+    document.getElementById("spotifyEmbed").innerHTML = '<button type="button" class="tool-btn" data-music="spotify-resume">Load the Spotify player</button>';
   }
 }
 
 function refresh() {
   var play = document.getElementById("playerPlay");
-  if (play) { play.innerHTML = icon(localPlaying() ? "pause" : "play"); play.setAttribute("aria-label", localPlaying() ? "pause" : "play"); }
+  if (play) { play.innerHTML = icon(localPlaying() ? "pause" : "play"); play.setAttribute("aria-label", localPlaying() ? "Pause" : "Play"); }
   var title = document.getElementById("playerTitle");
   if (title && current) {
     title.textContent = current.name;
@@ -965,11 +965,11 @@ function handleClick(e) {
     save({ repeat: nextRepeat });
     act.classList.toggle("is-on", nextRepeat !== "off");
     act.innerHTML = icon(nextRepeat === "one" ? "repeat-1" : "repeat");
-    act.title = "repeat: " + nextRepeat;
-    act.setAttribute("aria-label", "repeat: " + nextRepeat);
-    toast("repeat: " + nextRepeat);
+    act.title = "Repeat: " + nextRepeat;
+    act.setAttribute("aria-label", "Repeat: " + nextRepeat);
+    toast("Repeat: " + nextRepeat);
   }
-  if (a === "clear" && confirm("remove all " + tracks.length + " tracks from this device?")) clearLibrary().catch(function (er) { toast(er.message, "error"); });
+  if (a === "clear" && confirm("Remove all " + tracks.length + " tracks from this device?")) clearLibrary().catch(function (er) { toast(er.message, "error"); });
   if (a === "ambient-toggle") { ambientOn ? ambientPause() : ambientPlay(); renderAmbient(); }
   if (a === "open") { navigateTo("focus"); setTimeout(function () { var c = document.getElementById("musicCard"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80); }
   if (a === "spotify-resume") { var resume = parseSpotify(settings.spotify.current); if (resume) loadSpotify(resume, false); }
@@ -977,12 +977,12 @@ function handleClick(e) {
   if (a === "save-preset") {
     var entity = parseSpotify(settings.spotify.current);
     if (!entity) return;
-    var name = prompt("name it", entity.type === "playlist" ? "focus playlist" : entity.type);
+    var name = prompt("Name it", entity.type === "playlist" ? "Focus playlist" : entity.type.charAt(0).toUpperCase() + entity.type.slice(1));
     if (!name) return;
     settings.spotify.presets = (settings.spotify.presets || []).filter(function (x) { return x.url !== entity.url; }).concat([{ name: name.slice(0, 40), url: entity.url }]);
     save();
     renderSpotifyList();
-    toast("saved");
+    toast("Saved");
   }
 }
 
@@ -997,7 +997,7 @@ function renderSpotifyList() {
   var div = document.createElement("div");
   div.className = "spotify-presets";
   div.innerHTML = presets.map(function (p, i) {
-    return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
+    return '<span class="preset"><button type="button" class="chip" data-preset="' + i + '">' + escapeHtml(p.name) + '</button><button type="button" class="preset-del" data-del-preset="' + i + '" aria-label="Remove ' + escapeHtml(p.name) + '">' + icon("x") + "</button></span>";
   }).join("");
   form.after(div);
 }
@@ -1029,14 +1029,14 @@ function wire() {
     }
     if (t.id === "musicLinkFocus") {
       save({ linkFocus: t.checked });
-      toast(t.checked ? "music starts with focus and pauses on breaks" : "music no longer follows the timer");
+      toast(t.checked ? "Music starts with focus and pauses on breaks" : "Music no longer follows the timer");
     }
   });
   document.addEventListener("submit", function (e) {
     if (e.target.id !== "spotifyForm") return;
     e.preventDefault();
     var entity = parseSpotify(e.target.elements.link.value);
-    if (!entity) return toast("that doesn't look like a Spotify link. in Spotify, use share, then copy link", "warn");
+    if (!entity) return toast("That doesn't look like a Spotify link. In Spotify, use Share, then Copy link", "warn");
     loadSpotify(entity, true);
     var actions = document.querySelector(".spotify-actions");
     if (actions) actions.hidden = false;

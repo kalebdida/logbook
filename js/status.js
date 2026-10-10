@@ -31,11 +31,11 @@ export async function checkBackend() {
   var dot = document.getElementById("statusDot");
   var label = document.getElementById("statusLabel");
   if (dot) dot.className = "status-dot " + (ok ? "is-online" : "is-offline");
-  if (label) label.textContent = isDevice() ? "saved on this device" : ok ? "backend online" : "backend offline";
+  if (label) label.textContent = isDevice() ? "On this device" : ok ? "Online" : "Offline";
   showBackendWarning(!ok);
 
   if (changed) {
-    if (ok && wasOffline) toast(isDevice() ? "storage is back" : "backend is back online");
+    if (ok && wasOffline) toast(isDevice() ? "Storage is back" : "Back online");
     listeners.forEach(function (fn) { fn(ok, wasOffline); });
   }
   return ok;

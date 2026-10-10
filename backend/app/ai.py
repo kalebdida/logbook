@@ -94,9 +94,9 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
                 data = _json(response)
                 return data["choices"][0]["message"]["content"] or ""
         except httpx.HTTPError as exc:
-            raise AIError(f"couldn't reach the AI provider: {exc.__class__.__name__}") from exc
+            raise AIError(f"Couldn't reach the AI provider: {exc.__class__.__name__}") from exc
         except (KeyError, IndexError, TypeError) as exc:
-            raise AIError("the AI provider sent back something unexpected") from exc
+            raise AIError("The AI provider sent back something unexpected") from exc
     raise AIError("AI isn't configured on this server")
 
 

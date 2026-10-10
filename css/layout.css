@@ -46,23 +46,84 @@ html.has-backdrop-image body::before {
     var(--backdrop-image) center / cover no-repeat;
 }
 
-/* ---------- boot (terminal theme only) ---------- */
+/* ---------- loading screen (js/ui.js) ---------- */
 #boot {
   position: fixed;
   inset: 0;
   z-index: 70;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0 24px;
-  background: var(--bg);
-  color: var(--accent);
-  cursor: pointer;
-  font: 14px/2 var(--mono);
-  transition: opacity 0.4s ease;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--scene-sky-top, var(--bg)), var(--bg) 60%);
+  transition: opacity 0.6s var(--ease-out), visibility 0.6s;
 }
+#boot > * { opacity: 0; transition: opacity 0.7s var(--ease-out); }
+#boot.is-visible > * { opacity: 1; }
+#boot.is-leaving { opacity: 0; visibility: hidden; }
+#boot.is-under-lock { visibility: hidden; }
+.splash-scene { position: absolute; inset: auto 0 0; height: 58vh; pointer-events: none; }
+.splash-scene .scene { width: 100%; height: 100%; }
+.splash-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.95), rgb(var(--bg-rgb) / 0.15) 45%, rgb(var(--bg-rgb) / 0.35));
+}
+.splash {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(440px, calc(100vw - 48px));
+  margin-bottom: 18vh;
+  text-align: center;
+  transform: translateY(8px);
+  transition: transform 0.9s var(--ease-out), opacity 0.7s var(--ease-out) !important;
+}
+#boot.is-visible .splash { transform: none; }
+.splash-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.4);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgb(var(--accent-rgb) / 0.35), rgb(var(--accent-rgb) / 0.06) 70%);
+  box-shadow: 0 0 50px -6px rgb(var(--accent-rgb) / 0.6);
+  color: var(--accent);
+  font-size: 28px;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.splash-cat { line-height: 0; margin: -6px 0 -4px; }
+#boot.is-waking .splash-mark { display: none; }
+.splash-title { color: var(--text); font: 700 clamp(34px, 6vw, 46px)/1 var(--font-display); letter-spacing: -0.04em; }
+.splash-line { min-height: 1.6em; color: var(--text-2); font-size: 15px; font-variant-numeric: tabular-nums; }
+.splash-bar {
+  position: relative;
+  width: 180px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+.splash-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0), var(--accent), rgb(var(--accent-rgb) / 0));
+  animation: splashSlide 1.6s var(--ease-out) infinite;
+}
+.splash-note { max-width: 360px; color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+
+/* the terminal theme types boot lines instead */
+#bootLines, .boot-skip { display: none; }
+#boot.is-terminal { place-items: center start; padding: 0 24px; background: var(--bg); color: var(--accent); cursor: pointer; font: 14px/2 var(--mono); }
+#boot.is-terminal .splash { display: none; }
+#boot.is-terminal #bootLines { display: block; }
+#boot.is-terminal .boot-skip { display: block; position: absolute; bottom: 28px; left: 24px; color: var(--faint); font-size: 11px; }
 #boot .boot-granted { color: var(--warm); }
-.boot-skip { position: absolute; bottom: 28px; left: 24px; color: var(--faint); font-size: 11px; }
 
 /* ---------- shell ---------- */
 #appShell {
@@ -96,8 +157,8 @@ html.has-backdrop-image body::before {
   gap: 12px;
   margin: 0 6px 26px;
   color: var(--text);
-  font: 600 23px/1 var(--font-display);
-  letter-spacing: 0.02em;
+  font: 700 22px/1 var(--font-display);
+  letter-spacing: -0.02em;
 }
 .brand-mark {
   display: grid;
@@ -200,9 +261,9 @@ html.has-backdrop-image body::before {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 1260px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 30px clamp(20px, 3vw, 44px) 110px;
+  padding: 36px clamp(22px, 3.4vw, 52px) 120px;
   outline: none;
 }
 
@@ -212,14 +273,16 @@ html.has-backdrop-image body::before {
   justify-content: space-between;
   gap: 16px;
   min-height: 48px;
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 body[data-page="dashboard"] #pageHeader { display: none; }
+/* the sidebar already has search on wide screens */
+@media (min-width: 761px) { .header-cmd { display: none; } }
 
 #pageTitle {
   color: var(--text);
-  font: 500 clamp(26px, 3vw, 32px)/1.15 var(--font-display);
-  letter-spacing: 0.01em;
+  font: 700 clamp(28px, 3.2vw, 36px)/1.15 var(--font-display);
+  letter-spacing: -0.03em;
 }
 
 .header-cmd {
@@ -255,8 +318,8 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 /* ---------- page grids ---------- */
 .dash-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
   align-items: start;
 }
 .dash-main, .dash-side { min-width: 0; }
@@ -265,39 +328,39 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   top: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 .journal-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(340px, 460px) minmax(0, 1fr);
+  gap: 32px;
   align-items: start;
 }
 .journal-compose { position: sticky; top: 24px; }
 .journal-list { min-width: 0; }
 
-.patterns { display: grid; gap: 24px; margin-top: 24px; }
+.patterns { display: grid; gap: 28px; margin-top: 28px; }
 
 .focus-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 24px;
+  gap: 28px;
   align-items: start;
 }
 
 #companionSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
+  gap: 28px;
   align-items: start;
 }
-.companion-col { display: grid; gap: 24px; min-width: 0; }
+.companion-col { display: grid; gap: 28px; min-width: 0; }
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
   align-items: start;
 }
 .settings-card--wide { grid-column: 1 / -1; }
@@ -459,7 +522,7 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   .nav-icon { font-size: 21px; }
   .sidebar-nav-item:hover { background: transparent; }
 
-  #app { padding: 20px 14px calc(var(--bar-h) + var(--safe-bottom) + 30px); }
+  #app { padding: 22px 16px calc(var(--bar-h) + var(--safe-bottom) + 34px); }
   #pageHeader { min-height: 40px; margin-bottom: 16px; }
   .header-cmd > span:nth-child(2), .header-cmd kbd { display: none; }
   .header-cmd { width: 40px; padding: 0; justify-content: center; font-size: 17px; }
@@ -475,6 +538,7 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   .card,
   .form-box,
   .daily-section,
+  .day-card:not(.day-fold),
   .cal-card,
   .pomodoro-card,
   .goals-card,
@@ -485,7 +549,8 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   .replay-card,
   .settings-card,
   .companion-card,
-  .music-card { padding: 18px 16px; border-radius: var(--r-md); }
+  .music-card { padding: 20px 18px; border-radius: var(--r-lg); }
+  .dash-side, .patterns { gap: 18px; }
 }
 
 @media (max-width: 360px) {

@@ -35,7 +35,7 @@ export function startPWA() {
   });
   window.addEventListener("appinstalled", function () {
     deferred = null;
-    toast("logbook is installed. open it from your home screen or app list.");
+    toast("Logbook is installed. Open it from your home screen or app list.");
     document.dispatchEvent(new CustomEvent("logbook:installable", { detail: { available: false } }));
   });
 
@@ -47,9 +47,9 @@ export function startPWA() {
       if (!worker) return;
       worker.addEventListener("statechange", function () {
         if (worker.state === "installed" && navigator.serviceWorker.controller) {
-          toast("a new version of logbook is ready", "ok", {
+          toast("A new version of Logbook is ready", "ok", {
             duration: 15000,
-            action: { label: "reload", run: function () { worker.postMessage("skip-waiting"); } }
+            action: { label: "Reload", run: function () { worker.postMessage("skip-waiting"); } }
           });
         }
       });

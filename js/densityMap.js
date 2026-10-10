@@ -116,13 +116,13 @@ function renderMap(density, stats) {
     <section class="density-map-card" aria-label="Life density map">
       <div class="density-heading">
         <div>
-          <h3 class="daily-section-title">${icon("layout-grid")}<span>life areas</span></h3>
-          <p class="density-subtitle">where your time and energy went, from what you logged</p>
+          <h3 class="daily-section-title">${icon("layout-grid")}<span>Life areas</span></h3>
+          <p class="density-subtitle">Where your time and energy went, from what you logged</p>
         </div>
-        <div class="segmented density-view-switch" role="group" aria-label="period">
-          ${viewButton("weekly", "week")}
-          ${viewButton("monthly", "month")}
-          ${viewButton("yearly", "year")}
+        <div class="segmented density-view-switch" role="group" aria-label="Period">
+          ${viewButton("weekly", "Week")}
+          ${viewButton("monthly", "Month")}
+          ${viewButton("yearly", "Year")}
         </div>
       </div>
 
@@ -137,15 +137,15 @@ function renderContent(density, stats) {
 
   return `
     <div class="density-summary" aria-label="Density summary">
-      ${summaryItem("tracked days", stats.trackedDays)}
-      ${summaryItem("strongest", icon(stats.strongestCategory.icon) + "<span>" + stats.strongestCategory.label.toLowerCase() + "</span>")}
-      ${summaryItem("recorded activity", formatNumber(stats.totalActivity))}
+      ${summaryItem("Tracked days", stats.trackedDays)}
+      ${summaryItem("Strongest", icon(stats.strongestCategory.icon) + "<span>" + stats.strongestCategory.label + "</span>")}
+      ${summaryItem("Recorded activity", formatNumber(stats.totalActivity))}
     </div>
 
     <div class="density-period-label">${periodLabel(state.view)}</div>
     <div class="density-grid-scroll">
       <div class="density-grid" style="--density-days: ${stats.dates.length}">
-        <div class="density-grid-header density-category-label">area</div>
+        <div class="density-grid-header density-category-label">Area</div>
         ${stats.dates.map(renderDayHeader).join("")}
         ${categories.map(function (category) {
           return renderCategoryRow(category, stats.dates, dayByDate);
@@ -155,9 +155,9 @@ function renderContent(density, stats) {
 
     ${renderInsights(stats)}
     <div class="density-legend" aria-label="Activity intensity legend">
-      <span>less</span>
+      <span>Less</span>
       <i class="density-cell density-level-0"></i><i class="density-cell density-level-1"></i><i class="density-cell density-level-2"></i><i class="density-cell density-level-3"></i><i class="density-cell density-level-4"></i>
-      <span>more</span>
+      <span>More</span>
     </div>
   `;
 }
@@ -166,8 +166,8 @@ function renderEmptyState() {
   return `
     <div class="density-empty">
       ${icon("sprout")}
-      <p>log an activity, finish a task with a life area, or run a focus session and it shows up here.</p>
-      <p class="density-empty-note">tip: write #fitness or #faith in an entry to tag it.</p>
+      <p>Log an activity, finish a task with a life area, or run a focus session and it shows up here.</p>
+      <p class="density-empty-note">Tip: write #fitness or #faith in an entry to tag it.</p>
     </div>
   `;
 }
@@ -179,7 +179,7 @@ function renderCategoryRow(category, dates, dayByDate) {
   }).concat([0]));
 
   return `
-    <div class="density-category-label" title="${category.label}">${icon(category.icon)}<span>${category.label.toLowerCase()}</span></div>
+    <div class="density-category-label" title="${category.label}">${icon(category.icon)}<span>${category.label}</span></div>
     ${dates.map(function (date) {
       var day = dayByDate[date];
       var value = day ? day.categories[category.id] : 0;
@@ -197,7 +197,7 @@ function renderDayHeader(date) {
 
 function renderDensityCell(date, category, value, peak) {
   var level = densityLevel(value, peak);
-  var label = category.label.toLowerCase() + ", " + formatDateLabel(date) + ": " + (value ? formatNumber(value) + " logged" : "nothing logged");
+  var label = category.label + ", " + formatDateLabel(date) + ": " + (value ? formatNumber(value) + " logged" : "nothing logged");
   return `<button type="button" class="density-cell density-level-${level}" data-date="${date}" title="${label}" aria-label="${label}"></button>`;
 }
 
@@ -206,11 +206,11 @@ function renderInsights(stats) {
   var strongest = stats.strongestCategory;
   var share = strongest ? Math.round((strongest.value / stats.totalActivity) * 100) : 0;
 
-  if (strongest) insights.push(strongest.label.toLowerCase() + " is " + share + "% of what you logged.");
-  if (stats.mostConsistentWeekday) insights.push("you log most on " + stats.mostConsistentWeekday + "s.");
+  if (strongest) insights.push(strongest.label + " is " + share + "% of what you logged.");
+  if (stats.mostConsistentWeekday) insights.push("You log most on " + stats.mostConsistentWeekday + "s.");
   if (stats.inactiveCategories[0]) {
     var inactive = stats.inactiveCategories[0];
-    insights.push("no " + inactive.label.toLowerCase() + " for " + inactive.daysSince + " days.");
+    insights.push("No " + inactive.label.toLowerCase() + " for " + inactive.daysSince + " days.");
   }
   if (!insights.length) return "";
   return `<p class="density-insights">${icon("sparkle")}<span>${insights.slice(0, 3).join(" ")}</span></p>`;
@@ -398,8 +398,8 @@ function densityLevel(value, peak) {
 }
 
 function periodLabel(view) {
-  if (view === "weekly") return "current week";
-  if (view === "yearly") return "last 365 days";
+  if (view === "weekly") return "Current week";
+  if (view === "yearly") return "Last 365 days";
   return new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 

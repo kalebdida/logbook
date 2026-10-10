@@ -30,20 +30,20 @@ function draw() {
   var chips = CATEGORIES.map(function (c) {
     var on = state.picked === c.id;
     return '<button type="button" class="area-chip' + (on ? " is-on" : "") + '" data-area="' + c.id + '" aria-pressed="' + on + '">' +
-      icon(c.icon) + "<span>" + c.label.toLowerCase() + "</span></button>";
+      icon(c.icon) + "<span>" + c.label + "</span></button>";
   }).join("");
 
   var list = state.items.length
     ? '<ul class="activity-list">' + state.items.map(row).join("") + "</ul>"
-    : '<p class="empty-line">nothing logged yet. pick an area, say what you did, add the minutes.</p>';
+    : '<p class="empty-line">Pick an area, say what you did, add the minutes. Finished tasks with an area count too.</p>';
 
   var total = totalMinutes();
   state.container.innerHTML =
-    '<div class="area-chips" role="group" aria-label="life area">' + chips + "</div>" +
+    '<div class="area-chips" role="group" aria-label="Life area">' + chips + "</div>" +
     '<form class="inline-form" data-form="activity" autocomplete="off">' +
-      '<input class="text-input" name="title" maxlength="300" placeholder="' + (state.picked ? "what did you do?" : "pick an area first") + '" aria-label="activity">' +
-      '<input class="text-input text-input--num" name="minutes" type="number" min="1" max="1440" inputmode="numeric" placeholder="min" aria-label="minutes">' +
-      '<button type="submit" class="tool-btn tool-btn--add"' + (state.picked ? "" : " disabled") + ">" + icon("plus") + "<span>log</span></button>" +
+      '<input class="text-input" name="title" maxlength="300" placeholder="' + (state.picked ? "What did you do?" : "Pick an area first") + '" aria-label="Activity">' +
+      '<input class="text-input text-input--num" name="minutes" type="number" min="1" max="1440" inputmode="numeric" placeholder="Min" aria-label="Minutes">' +
+      '<button type="submit" class="tool-btn tool-btn--add"' + (state.picked ? "" : " disabled") + ">" + icon("plus") + "<span>Log</span></button>" +
     "</form>" +
     list +
     (total ? '<div class="activity-total">' + formatMinutes(total) + " logged today</div>" : "");
@@ -56,7 +56,7 @@ function row(a) {
       '<span class="activity-icon" aria-hidden="true">' + (cat ? categoryIcon(cat) : icon("activity")) + "</span>" +
       '<span class="activity-title">' + escapeHtml(a.title) + "</span>" +
       (a.durationMinutes ? '<span class="activity-mins">' + formatMinutes(a.durationMinutes) + "</span>" : "") +
-      '<button type="button" class="icon-btn icon-btn--quiet" data-activity-delete="' + a.id + '" aria-label="delete activity">' + icon("x") + "</button>" +
+      '<button type="button" class="icon-btn icon-btn--quiet" data-activity-delete="' + a.id + '" aria-label="Delete activity">' + icon("x") + "</button>" +
     "</li>"
   );
 }
@@ -92,7 +92,7 @@ async function handleClick(e) {
       draw();
       emitChange("activities");
     } catch (err) {
-      toast("couldn't delete that activity", "error");
+      toast("Couldn't delete that activity", "error");
     }
   }
 }
@@ -102,11 +102,11 @@ async function handleSubmit(e) {
   if (!form) return;
   e.preventDefault();
   if (!state.picked) {
-    toast("pick a life area first", "warn");
+    toast("Pick a life area first", "warn");
     return;
   }
   var cat = categoryById(state.picked);
-  var title = form.elements.title.value.trim() || cat.label.toLowerCase();
+  var title = form.elements.title.value.trim() || cat.label;
   var minutes = parseInt(form.elements.minutes.value, 10);
   try {
     var created = await apiCreateActivity({
@@ -118,8 +118,8 @@ async function handleSubmit(e) {
     state.items.push(created);
     draw();
     emitChange("activities");
-    toast("logged " + cat.label.toLowerCase() + (created.durationMinutes ? ", " + formatMinutes(created.durationMinutes) : ""));
+    toast("Logged " + cat.label + (created.durationMinutes ? ", " + formatMinutes(created.durationMinutes) : ""));
   } catch (err) {
-    toast("couldn't log the activity", "error");
+    toast("Couldn't log the activity", "error");
   }
 }

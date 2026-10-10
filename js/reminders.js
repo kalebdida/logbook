@@ -10,12 +10,12 @@ import { toast } from './toast.js';
 var KEY = "logbook-reminded";
 
 var KINDS = {
-  morning: { label: "morning plan", hint: "if today's intention and focus are empty", pref: "remindMorning", at: "remindMorningAt", def: "08:00",
+  morning: { label: "Morning plan", hint: "If today's intention and focus are empty", pref: "remindMorning", at: "remindMorningAt", def: "08:00",
     empty: function (d) { return !d.morning.intention.trim() && !d.morning.mainFocus.trim(); },
-    message: "morning. what's the one thing that makes today count?", target: "#mainFocus" },
-  evening: { label: "night reflection", hint: "if tonight's journal is still empty", pref: "remindEvening", at: "remindEveningAt", def: "21:30",
+    message: "Morning. What's the one thing that makes today count?", target: "#mainFocus" },
+  evening: { label: "Night reflection", hint: "If tonight's journal is still empty", pref: "remindEvening", at: "remindEveningAt", def: "21:30",
     empty: function (d) { return !d.journal.trim() && !d.nightReflection.wins.trim(); },
-    message: "day's almost done. two minutes to reflect?", target: "#dailyJournal" }
+    message: "Day's almost done. Two minutes to reflect?", target: "#dailyJournal" }
 };
 
 function fired() {
@@ -75,10 +75,10 @@ async function check() {
 function notify(r) {
   toast(r.message, "ok", {
     duration: 15000,
-    action: { label: "open", run: function () { navigateTo("dashboard"); setTimeout(function () { var el = document.querySelector(r.target); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } }, 80); } }
+    action: { label: "Open", run: function () { navigateTo("dashboard"); setTimeout(function () { var el = document.querySelector(r.target); if (el) { el.scrollIntoView({ block: "center" }); el.focus(); } }, 80); } }
   });
   if (getPrefs().notifications && "Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
-    try { new Notification("logbook", { body: r.message, tag: "logbook-reminder" }); } catch (e) {}
+    try { new Notification("Logbook", { body: r.message, tag: "logbook-reminder" }); } catch (e) {}
   }
 }
 

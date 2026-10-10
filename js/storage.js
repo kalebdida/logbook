@@ -35,14 +35,14 @@ export function readImportFile(file) {
     reader.onload = function () {
       try {
         var parsed = JSON.parse(reader.result);
-        if (!parsed || typeof parsed !== "object") throw new Error("not a logbook file");
+        if (!parsed || typeof parsed !== "object") throw new Error("Not a Logbook file");
         resolve(parsed);
       } catch (e) {
         reject(e);
       }
     };
     reader.onerror = function () {
-      reject(new Error("file read error"));
+      reject(new Error("File read error"));
     };
     reader.readAsText(file);
   });

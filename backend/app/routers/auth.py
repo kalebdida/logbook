@@ -123,39 +123,39 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
         return {"token": "", "expires_at": None, "required": False, "user": None}
     user = authenticate(request, db, body.username, body.password)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="wrong username or password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong username or password")
     return _token_json(user)
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db)):
     if not auth_required():
-        _bad_request("this server has no accounts. it runs for one person without a login.")
+        _bad_request("This server has no accounts. It runs for one person without a login.")
     check_not_locked(request)
     invite = _usable_code(db, body.invite, "signup")
     if invite is None:
         record_failure(request, login=False)
-        _bad_request("that invite code doesn't work. it may be used up or expired.")
+        _bad_request("That invite code doesn't work. It may be used up or expired.")
     name = normalize_username(body.username)
     problem = username_problem(name) or password_problem(body.password)
     if problem:
         _bad_request(problem)
     if db.query(User).filter(User.username == name).first():
-        _bad_request("that username is taken.")
+        _bad_request("That username is taken.")
     password_hash = hash_password(body.password)  # slow: before the claim, so the transaction stays short
     if not _claim(db, invite):
         db.rollback()
-        _bad_request("that invite code doesn't work. it may be used up or expired.")
+        _bad_request("That invite code doesn't work. It may be used up or expired.")
     user = User(username=name, password_hash=password_hash, is_admin=False)
     db.add(user)
     try:
         db.flush()
     except IntegrityError:  # someone took the name a moment ago
         db.rollback()
-        _bad_request("that username is taken.")
+        _bad_request("That username is taken.")
     if db.query(User).count() > settings.max_users:
         db.rollback()
-        _bad_request("this server is full. ask the admin.")
+        _bad_request("This server is full. Ask the admin.")
     db.execute(update(Invite).where(Invite.id == invite.id).values(used_by=user.id))
     db.commit()
     clear_failures(request)
@@ -171,14 +171,14 @@ def reset_password(body: ResetRequest, request: Request, db: Session = Depends(g
     user = db.get(User, invite.for_user_id) if invite and invite.for_user_id else None
     if user is None or user.username != name or user.id == OWNER_ID:
         record_failure(request, name, login=False)
-        _bad_request("that reset code doesn't work for that username.")
+        _bad_request("That reset code doesn't work for that username.")
     problem = password_problem(body.password)
     if problem:
         _bad_request(problem)
     password_hash = hash_password(body.password)
     if not _claim(db, invite):
         db.rollback()
-        _bad_request("that reset code doesn't work for that username.")
+        _bad_request("That reset code doesn't work for that username.")
     user.password_hash = password_hash
     user.token_version += 1
     db.execute(update(Invite).where(Invite.id == invite.id).values(used_by=user.id))
@@ -201,11 +201,11 @@ def me(user: User = Depends(current_user), db: Session = Depends(get_db)):
 @router.post("/password")
 def change_password(body: PasswordChange, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     if user.id == OWNER_ID:
-        _bad_request("the admin password is LOGBOOK_PASSWORD. change it in your host's settings (render → environment).")
+        _bad_request("The admin password is LOGBOOK_PASSWORD. Change it in your host's settings (Render → Environment).")
     check_not_locked(request, user.username)
     if not verify_password(body.current, user.password_hash):
         record_failure(request, user.username)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="current password is wrong")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is wrong")
     problem = password_problem(body.new)
     if problem:
         _bad_request(problem)
@@ -237,11 +237,11 @@ def _delete_account(db: Session, user: User) -> None:
 @router.post("/delete-account", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def delete_own_account(body: PasswordConfirm, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     if user.id == OWNER_ID:
-        _bad_request("the admin account can't be deleted.")
+        _bad_request("The admin account can't be deleted.")
     check_not_locked(request, user.username)
     if not verify_password(body.password, user.password_hash):
         record_failure(request, user.username)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="wrong password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong password")
     _delete_account(db, user)
 
 
@@ -284,9 +284,9 @@ def _make_code(db: Session, kind: str, note: str, days: int, for_user_id: int | 
 @router.post("/invites", status_code=status.HTTP_201_CREATED)
 def create_invite(body: InviteCreate, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     if not auth_required():
-        _bad_request("set LOGBOOK_PASSWORD first: without it this server has no accounts.")
+        _bad_request("Set LOGBOOK_PASSWORD first: without it this server has no accounts.")
     if db.query(User).count() >= settings.max_users:
-        _bad_request(f"the server is at its limit of {settings.max_users} accounts (LOGBOOK_MAX_USERS).")
+        _bad_request(f"The server is at its limit of {settings.max_users} accounts (LOGBOOK_MAX_USERS).")
     return _make_code(db, "signup", body.note, body.days)
 
 
@@ -314,18 +314,18 @@ def list_users(_: User = Depends(require_admin), db: Session = Depends(get_db)):
 def make_reset_code(user_id: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = db.get(User, user_id)
     if user is None or user.id == OWNER_ID:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no such account")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such account")
     # older unused codes for this person stop working
     db.query(Invite).filter(Invite.kind == "reset", Invite.for_user_id == user.id, Invite.used_at.is_(None)).delete()
-    return _make_code(db, "reset", f"reset for {user.username}", 2, for_user_id=user.id)
+    return _make_code(db, "reset", f"Reset for {user.username}", 2, for_user_id=user.id)
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 def remove_user(user_id: int, body: PasswordConfirm, request: Request, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Removes the account and everything in it. Needs the admin password again."""
     if authenticate(request, db, "", body.password) is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="wrong password")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Wrong password")
     user = db.get(User, user_id)
     if user is None or user.id == OWNER_ID:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no such account")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such account")
     _delete_account(db, user)

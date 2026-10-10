@@ -85,17 +85,38 @@ with sync_playwright() as p:
     clock = page.text_content("#consoleClock")
     now_local = datetime.now(TZ)
     check("console clock shows Addis Ababa time", clock in (now_local.strftime("%H:%M"), (now_local - timedelta(minutes=1)).strftime("%H:%M")), clock)
-    check("backend status shows online", "online" in page.text_content("#statusLabel"))
+    check("backend status shows online", "online" in page.text_content("#statusLabel").lower())
     check("'on this day' replay shows a week-old entry", page.is_visible("#weekAgoSection") and "7 days ago" in page.text_content("#weekAgoSection"))
 
     # ---------- morning: yesterday's plan carries in ----------
     page.click("#usePlanBtn")
-    check("yesterday's plan fills today's intention", page.input_value("#morningIntention") == "be patient")
+    check("last night's plan becomes today's focus", page.input_value("#mainFocus") == "be patient")
+    page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('Saved')", timeout=5000)
     page.fill("#mainFocus", "ship logbook")
     page.dispatch_event("#mainFocus", "input")
-    page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('saved')", timeout=5000)
+    page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('Saving') || document.getElementById('dailySaveStatus').textContent.startsWith('Editing')", timeout=5000)
+    page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('Saved')", timeout=5000)
     day = api(f"/days/{today}")
-    check("autosave writes intention + focus to the backend", day["morning_intention"] == "be patient" and day["morning_main_focus"] == "ship logbook", day)
+    check("autosave writes today's focus to the backend", day["morning_main_focus"] == "ship logbook", day)
+
+    # ---------- tomorrow: plan it as tasks ----------
+    page.click("#nightCard summary") if not page.evaluate("document.getElementById('nightCard').open") else None
+    page.fill('#tomorrowTasks input[name="title"]', "call the bank")
+    page.press('#tomorrowTasks input[name="title"]', "Enter")
+    page.wait_for_selector("#tomorrowTasks .task-row")
+    check("tomorrow's list adds tasks to tomorrow", [t["title"] for t in api(f"/tasks/?day_date={today + timedelta(days=1)}")] == ["call the bank"])
+
+    # ---------- brain dump turns into tasks ----------
+    page.fill("#brainDump", "- buy milk\nreply to sara")
+    page.dispatch_event("#brainDump", "input")
+    page.click("#dumpToTasks")
+    page.wait_for_function("document.querySelectorAll('#dailyTasks .task-row').length === 2")
+    titles = sorted(t["title"] for t in api(f"/tasks/?day_date={today}"))
+    check("brain dump lines become today's tasks", titles == ["buy milk", "reply to sara"], titles)
+    for t in api(f"/tasks/?day_date={today}"):
+        api(f"/tasks/{t['id']}", "DELETE")
+    page.evaluate("location.reload()")
+    page.wait_for_selector("#dailyTasks .inline-form")
 
     # ---------- tasks ----------
     page.fill('#dailyTasks input[name="title"]', "write tests")
@@ -140,7 +161,7 @@ with sync_playwright() as p:
     check("ctrl+enter commits an entry", newest["text"].startswith("hello from the e2e") and newest["mood"] == "okay")
     check("entry time stored in UTC and shown as local time",
           newest["occurred_at"].endswith("Z") and page.text_content("#entriesList .entry-card .entry-date").strip() ==
-          datetime.fromisoformat(newest["occurred_at"].replace("Z", "+00:00")).astimezone(TZ).strftime("%-I:%M %p").lower(),
+          datetime.fromisoformat(newest["occurred_at"].replace("Z", "+00:00")).astimezone(TZ).strftime("%-I:%M %p"),
           (newest["occurred_at"], page.text_content("#entriesList .entry-card .entry-date")))
 
     page.click(f'.entry-card[data-id="{newest["id"]}"]')
@@ -204,7 +225,7 @@ with sync_playwright() as p:
     page.keyboard.press("d")
     page.wait_for_selector("#dayViewer .viewer-date")
     viewer = page.text_content("#dayViewer")
-    check("day viewer shows today's tasks, activity, entries", "write tests" in viewer and "evening run" in viewer and "be patient" in viewer, viewer[:300])
+    check("day viewer shows today's tasks, activity, entries", "write tests" in viewer and "evening run" in viewer and "ship logbook" in viewer, viewer[:300])
     page.keyboard.press("ArrowLeft")
     page.wait_for_function(f"document.querySelector('#dayViewer .viewer-date') && document.querySelector('#dayViewer .viewer-date').textContent.includes('{yesterday.day}')")
     check("arrow keys move between days", True)
@@ -285,7 +306,7 @@ with sync_playwright() as p:
     page.goto(BASE + "/#focus")
     page.keyboard.press("Space")
     page.wait_for_timeout(1500)
-    check("app survives malformed saved timer data", "online" in page.text_content("#statusLabel") and page.text_content("#pomodoroTime") == "01:00",
+    check("app survives malformed saved timer data", "online" in page.text_content("#statusLabel").lower() and page.text_content("#pomodoroTime") == "01:00",
           page.text_content("#pomodoroTime"))
     page.goto(BASE + "/#settings")
     page.keyboard.press("Space")
@@ -301,21 +322,21 @@ with sync_playwright() as p:
     page.goto(BASE + "/#goals")
     page.keyboard.press("Space")
     page.wait_for_selector(".goal-card")
-    check("refresh keeps the current page", page.text_content("#pageTitle") == "goals")
+    check("refresh keeps the current page", page.text_content("#pageTitle") == "Goals")
     page.go_back()
     page.wait_for_timeout(300)
-    check("back button changes page", page.text_content("#pageTitle") != "goals")
+    check("back button changes page", page.text_content("#pageTitle") != "Goals")
 
     # ---------- backend outage ----------
     stop_server()
     time.sleep(1)
     page.evaluate("window.dispatchEvent(new Event('focus'))")
     page.wait_for_selector("#storageWarning:not([hidden])", timeout=5000)
-    check("clear warning when the backend is down", "can't reach" in page.text_content("#storageWarning"))
+    check("clear warning when the backend is down", "can't reach" in page.text_content("#storageWarning").lower())
     start_server()
     page.evaluate("window.dispatchEvent(new Event('focus'))")
     page.wait_for_selector("#storageWarning[hidden]", state="attached", timeout=8000)
-    check("recovers on its own when the backend returns", "online" in page.text_content("#statusLabel"))
+    check("recovers on its own when the backend returns", "online" in page.text_content("#statusLabel").lower())
 
     # ---------- mobile ----------
     m = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, timezone_id="Africa/Addis_Ababa").new_page()
@@ -326,7 +347,7 @@ with sync_playwright() as p:
     check("mobile nav is a bottom bar", nav_box["y"] > 700 and nav_box["height"] < 100, nav_box)
     m.tap('[data-nav-target="journal"]')
     m.wait_for_timeout(300)
-    check("mobile tab bar navigates", m.text_content("#pageTitle") == "journal")
+    check("mobile tab bar navigates", m.text_content("#pageTitle") == "Journal")
     no_scroll = m.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     check("no horizontal scroll on mobile", no_scroll)
     m.screenshot(path=str(OUT / "mobile-journal.png"))

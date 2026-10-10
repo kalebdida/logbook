@@ -34,10 +34,14 @@ var SURPRISE = [
 ];
 
 var LABELS = {
-  background: { night: "night sky over the mountain", window: "rain on the window", rain: "falling code", stars: "stars", snow: "snow", fireflies: "fireflies", none: "nothing" },
-  glyphs: { binary: "01 binary", katakana: "katakana", hex: "hex", dots: "dots" },
-  roundness: { sharp: "sharp", soft: "soft", round: "round" },
-  font: { maru: "soft rounded + mincho", mono: "monospace", sans: "clean sans", serif: "book serif", rounded: "rounded" }
+  background: {
+    night: "Fuji under the stars", window: "Rain on the window", bluehour: "Fuji town at blue hour", city: "City lights at dusk",
+    room: "Rainy room with a cat", torii: "Torii in the rain", mist: "Misty forest", rooftop: "Sunny rooftop",
+    rain: "Falling code", stars: "Stars", snow: "Snow", fireflies: "Fireflies", none: "Nothing"
+  },
+  glyphs: { binary: "01 binary", katakana: "Katakana", hex: "Hex", dots: "Dots" },
+  roundness: { sharp: "Sharp", soft: "Soft", round: "Round" },
+  font: { lexend: "Lexend (clear and modern)", maru: "Soft rounded + mincho", mono: "Monospace", sans: "System sans", serif: "Book serif", rounded: "Rounded" }
 };
 
 var card = null;

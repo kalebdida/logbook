@@ -32,52 +32,62 @@
   } catch (e) {}
 })();
 </script>
-<title>logbook</title>
+<title>Logbook</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
 <link rel="manifest" href="manifest.webmanifest" />
-<meta name="description" content="logbook: a private journal and personal OS" />
-<link rel="preload" href="assets/fonts/zen-maru-gothic-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
-<link rel="preload" href="assets/fonts/shippori-mincho-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
+<meta name="description" content="Logbook: a private journal and personal OS" />
+<link rel="preload" href="assets/fonts/lexend-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="stylesheet" href="css/base.css" />
 <link rel="stylesheet" href="css/layout.css" />
 <link rel="stylesheet" href="css/scene.css" />
 <link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/mascot.css" />
 <link rel="stylesheet" href="css/themes.css" />
 <link rel="stylesheet" href="css/motion.css" />
 </head>
 <body>
 
-<a class="skip-link" href="#app">skip to content</a>
+<a class="skip-link" href="#app">Skip to content</a>
 <div id="sky" aria-hidden="true"></div>
 <canvas id="rain" aria-hidden="true"></canvas>
 <div class="scanlines" aria-hidden="true"></div>
 
-<div id="boot"><div id="bootLines"></div><p class="boot-skip">press any key to skip</p></div>
+<div id="boot" role="status" aria-live="polite">
+  <div class="splash">
+    <div class="splash-mark" aria-hidden="true"><span data-icon="moon-star"></span></div>
+    <h1 class="splash-title">Logbook</h1>
+    <p class="splash-line" id="splashLine">Opening your logbook…</p>
+    <div class="splash-bar" aria-hidden="true"><span></span></div>
+    <p class="splash-note" id="splashNote" hidden></p>
+  </div>
+  <div id="bootLines"></div>
+  <p class="boot-skip">Press any key to skip</p>
+</div>
 
 <div id="dayViewer" hidden></div>
 
 <div id="palette" class="overlay" hidden>
   <div class="palette-backdrop"></div>
-  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="search and commands">
+  <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search and commands">
     <label class="palette-prompt">
       <span class="palette-prompt-icon" data-icon="search"></span>
-      <input id="paletteInput" type="text" placeholder="search your entries or type a command" autocomplete="off" spellcheck="false"
+      <input id="paletteInput" type="text" placeholder="Search your entries or type a command" autocomplete="off" spellcheck="false"
              role="combobox" aria-expanded="false" aria-controls="paletteList" aria-autocomplete="list" />
-      <kbd>esc</kbd>
+      <kbd>Esc</kbd>
     </label>
-    <ul id="paletteList" role="listbox" aria-label="results"></ul>
-    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>enter</kbd> open</span><span><kbd>esc</kbd> close</span></div>
+    <ul id="paletteList" role="listbox" aria-label="Results"></ul>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> Move</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Close</span></div>
   </div>
 </div>
 
 <div id="shortcutHelp" class="overlay" hidden>
   <div class="viewer-backdrop"></div>
-  <div class="viewer-panel help-panel" role="dialog" aria-modal="true" aria-label="keyboard shortcuts">
+  <div class="viewer-panel help-panel" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
     <header class="viewer-header">
-      <div class="viewer-heading"><div class="viewer-date">keyboard shortcuts</div></div>
-      <button type="button" class="viewer-close icon-btn" aria-label="close"><span data-icon="x"></span></button>
+      <div class="viewer-heading"><div class="viewer-date">Keyboard shortcuts</div></div>
+      <button type="button" class="viewer-close icon-btn" aria-label="Close"><span data-icon="x"></span></button>
     </header>
     <div class="help-body"></div>
   </div>
@@ -85,110 +95,111 @@
 
 <div id="moreSheet" class="overlay sheet" hidden>
   <div class="viewer-backdrop" data-more-close></div>
-  <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="more">
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-label="More">
     <span class="sheet-grip" aria-hidden="true"></span>
-    <a class="sheet-item" href="#goals" data-nav-target="goals"><span class="sheet-icon" data-icon="mountain-snow"></span><span><b>goals</b><small>what you're climbing toward</small></span></a>
-    <a class="sheet-item" href="#companion" data-nav-target="companion"><span class="sheet-icon" data-icon="sparkles"></span><span><b>companion</b><small>a daily brief and someone to ask</small></span></a>
-    <a class="sheet-item" href="#settings" data-nav-target="settings"><span class="sheet-icon" data-icon="settings"></span><span><b>settings</b><small>look, account, data</small></span></a>
-    <button type="button" class="sheet-item" data-command="palette"><span class="sheet-icon" data-icon="search"></span><span><b>search</b><small>entries and every command</small></span></button>
+    <a class="sheet-item" href="#goals" data-nav-target="goals"><span class="sheet-icon" data-icon="mountain-snow"></span><span><b>Goals</b><small>What you're climbing toward</small></span></a>
+    <a class="sheet-item" href="#companion" data-nav-target="companion"><span class="sheet-icon" data-icon="sparkles"></span><span><b>Companion</b><small>A daily brief and someone to ask</small></span></a>
+    <a class="sheet-item" href="#settings" data-nav-target="settings"><span class="sheet-icon" data-icon="settings"></span><span><b>Settings</b><small>Look, account, data</small></span></a>
+    <button type="button" class="sheet-item" data-command="palette"><span class="sheet-icon" data-icon="search"></span><span><b>Search</b><small>Entries and every command</small></span></button>
   </div>
 </div>
 
 <div id="toasts" aria-live="polite"></div>
 
 <div id="appShell">
-  <nav id="sidebarNav" class="sidebar-nav" aria-label="main">
+  <nav id="sidebarNav" class="sidebar-nav" aria-label="Main">
     <div class="sidebar-nav-brand">
       <span class="brand-mark" aria-hidden="true"><span data-icon="moon-star"></span></span>
-      <span class="brand-name">logbook</span>
+      <span class="brand-name">Logbook</span>
     </div>
 
     <div class="nav-list">
       <span class="nav-glow" aria-hidden="true"></span>
       <a class="sidebar-nav-item" href="#dashboard" data-nav-target="dashboard">
-        <span class="nav-icon" data-icon="house"></span><span class="nav-label">today</span><kbd class="nav-key">1</kbd>
+        <span class="nav-icon" data-icon="house"></span><span class="nav-label">Today</span><kbd class="nav-key">1</kbd>
       </a>
       <a class="sidebar-nav-item" href="#journal" data-nav-target="journal">
-        <span class="nav-icon" data-icon="notebook-pen"></span><span class="nav-label">journal</span><kbd class="nav-key">2</kbd>
+        <span class="nav-icon" data-icon="notebook-pen"></span><span class="nav-label">Journal</span><kbd class="nav-key">2</kbd>
       </a>
       <a class="sidebar-nav-item" href="#calendar" data-nav-target="calendar">
-        <span class="nav-icon" data-icon="calendar-days"></span><span class="nav-label">calendar</span><kbd class="nav-key">3</kbd>
+        <span class="nav-icon" data-icon="calendar-days"></span><span class="nav-label">Calendar</span><kbd class="nav-key">3</kbd>
       </a>
       <a class="sidebar-nav-item" href="#focus" data-nav-target="focus">
-        <span class="nav-icon" data-icon="timer"></span><span class="nav-label">focus</span><kbd class="nav-key">4</kbd>
+        <span class="nav-icon" data-icon="timer"></span><span class="nav-label">Focus</span><kbd class="nav-key">4</kbd>
       </a>
       <a class="sidebar-nav-item nav-extra" href="#goals" data-nav-target="goals">
-        <span class="nav-icon" data-icon="mountain-snow"></span><span class="nav-label">goals</span><kbd class="nav-key">5</kbd>
+        <span class="nav-icon" data-icon="mountain-snow"></span><span class="nav-label">Goals</span><kbd class="nav-key">5</kbd>
       </a>
       <a class="sidebar-nav-item nav-extra" href="#companion" data-nav-target="companion">
-        <span class="nav-icon" data-icon="sparkles"></span><span class="nav-label">companion</span><kbd class="nav-key">6</kbd>
+        <span class="nav-icon" data-icon="sparkles"></span><span class="nav-label">Companion</span><kbd class="nav-key">6</kbd>
       </a>
       <a class="sidebar-nav-item nav-extra" href="#settings" data-nav-target="settings">
-        <span class="nav-icon" data-icon="settings"></span><span class="nav-label">settings</span><kbd class="nav-key">7</kbd>
+        <span class="nav-icon" data-icon="settings"></span><span class="nav-label">Settings</span><kbd class="nav-key">7</kbd>
       </a>
       <button type="button" class="sidebar-nav-item nav-more" data-more aria-haspopup="dialog" aria-expanded="false">
-        <span class="nav-icon" data-icon="ellipsis"></span><span class="nav-label">more</span>
+        <span class="nav-icon" data-icon="ellipsis"></span><span class="nav-label">More</span>
       </button>
     </div>
 
     <div class="sidebar-foot">
       <button type="button" class="search-hint" data-command="palette">
-        <span data-icon="search"></span><span class="search-hint-text">search</span><span class="search-hint-keys"><kbd>ctrl</kbd><kbd>k</kbd></span>
+        <span data-icon="search"></span><span class="search-hint-text">Search</span><span class="search-hint-keys"><kbd>Ctrl</kbd><kbd>K</kbd></span>
       </button>
       <div class="sidebar-status">
-        <span id="statusDot" class="status-dot"></span><span id="statusLabel">checking…</span>
-        <button type="button" class="icon-btn icon-btn--sm" data-command="shortcuts" aria-label="keyboard shortcuts" title="keyboard shortcuts"><span data-icon="keyboard"></span></button>
+        <span id="statusDot" class="status-dot"></span><span id="statusLabel">Checking…</span>
+        <button type="button" class="icon-btn icon-btn--sm" data-command="shortcuts" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"><span data-icon="keyboard"></span></button>
       </div>
     </div>
   </nav>
 
   <main id="app" tabindex="-1">
     <header id="pageHeader">
-      <h1 id="pageTitle">dashboard</h1>
-      <button type="button" class="header-cmd" data-command="palette" aria-label="search and commands">
-        <span data-icon="search"></span><span>search</span><kbd>ctrl</kbd><kbd>k</kbd>
+      <h1 id="pageTitle">Today</h1>
+      <button type="button" class="header-cmd" data-command="palette" aria-label="Search and commands">
+        <span data-icon="search"></span><span>Search</span><kbd>Ctrl</kbd><kbd>K</kbd>
       </button>
     </header>
 
     <div id="storageWarning" role="alert" hidden></div>
 
-    <section class="nav-page" data-nav-page="dashboard" aria-label="today">
+    <section class="nav-page" data-nav-page="dashboard" aria-label="Today">
       <div id="todayConsole" class="today-hero"></div>
 
       <div class="dash-grid">
         <div class="dash-main">
           <div id="dailyPage"></div>
         </div>
-        <aside class="dash-side" aria-label="alongside today">
-          <div id="habitsSection"></div>
-          <figure class="verse-box">
-            <figcaption class="card-title"><span data-icon="book-open"></span><span>verse for today</span></figcaption>
+        <aside class="dash-side" aria-label="Alongside today">
+          <figure class="verse-box" id="dailyLine">
+            <figcaption class="card-title"><span data-icon="book-open" id="dailyLineIcon"></span><span id="dailyLineTitle">Verse for today</span></figcaption>
             <blockquote class="verse-text" id="verseText"></blockquote>
-            <div class="verse-ref" id="verseRef"></div>
+            <div class="verse-foot"><span class="verse-ref" id="verseRef"></span><button type="button" class="icon-btn icon-btn--sm" id="dailyLineNext" aria-label="Show another" title="Show another"><span data-icon="refresh-cw"></span></button></div>
           </figure>
+          <div id="habitsSection"></div>
+          <section class="card brain-card" id="brainDumpSection" aria-label="Brain dump"></section>
           <div id="weekAgoSection" class="replay-card" hidden></div>
         </aside>
       </div>
     </section>
 
-    <section class="nav-page" data-nav-page="journal" aria-label="journal" hidden>
+    <section class="nav-page" data-nav-page="journal" aria-label="Journal" hidden>
       <div class="journal-grid">
         <div class="journal-compose">
           <div class="form-box">
             <div class="form-head">
-              <h2 class="form-title">how's today?</h2>
+              <h2 class="form-title">How's today?</h2>
               <span class="form-date" id="todayDate"></span>
             </div>
-            <div class="mood-row" role="group" aria-label="how the day feels">
-              <button type="button" class="mood-btn mood-good" data-mood="good" aria-pressed="false"><span data-icon="sun"></span><span>good</span></button>
-              <button type="button" class="mood-btn mood-okay" data-mood="okay" aria-pressed="false"><span data-icon="cloud-sun"></span><span>okay</span></button>
-              <button type="button" class="mood-btn mood-rough" data-mood="rough" aria-pressed="false"><span data-icon="cloud-rain"></span><span>rough</span></button>
+            <div class="mood-row" role="group" aria-label="How the day feels">
+              <button type="button" class="mood-btn mood-good" data-mood="good" aria-pressed="false"><span data-icon="sun"></span><span>Good</span></button>
+              <button type="button" class="mood-btn mood-okay" data-mood="okay" aria-pressed="false"><span data-icon="cloud-sun"></span><span>Okay</span></button>
+              <button type="button" class="mood-btn mood-rough" data-mood="rough" aria-pressed="false"><span data-icon="cloud-rain"></span><span>Rough</span></button>
             </div>
-            <textarea id="entryText" rows="7" aria-label="entry" placeholder="what happened, and how did it feel? no need to dress it up."></textarea>
+            <textarea id="entryText" rows="7" aria-label="Entry" placeholder="What happened, and how did it feel? No need to dress it up."></textarea>
             <div class="form-footer">
               <span id="saveStatus" aria-live="polite"></span>
-              <span class="form-hint"><kbd>ctrl</kbd><kbd>enter</kbd></span>
-              <button type="button" id="saveBtn" class="primary-btn" disabled><span data-icon="feather"></span><span>save entry</span></button>
+              <span class="form-hint"><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
+              <button type="button" id="saveBtn" class="primary-btn" disabled><span data-icon="feather"></span><span>Save entry</span></button>
             </div>
           </div>
         </div>
@@ -197,28 +208,23 @@
           <div class="toolbar">
             <label class="search-field">
               <span data-icon="search"></span>
-              <input id="searchInput" type="search" placeholder="search entries" aria-label="search entries" />
+              <input id="searchInput" type="search" placeholder="Search entries" aria-label="Search entries" />
             </label>
-            <div class="filter-group" role="group" aria-label="filter by mood">
-              <button type="button" class="filter-chip chip-good" data-status="good" aria-pressed="false" title="good days"><span data-icon="sun"></span><span>good</span></button>
-              <button type="button" class="filter-chip chip-okay" data-status="okay" aria-pressed="false" title="okay days"><span data-icon="cloud-sun"></span><span>okay</span></button>
-              <button type="button" class="filter-chip chip-rough" data-status="rough" aria-pressed="false" title="rough days"><span data-icon="cloud-rain"></span><span>rough</span></button>
+            <div class="filter-group" role="group" aria-label="Filter by mood">
+              <button type="button" class="filter-chip chip-good" data-status="good" aria-pressed="false" title="Good days"><span data-icon="sun"></span><span class="chip-word">Good</span></button>
+              <button type="button" class="filter-chip chip-okay" data-status="okay" aria-pressed="false" title="Okay days"><span data-icon="cloud-sun"></span><span class="chip-word">Okay</span></button>
+              <button type="button" class="filter-chip chip-rough" data-status="rough" aria-pressed="false" title="Rough days"><span data-icon="cloud-rain"></span><span class="chip-word">Rough</span></button>
             </div>
-            <div class="filter-group">
-              <button type="button" class="icon-btn" id="exportBtn" aria-label="export entries" title="export entries"><span data-icon="download"></span></button>
-              <button type="button" class="icon-btn" id="importBtn" aria-label="import entries" title="import entries"><span data-icon="upload"></span></button>
-            </div>
-            <input type="file" id="importFile" accept="application/json,.json" hidden />
           </div>
 
-          <div class="list-head"><h2 class="list-title">past entries</h2><span class="list-count" id="entriesCount"></span></div>
+          <div class="list-head"><h2 class="list-title">Past entries</h2><span class="list-count" id="entriesCount"></span></div>
           <p id="entriesEmptyMsg" class="empty-line" hidden></p>
           <div id="entriesList"></div>
         </div>
       </div>
     </section>
 
-    <section class="nav-page" data-nav-page="calendar" aria-label="calendar" hidden>
+    <section class="nav-page" data-nav-page="calendar" aria-label="Calendar" hidden>
       <div id="calendarSection"></div>
       <div class="patterns">
         <div id="analyticsSection"></div>
@@ -226,29 +232,30 @@
       </div>
     </section>
 
-    <section class="nav-page" data-nav-page="focus" aria-label="focus" hidden>
+    <section class="nav-page" data-nav-page="focus" aria-label="Focus" hidden>
       <div class="focus-grid">
         <div id="pomodoroSection"></div>
         <div id="musicSection"></div>
       </div>
     </section>
 
-    <section class="nav-page" data-nav-page="goals" aria-label="goals" hidden>
+    <section class="nav-page" data-nav-page="goals" aria-label="Goals" hidden>
       <div id="goalsSection"></div>
     </section>
 
-    <section class="nav-page" data-nav-page="companion" aria-label="companion" hidden>
-      <div id="companionSection"><p class="empty-line">reading your logbook…</p></div>
+    <section class="nav-page" data-nav-page="companion" aria-label="Companion" hidden>
+      <div id="companionSection"><p class="empty-line">Reading your logbook…</p></div>
     </section>
 
-    <section class="nav-page" data-nav-page="settings" aria-label="settings" hidden>
+    <section class="nav-page" data-nav-page="settings" aria-label="Settings" hidden>
       <div id="settingsSection"></div>
     </section>
   </main>
 </div>
 
-<div id="miniPlayer" class="mini-player" role="region" aria-label="now playing" hidden></div>
+<div id="miniPlayer" class="mini-player" role="region" aria-label="Now playing" hidden></div>
 
+<script src="config.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
    {
      id, name, mode: "dark" | "light",
      colors: { bg, surface, text, text2, muted, accent, accent2, warm, danger },   // hex
-     font: "maru" | "mono" | "sans" | "serif" | "rounded",
+     font: "lexend" | "mono" | "sans" | "serif" | "rounded",
      background: "night" | "window" | "bluehour" | "city" | "room" | "torii" | "mist" | "rooftop"
                | "rain" | "stars" | "snow" | "fireflies" | "none",
      glyphs: "binary" | "katakana" | "hex" | "dots",       // for rain
@@ -27,6 +27,7 @@ export var GLYPHS = ["binary", "katakana", "hex", "dots"];
 export var ROUNDNESS = ["sharp", "soft", "round"];
 
 export var FONTS = {
+  lexend: '"Lexend", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   maru: '"Zen Maru Gothic", ui-rounded, "SF Pro Rounded", system-ui, sans-serif',
   mono: 'var(--mono)',
   sans: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -38,33 +39,33 @@ var ROUND = { sharp: [2, 3, 4], soft: [6, 9, 13], round: [10, 14, 20] };
 
 /* headings, the clock, the verse: a book face for the softer fonts */
 var MINCHO = '"Shippori Mincho", "Iowan Old Style", "Palatino Linotype", Georgia, serif';
-var DISPLAY = { maru: MINCHO, serif: FONTS.serif, mono: FONTS.mono, sans: FONTS.sans, rounded: FONTS.rounded };
+var DISPLAY = { lexend: FONTS.lexend, maru: MINCHO, serif: FONTS.serif, mono: FONTS.mono, sans: FONTS.sans, rounded: FONTS.rounded };
 
 export var BUILT_IN = [
   { id: "night", name: "night", note: "fuji under the stars. deep blue, warm windows, a slow sky.", mode: "dark",
     colors: { bg: "#0a1430", surface: "#121e3d", text: "#edf0fa", text2: "#bcc5df", muted: "#8792b5", accent: "#f4c56c", accent2: "#8ec8ff", warm: "#f5ad7a", danger: "#ec8f95" },
-    font: "maru", background: "night", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "night", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "window", name: "rainy window", note: "a small apartment, rain on the glass, the city blurred behind it.", mode: "dark",
     colors: { bg: "#0c111d", surface: "#151c2c", text: "#e9edf5", text2: "#b8c0d2", muted: "#848ea6", accent: "#ffc977", accent2: "#9cc3e8", warm: "#f0a77e", danger: "#e98d93" },
-    font: "maru", background: "window", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "window", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "bluehour", name: "blue hour", note: "a small town street at dusk, fuji behind the wires, snow falling.", mode: "dark",
     colors: { bg: "#111a35", surface: "#19244a", text: "#eef1fb", text2: "#c4cbe4", muted: "#939dc0", accent: "#f3c27a", accent2: "#a7b8f2", warm: "#f2a984", danger: "#ee939b" },
-    font: "maru", background: "bluehour", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "bluehour", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "city", name: "city lights", note: "the city from the hill at dusk. pink sky, a street lamp, every window on.", mode: "dark",
     colors: { bg: "#13152f", surface: "#1d2044", text: "#f2effb", text2: "#cdc8e6", muted: "#9d98bf", accent: "#f7c47e", accent2: "#a9b4f4", warm: "#f4a5b6", danger: "#f08c9b" },
-    font: "maru", background: "city", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "city", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "room", name: "rainy room", note: "rain on a big window, the lamp on, the cat asleep on the bed.", mode: "dark",
     colors: { bg: "#0d1322", surface: "#161d31", text: "#eff0f6", text2: "#c6c9d9", muted: "#9096ad", accent: "#f8bb6c", accent2: "#8db8e8", warm: "#f3a072", danger: "#ea8f95" },
-    font: "maru", background: "room", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "room", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "torii", name: "torii", note: "a wet street under a torii gate, the moon over the mountains.", mode: "dark",
     colors: { bg: "#0b1828", surface: "#132338", text: "#ebf2f8", text2: "#bfcddc", muted: "#8b9cb2", accent: "#f1c97e", accent2: "#8ec6e4", warm: "#ee8f74", danger: "#ee8f96" },
-    font: "maru", background: "torii", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "torii", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "mist", name: "misty forest", note: "deep teal, tall trees, fog drifting through.", mode: "dark",
     colors: { bg: "#081615", surface: "#0f2120", text: "#e6f3f0", text2: "#bcd3cd", muted: "#87a59e", accent: "#86e0cc", accent2: "#9fcfe0", warm: "#e6c487", danger: "#ea9090" },
-    font: "maru", background: "mist", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "mist", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "rooftop", name: "rooftop", note: "a bright pale afternoon on the school roof. birds go by.", mode: "light",
     colors: { bg: "#e6eef6", surface: "#f8fbfe", text: "#1a2333", text2: "#364357", muted: "#5b677c", accent: "#2b5f9e", accent2: "#3e6f96", warm: "#9c5a1e", danger: "#b03838" },
-    font: "maru", background: "rooftop", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
+    font: "lexend", background: "rooftop", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "terminal", name: "terminal", note: "the original. phosphor green, matrix rain, scanlines.", mode: "dark",
     colors: { bg: "#050806", surface: "#0c1410", text: "#eafff2", text2: "#c8c4b8", muted: "#8890a8", accent: "#7ce8a0", accent2: "#4dd0c4", warm: "#e8b95c", danger: "#c96a6a" },
     font: "mono", background: "rain", glyphs: "binary", scanlines: true, glow: true, roundness: "soft" },
@@ -164,7 +165,7 @@ export function normalizeTheme(t) {
     if (!/^#[0-9a-fA-F]{6}$/.test(out.colors[k])) out.colors[k] = base.colors[k];
   });
   if (["dark", "light"].indexOf(out.mode) < 0) out.mode = luminance(out.colors.bg) > 0.35 ? "light" : "dark";
-  if (!FONTS[out.font]) out.font = "maru";
+  if (!FONTS[out.font]) out.font = "lexend";
   if (BACKGROUNDS.indexOf(out.background) < 0) out.background = "none";
   if (GLYPHS.indexOf(out.glyphs) < 0) out.glyphs = "binary";
   if (!ROUND[out.roundness]) out.roundness = "soft";
@@ -207,7 +208,7 @@ export function themeVars(theme) {
     "--danger-text": mix(c.danger, c.text, light ? 0.15 : 0.4), "--warm-text": mix(c.warm, c.text, light ? 0.15 : 0.5),
     "--warm-dim": mix(c.warm, c.surface, 0.2), "--warm-faint": mix(c.warm, c.surface, 0.42), "--on-accent": onAccent,
     "--font-ui": FONTS[t.font], "--font-display": DISPLAY[t.font],
-    "--serif": t.font === "maru" ? MINCHO : FONTS.serif, "--glow": t.glow ? "1" : "0",
+    "--serif": t.font === "maru" || t.font === "lexend" ? MINCHO : FONTS.serif, "--glow": t.glow ? "1" : "0",
     "--r-sm": r[0] + "px", "--r-md": r[1] + "px", "--r-lg": r[2] + "px",
     "color-scheme": t.mode
   };
@@ -383,7 +384,7 @@ export function themeFromVibe(text) {
     : any(ws, ["rounded", "cute", "playful", "kawaii", "bubbly", "friendly", "soft"]) ? "rounded"
     : any(ws, ["terminal", "code", "hacker", "retro", "crt", "matrix", "cyber", "cyberpunk", "pixel", "arcade"]) ? "mono"
     : any(ws, ["modern", "clean", "minimal", "sleek", "apple", "simple", "pro"]) ? "sans"
-    : light ? "sans" : "maru";
+    : light ? "sans" : "lexend";
   var phrase = ws.join(" ");
   var background = any(ws, ["matrix", "hacker", "code", "cyber", "cyberpunk", "terminal", "digital"]) ? "rain"
     : any(ws, ["torii", "shrine", "shrines", "temple", "kyoto"]) ? "torii"
@@ -458,7 +459,7 @@ export function themeFromImage(file) {
             bg: hsl(bh, bs, 6), surface: hsl(bh, bs * 0.9, 10), text: hsl(bh, 20, 93), text2: hsl(bh, 14, 80), muted: hsl(bh, 10, 62),
             accent: accent, accent2: accent2, warm: hsl(40, 78, 64), danger: hsl(356, 70, 66)
           },
-          font: light ? "sans" : "maru", background: "none", scanlines: false, glow: false, roundness: "round"
+          font: light ? "sans" : "lexend", background: "none", scanlines: false, glow: false, roundness: "round"
         }));
         // small backdrop copy (fits comfortably in browser storage)
         var big = document.createElement("canvas");
@@ -483,7 +484,7 @@ export function themeFromImage(file) {
 export var AI_THEME_PROMPT =
   "You design color themes for a journaling app. Reply with ONLY a JSON object, no prose, matching:\n" +
   '{"name": short lowercase name, "mode": "dark"|"light", "colors": {"bg","surface","text","text2","muted","accent","accent2","warm","danger"} as #rrggbb hex, ' +
-  '"font": "maru"|"mono"|"sans"|"serif"|"rounded", "background": "night"|"window"|"bluehour"|"city"|"room"|"torii"|"mist"|"rooftop"|"rain"|"stars"|"snow"|"fireflies"|"none", "glyphs": "binary"|"katakana"|"hex"|"dots", ' +
+  '"font": "lexend"|"maru"|"mono"|"sans"|"serif"|"rounded", "background": "night"|"window"|"bluehour"|"city"|"room"|"torii"|"mist"|"rooftop"|"rain"|"stars"|"snow"|"fireflies"|"none", "glyphs": "binary"|"katakana"|"hex"|"dots", ' +
   '"scanlines": bool, "glow": bool, "roundness": "sharp"|"soft"|"round"}\n' +
   "Backgrounds: night is Fuji under the stars over a quiet town, window is rain on glass with city lights, bluehour is a small snowy street at blue hour with Fuji behind, city is the city lights from a hill at dusk (pink horizon, street lamp), room is a cozy room at night with rain on the window, a lamp and a sleeping cat, torii is a rainy moonlit street with a torii gate and mountains, mist is a misty teal forest, rooftop is a bright pale daytime rooftop with birds (use it with a light mode), rain is falling code glyphs, stars, snow and fireflies are what they say. surface is a card color slightly off bg. text must be very readable on surface. accent is the main highlight, accent2 a second one, warm a warm highlight, danger for errors. Match the vibe the user describes.";
 

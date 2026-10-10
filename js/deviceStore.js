@@ -52,7 +52,7 @@ function openDb() {
     };
     req.onsuccess = function () { resolve(req.result); };
     req.onerror = function () { reject(req.error); };
-    req.onblocked = function () { reject(new Error("database blocked by another tab")); };
+    req.onblocked = function () { reject(new Error("Database blocked by another tab")); };
   });
 }
 
@@ -70,7 +70,7 @@ export function initDeviceStore() {
     mem = {};
     Object.keys(TABLES).forEach(function (t) { mem[t] = new Map(); });
     try {
-      if (!("indexedDB" in window)) throw new Error("no indexedDB");
+      if (!("indexedDB" in window)) throw new Error("No IndexedDB");
       db = await openDb();
       for (var t of Object.keys(TABLES)) {
         (await readAll(t)).forEach(function (row) { mem[t].set(row[TABLES[t]], row); });
@@ -106,7 +106,7 @@ function commit(ops) {
     });
     tx.oncomplete = function () { resolve(); };
     tx.onerror = function () { reject(tx.error); };
-    tx.onabort = function () { reject(tx.error || new Error("write aborted")); };
+    tx.onabort = function () { reject(tx.error || new Error("Write aborted")); };
   });
 }
 
@@ -161,14 +161,14 @@ function text(value, field, max, min) {
 
 function area(value) {
   if (value == null || value === "") return null;
-  if (AREAS.indexOf(value) < 0) fail(422, "unknown life area: " + value);
+  if (AREAS.indexOf(value) < 0) fail(422, "Unknown life area: " + value);
   return value;
 }
 
 function minutes(value) {
   if (value == null || value === "") return null;
   var n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n > 1440) fail(422, "duration_minutes must be 0 to 1440");
+  if (!Number.isInteger(n) || n < 0 || n > 1440) fail(422, "Duration must be 0 to 1440 minutes");
   return n;
 }
 
@@ -337,7 +337,7 @@ itemRoutes("activities", "Activity", false);
 /* goals */
 route("POST", "/goals", async function (p, q, body) {
   var progress = body.progress == null ? 0 : Number(body.progress);
-  if (!Number.isInteger(progress) || progress < 0 || progress > 100) fail(422, "progress must be 0 to 100");
+  if (!Number.isInteger(progress) || progress < 0 || progress > 100) fail(422, "Progress must be 0 to 100");
   var t = now();
   var row = {
     id: "goal-" + hex(16),
@@ -376,7 +376,7 @@ route("PATCH", "/goals/{id}", async function (p, q, body) {
   if (body.priority != null) row.priority = oneOf(body.priority, PRIORITIES, "priority");
   if (body.progress != null) {
     var n = Number(body.progress);
-    if (!Number.isInteger(n) || n < 0 || n > 100) fail(422, "progress must be 0 to 100");
+    if (!Number.isInteger(n) || n < 0 || n > 100) fail(422, "Progress must be 0 to 100");
     row.progress = n;
   }
   if (has(body, "target_date")) row.target_date = body.target_date ? dateArg(body.target_date, "target_date") : null;
@@ -396,7 +396,7 @@ route("DELETE", "/goals/{id}", async function (p) {
 route("POST", "/pomodoro/{date}/sessions", async function (p, q, body) {
   var date = dateArg(p.date, "date");
   var ms = Number(body.focus_ms);
-  if (!Number.isFinite(ms) || ms < 0) fail(422, "focus_ms must be 0 or more");
+  if (!Number.isFinite(ms) || ms < 0) fail(422, "Focus time must be 0 or more");
   var row = copy(mem.pomodoro_days.get(date) || { date: date, sessions: 0, focus_ms: 0 });
   row.sessions += 1;
   row.focus_ms += Math.round(ms);
@@ -634,7 +634,7 @@ export async function deviceRequest(path, options) {
   var clean = url.pathname.replace(/\/+$/, "") || "/";
   var body = {};
   if (options.body) {
-    try { body = JSON.parse(options.body) || {}; } catch (e) { fail(422, "invalid JSON"); }
+    try { body = JSON.parse(options.body) || {}; } catch (e) { fail(422, "Invalid JSON"); }
   }
   for (var r of routes) {
     if (r.method !== method) continue;

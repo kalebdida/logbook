@@ -54,7 +54,7 @@ export async function aiStatus() {
 export async function aiChat(messages, system, maxTokens) {
   var status = await aiStatus();
   if (!status.available) {
-    var e = new Error("AI isn't set up yet. add a key in settings, or run a local model.");
+    var e = new Error("AI isn't set up yet. Add a key in Settings, or run a local model.");
     e.code = "not-configured";
     throw e;
   }
@@ -96,8 +96,8 @@ async function direct(c, messages, system, maxTokens) {
     }
   } catch (e) {
     throw new Error(c.provider === "openai" && c.baseUrl && /localhost|127\.0\.0\.1/.test(c.baseUrl)
-      ? "can't reach your local model. is it running? (for Ollama, start it with OLLAMA_ORIGINS=* so the browser may call it)"
-      : "can't reach the AI provider. check your connection.");
+      ? "Can't reach your local model. Is it running? (For Ollama, start it with OLLAMA_ORIGINS=* so the browser may call it)"
+      : "Can't reach the AI provider. Check your connection.");
   }
   try { body = await res.json(); } catch (e) { body = {}; }
   if (Array.isArray(body)) body = body[0] || {}; // Google sometimes wraps its errors in a list

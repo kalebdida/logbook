@@ -53,7 +53,7 @@ html[data-theme-mode="light"] .mascot {
   z-index: 40;
 }
 @media (max-width: 760px) {
-  .mascot--dash { --m-w: 64px; right: 12px; bottom: auto; top: 12px; }
+  .mascot--dash { --m-w: 60px; right: 10px; bottom: 14px; top: auto; }
   .mascot--focus { --m-w: 64px; right: auto; left: 50%; translate: -50% 0; }
   .mascot--corner { right: 12px; bottom: calc(var(--bar-h) + var(--safe-bottom) + 12px); }
 }
@@ -125,15 +125,13 @@ html[data-theme-mode="light"] .mascot {
 
 @media (max-width: 760px) {
   /* small screens: the bubble hangs below the cat, pointing up */
-  .mascot--dash .mascot-bubble,
   .mascot--focus .mascot-bubble { top: calc(100% + 6px); bottom: auto; max-width: min(210px, 62vw); transform-origin: calc(100% - 18px) 0; }
-  .mascot--dash .mascot-bubble { right: 0; }
+  /* on the dashboard the cat sits by the write button; its bubble floats above it */
+  .mascot--dash .mascot-bubble { top: auto; right: 0; bottom: calc(100% + 6px); max-width: min(220px, 64vw); transform-origin: calc(100% - 18px) 100%; }
   .mascot--focus .mascot-bubble { right: auto; left: 50%; translate: -50% 0; transform-origin: 50% 0; }
-  .mascot--dash .mascot-bubble::after,
   .mascot--focus .mascot-bubble::after { top: -5px; bottom: auto; transform: rotate(-135deg); }
-  .mascot--dash .mascot-bubble::after { right: 26px; }
+  .mascot--dash .mascot-bubble::after { top: auto; right: 24px; bottom: -5px; transform: rotate(45deg); }
   .mascot--focus .mascot-bubble::after { right: calc(50% - 5px); }
-  .mascot--dash.is-sleeping .mascot-bubble,
   .mascot--focus.is-sleeping .mascot-bubble { bottom: auto; }
 }
 

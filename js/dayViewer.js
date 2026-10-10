@@ -42,7 +42,7 @@ export async function openDayViewer(dateStr) {
   if (!openDate) lastFocus = document.activeElement;
   openDate = dateStr;
 
-  overlay.innerHTML = '<div class="viewer-backdrop"></div><div class="viewer-panel" role="dialog" aria-modal="true" aria-label="day record"><p class="viewer-empty">loading…</p></div>';
+  overlay.innerHTML = '<div class="viewer-backdrop"></div><div class="viewer-panel" role="dialog" aria-modal="true" aria-label="Day record"><p class="viewer-empty">Loading…</p></div>';
   overlay.hidden = false;
   overlay.classList.add("is-open");
   document.body.classList.add("has-overlay");
@@ -58,7 +58,7 @@ export async function openDayViewer(dateStr) {
       Promise.all([apiListHabits(true), apiHabitLogs(dateStr, dateStr)]).catch(function () { return [[], []]; })
     ]);
   } catch (e) {
-    overlay.querySelector(".viewer-panel").innerHTML = '<p class="viewer-empty">couldn\'t load this day. is the backend running?</p>';
+    overlay.querySelector(".viewer-panel").innerHTML = '<p class="viewer-empty">Couldn\'t load this day. Is the backend running?</p>';
     return;
   }
   if (openDate !== dateStr) return; // user already moved to another day
@@ -73,7 +73,7 @@ export async function openDayViewer(dateStr) {
   var moodHtml = "";
   if (mood && STATUS[mood]) {
     var s = STATUS[mood];
-    moodHtml = '<div class="viewer-mood">' + moodTag(mood) + '<span class="viewer-mood-note">how the day ended</span></div>';
+    moodHtml = '<div class="viewer-mood">' + moodTag(mood) + '<span class="viewer-mood-note">How the day ended</span></div>';
   }
 
   var stats = [];
@@ -87,7 +87,7 @@ export async function openDayViewer(dateStr) {
   var timelineHtml = timeline.length
     ? '<ol class="viewer-timeline">' + timeline.map(function (t) {
         var st = STATUS[t.mood];
-        var time = new Date(t.time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
+        var time = new Date(t.time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
         return '<li><span class="viewer-time">' + time + '</span><span class="viewer-mood-icon mood-tag--' + t.mood + '" title="' + st.label + '">' + icon(st.icon) + '</span><span class="viewer-text">' + escapeHtml(t.text) + "</span></li>";
       }).join("") + "</ol>"
     : "";
@@ -107,33 +107,33 @@ export async function openDayViewer(dateStr) {
 
   var n = day.nightReflection;
   var body =
-    block("intention", text(day.morning.intention)) +
-    block("main focus", text(day.morning.mainFocus)) +
-    block("entries", timelineHtml) +
-    block("tasks", tasksHtml) +
-    block("activity", activitiesHtml) +
-    block("habits", habitsDone.length ? '<ul class="viewer-list viewer-list--habits">' + habitsDone.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul>" : "") +
-    block("notes", text(day.journal)) +
-    block("wins", text(n.wins)) +
-    block("lessons", text(n.lessons)) +
-    block("gratitude", text(n.gratitude)) +
-    block("tomorrow's plan", text(n.tomorrowPlan)) +
-    block("brain dump", text(day.brainDump));
+    block("Intention", text(day.morning.intention)) +
+    block("Main focus", text(day.morning.mainFocus)) +
+    block("Entries", timelineHtml) +
+    block("Tasks", tasksHtml) +
+    block("Activity", activitiesHtml) +
+    block("Habits", habitsDone.length ? '<ul class="viewer-list viewer-list--habits">' + habitsDone.map(function (h) { return "<li>" + h + "</li>"; }).join("") + "</ul>" : "") +
+    block("Notes", text(day.journal)) +
+    block("Wins", text(n.wins)) +
+    block("Lessons", text(n.lessons)) +
+    block("Gratitude", text(n.gratitude)) +
+    block("Tomorrow's plan", text(n.tomorrowPlan)) +
+    block("Brain dump", text(day.brainDump));
 
   var isFuture = dateStr > dateKey(new Date());
   var panel = overlay.querySelector(".viewer-panel");
   panel.innerHTML =
     '<header class="viewer-header">' +
-      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="-1" aria-label="previous day">' + icon("chevron-left") + "</button>" +
+      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="-1" aria-label="Previous day">' + icon("chevron-left") + "</button>" +
       '<div class="viewer-heading">' +
-        '<div class="viewer-date">' + parseKey(dateStr).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toLowerCase() + "</div>" +
+        '<div class="viewer-date">' + parseKey(dateStr).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + "</div>" +
         (stats.length ? '<div class="viewer-stats">' + stats.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
       "</div>" +
-      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="1" aria-label="next day"' + (isFuture ? " disabled" : "") + ">" + icon("chevron-right") + "</button>" +
-      '<button type="button" class="viewer-close icon-btn" id="dayViewerClose" aria-label="close">' + icon("x") + "</button>" +
+      '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="1" aria-label="Next day"' + (isFuture ? " disabled" : "") + ">" + icon("chevron-right") + "</button>" +
+      '<button type="button" class="viewer-close icon-btn" id="dayViewerClose" aria-label="Close">' + icon("x") + "</button>" +
     "</header>" +
     moodHtml +
-    (body || '<p class="viewer-empty">nothing recorded on this day.</p>');
+    (body || '<p class="viewer-empty">Nothing recorded on this day.</p>');
 
   overlay.querySelector(".viewer-backdrop").onclick = closeDayViewer;
   panel.onclick = function (e) {

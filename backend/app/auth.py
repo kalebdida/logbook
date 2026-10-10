@@ -103,9 +103,9 @@ _DUMMY_HASH = hash_password(secrets.token_hex(8))
 
 def password_problem(password: str) -> str | None:
     if len(password) < MIN_PASSWORD:
-        return f"password needs at least {MIN_PASSWORD} characters."
+        return f"Password needs at least {MIN_PASSWORD} characters."
     if len(password) > 200:
-        return "password is too long."
+        return "Password is too long."
     return None
 
 
@@ -115,9 +115,9 @@ def normalize_username(name: str) -> str:
 
 def username_problem(name: str) -> str | None:
     if not USERNAME_RE.match(name):
-        return "username: 3 to 32 characters, letters, numbers, . _ or -, starting with a letter or number."
+        return "Username: 3 to 32 characters, letters, numbers, . _ or -, starting with a letter or number."
     if name in RESERVED_NAMES or name == normalize_username(settings.admin_username):
-        return "that username is taken."
+        return "That username is taken."
     return None
 
 
@@ -184,7 +184,7 @@ def current_user(authorization: str | None = Header(default=None), db: Session =
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="login required",
+            detail="Login required",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
@@ -196,7 +196,7 @@ def current_user_id(user: User = Depends(current_user)) -> int:
 
 def require_admin(user: User = Depends(current_user)) -> User:
     if not user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only the admin can do that")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the admin can do that")
     return user
 
 
@@ -258,7 +258,7 @@ def check_not_locked(request: Request, username: str = "") -> None:
     if locked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="too many wrong tries. wait a few minutes.",
+            detail="Too many wrong tries. Wait a few minutes.",
         )
 
 

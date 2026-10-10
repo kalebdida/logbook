@@ -1,7 +1,5 @@
 import { apiListEntries, apiCreateEntry, apiUpdateEntry, apiDeleteEntry, apiRestoreBackup } from './api.js';
 import { renderEntries, STATUS } from './entries.js';
-import { exportEntries, readImportFile } from './storage.js';
-import { toRestorePayload, summarizeRestore } from './backupFormats.js';
 import { openDayViewer } from './dayViewer.js';
 import { dateKey } from './dayRecord.js';
 import { emitChange } from './bus.js';
@@ -59,7 +57,7 @@ function updateSaveButton() {
   btn.disabled = !enabled;
   btn.classList.toggle("enabled", enabled);
   var hint = document.getElementById("saveStatus");
-  if (hint && !hint.dataset.locked) hint.textContent = hasText && !state.mood ? "pick how the day feels first" : "";
+  if (hint && !hint.dataset.locked) hint.textContent = hasText && !state.mood ? "Pick how the day feels first" : "";
 }
 
 async function commitEntry() {
@@ -75,10 +73,10 @@ async function commitEntry() {
     setMood(null);
     draw();
     emitChange("entries");
-    toast("entry saved");
+    toast("Entry saved");
   } catch (e) {
     btn.disabled = false;
-    toast("couldn't save the entry. is the backend running?", "error");
+    toast("Couldn't save the entry. Check your connection and try again.", "error");
   }
 }
 
@@ -91,10 +89,10 @@ async function removeEntry(id) {
     state.expandedId = null;
     draw();
     emitChange("entries");
-    toast("entry deleted", "ok", {
+    toast("Entry deleted", "ok", {
       duration: 6000,
       action: {
-        label: "undo",
+        label: "Undo",
         run: async function () {
           await apiRestoreBackup({ entries: [{ id: entry.id, occurred_at: entry.date, mood: entry.mood, text: entry.text }] });
           await loadEntries();
@@ -105,7 +103,7 @@ async function removeEntry(id) {
       }
     });
   } catch (e) {
-    toast("couldn't delete the entry", "error");
+    toast("Couldn't delete the entry", "error");
   }
 }
 
@@ -113,7 +111,7 @@ async function saveEdit(form) {
   var id = state.editingId;
   var text = form.querySelector("textarea").value.trim();
   if (!text) {
-    toast("an entry can't be empty. delete it instead.", "warn");
+    toast("An entry can't be empty. Delete it instead.", "warn");
     return;
   }
   try {
@@ -123,9 +121,9 @@ async function saveEdit(form) {
     state.editingId = null;
     draw();
     emitChange("entries");
-    toast("entry updated");
+    toast("Entry updated");
   } catch (e) {
-    toast("couldn't save your changes", "error");
+    toast("Couldn't save your changes", "error");
   }
 }
 
@@ -163,29 +161,6 @@ export function wireJournal() {
       });
       draw();
     });
-  });
-
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    exportEntries(state.entries);
-    toast("exported " + state.entries.length + " entries");
-  });
-  document.getElementById("importBtn").addEventListener("click", function () {
-    document.getElementById("importFile").click();
-  });
-  document.getElementById("importFile").addEventListener("change", async function (e) {
-    var file = e.target.files[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      var converted = toRestorePayload(await readImportFile(file));
-      var result = await apiRestoreBackup(converted.payload);
-      await loadEntries();
-      draw();
-      emitChange("import");
-      toast(summarizeRestore(result));
-    } catch (err) {
-      toast("import failed: " + (err.message || "invalid file"), "error");
-    }
   });
 
   var list = document.getElementById("entriesList");

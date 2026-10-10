@@ -59,10 +59,10 @@ function showTooltip(cell, dayEntry) {
     var preview = dayEntry.text.length > 70 ? dayEntry.text.slice(0, 70) + "\u2026" : dayEntry.text;
     bodyHtml = '<div class="cal-tooltip-preview">' + escapeHtml(preview.replace(/\n+/g, " ")) + "</div>";
   } else {
-    bodyHtml = '<div class="cal-tooltip-empty">no entry</div>';
+    bodyHtml = '<div class="cal-tooltip-empty">No entry</div>';
   }
 
-  tip.innerHTML = '<div class="cal-tooltip-date">' + fullDate.toLowerCase() + "</div>" + moodHtml + bodyHtml;
+  tip.innerHTML = '<div class="cal-tooltip-date">' + fullDate + "</div>" + moodHtml + bodyHtml;
 
   var rect = cell.getBoundingClientRect();
   tip.style.left = (rect.left + rect.width / 2) + "px";
@@ -94,9 +94,9 @@ function goToNextMonth() {
 
 function renderModeToggle() {
   return (
-    '<div class="segmented cal-mode-toggle" role="group" aria-label="view">' +
-    '<button type="button" class="seg-btn cal-mode-btn' + (viewMode === "month" ? " active" : "") + '" data-mode="month" aria-pressed="' + (viewMode === "month") + '">month</button>' +
-    '<button type="button" class="seg-btn cal-mode-btn' + (viewMode === "year" ? " active" : "") + '" data-mode="year" aria-pressed="' + (viewMode === "year") + '">year</button>' +
+    '<div class="segmented cal-mode-toggle" role="group" aria-label="View">' +
+    '<button type="button" class="seg-btn cal-mode-btn' + (viewMode === "month" ? " active" : "") + '" data-mode="month" aria-pressed="' + (viewMode === "month") + '">Month</button>' +
+    '<button type="button" class="seg-btn cal-mode-btn' + (viewMode === "year" ? " active" : "") + '" data-mode="year" aria-pressed="' + (viewMode === "year") + '">Year</button>' +
     "</div>"
   );
 }
@@ -114,7 +114,7 @@ function renderMonthView(container, entries, dayEntryMap, now) {
   var monthLabel = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
   var todayKey = dateKey(now);
 
-  var weekdayLabels = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  var weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var headerCells = weekdayLabels
     .map(function (l) { return '<div class="cal-weekday">' + l + "</div>"; })
     .join("");
@@ -147,13 +147,13 @@ function renderMonthView(container, entries, dayEntryMap, now) {
     '<div class="cal-card">' +
       '<div class="cal-head">' +
         '<div class="cal-title-wrap">' +
-          '<h2 class="cal-title">' + monthLabel.toLowerCase() + "</h2>" +
-          '<span class="card-meta">' + (logged ? logged + (logged === 1 ? " day" : " days") + " written" : "nothing written yet") + "</span>" +
+          '<h2 class="cal-title">' + monthLabel + "</h2>" +
+          '<span class="card-meta">' + (logged ? logged + (logged === 1 ? " day" : " days") + " written" : "Nothing written yet") + "</span>" +
         "</div>" +
         '<div class="cal-controls">' +
-          '<button type="button" class="icon-btn cal-nav-btn" data-dir="prev" aria-label="previous month">' + icon("chevron-left") + "</button>" +
-          '<button type="button" class="tool-btn cal-today-btn" data-dir="today"' + (isCurrentMonth ? " disabled" : "") + ">today</button>" +
-          '<button type="button" class="icon-btn cal-nav-btn" data-dir="next" aria-label="next month">' + icon("chevron-right") + "</button>" +
+          '<button type="button" class="icon-btn cal-nav-btn" data-dir="prev" aria-label="Previous month">' + icon("chevron-left") + "</button>" +
+          '<button type="button" class="tool-btn cal-today-btn" data-dir="today"' + (isCurrentMonth ? " disabled" : "") + ">Today</button>" +
+          '<button type="button" class="icon-btn cal-nav-btn" data-dir="next" aria-label="Next month">' + icon("chevron-right") + "</button>" +
           renderModeToggle() +
         "</div>" +
       "</div>" +
@@ -220,14 +220,14 @@ function renderYearView(container, entries, dayEntryMap, now) {
   var monthLabels = "";
   weeks.forEach(function (week, w) {
     var first = week.find(function (d) { return d.getDate() === 1; });
-    monthLabels += '<span class="cal-month-label" style="grid-column:' + (w + 1) + '">' + (first ? first.toLocaleDateString("en-US", { month: "short" }).toLowerCase() : "") + "</span>";
+    monthLabels += '<span class="cal-month-label" style="grid-column:' + (w + 1) + '">' + (first ? first.toLocaleDateString("en-US", { month: "short" }) : "") + "</span>";
   });
 
   container.innerHTML =
     '<div class="cal-card">' +
       '<div class="cal-head">' +
         '<div class="cal-title-wrap">' +
-          '<h2 class="cal-title">the last year</h2>' +
+          '<h2 class="cal-title">The last year</h2>' +
           '<span class="card-meta">' + activeDays + " of 365 days written, " + streak + (streak === 1 ? " day" : " days") + " in a row now</span>" +
         "</div>" +
         '<div class="cal-controls">' + renderModeToggle() + "</div>" +

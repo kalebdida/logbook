@@ -29,9 +29,9 @@ export function categoryIcon(cat) {
 }
 
 export function categoryOptions(selected, emptyLabel) {
-  var html = '<option value="">' + (emptyLabel || "no area") + "</option>";
+  var html = '<option value="">' + (emptyLabel || "No area") + "</option>";
   CATEGORIES.forEach(function (c) {
-    html += '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + ">" + c.label.toLowerCase() + "</option>";
+    html += '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + ">" + c.label + "</option>";
   });
   return html;
 }

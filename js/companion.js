@@ -7,7 +7,7 @@ import { apiGetDay } from './api.js';
 import { calcStreak } from './stats.js';
 import { dateKey } from './dayRecord.js';
 import { STATUS } from './entries.js';
-import { getPrefs } from './prefs.js';
+import { getPrefs, displayName } from './prefs.js';
 import { greeting } from './today.js';
 import { escapeHtml } from './utils.js';
 import { habitSummary } from './habits.js';
@@ -22,20 +22,20 @@ var MARKS = { hello: "sparkles", ok: "circle-check", warn: "bell", care: "heart"
    chat when you connect one. */
 
 var PROMPTS = [
-  "what drained you today, and what gave energy back?",
-  "where did you see God at work today, even in something small?",
-  "what would make tomorrow 1% better than today?",
-  "what are you avoiding, and what's the smallest step toward it?",
-  "who helped you recently? have you thanked them?",
-  "what did you learn today that you didn't know yesterday?",
-  "what are you grateful for that you didn't earn?",
-  "if this week had a title, what would it be?",
-  "what would the version of you five years from now want you to do tonight?",
-  "what's one thing you said yes to that you should have said no to?",
-  "where were you most patient today, and where least?",
-  "what promise to yourself did you keep today?",
-  "what are you worrying about that you can hand over?",
-  "what does rest actually look like for you this week?"
+  "What drained you today, and what gave energy back?",
+  "Where did you see God at work today, even in something small?",
+  "What would make tomorrow 1% better than today?",
+  "What are you avoiding, and what's the smallest step toward it?",
+  "Who helped you recently? have you thanked them?",
+  "What did you learn today that you didn't know yesterday?",
+  "What are you grateful for that you didn't earn?",
+  "If this week had a title, what would it be?",
+  "What would the version of you five years from now want you to do tonight?",
+  "What's one thing you said yes to that you should have said no to?",
+  "Where were you most patient today, and where least?",
+  "What promise to yourself did you keep today?",
+  "What are you worrying about that you can hand over?",
+  "What does rest actually look like for you this week?"
 ];
 
 function promptOfTheDay() {
@@ -66,32 +66,32 @@ async function buildBrief() {
   ]);
   var goals = results[0], density = results[1], yesterdayRecord = results[2];
 
-  lines.push({ kind: "hello", text: greeting() + ", " + getPrefs().name + "." });
+  lines.push({ kind: "hello", text: greeting() + ", " + displayName() + "." });
 
   // today
   if (todays.length) {
     var last = todays.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); })[0];
-    lines.push({ kind: "ok", text: "you've written " + plural(todays.length, "entry", "entries") + " today. the latest one felt " + STATUS[last.mood].label + "." });
+    lines.push({ kind: "ok", text: "You've written " + plural(todays.length, "entry", "entries") + " today. The latest one felt " + STATUS[last.mood].label.toLowerCase() + "." });
   } else if (streak > 0) {
-    lines.push({ kind: "warn", text: "nothing written yet today. your " + streak + "-day streak ends at midnight unless you log something.", action: { label: "write now", command: "write" } });
+    lines.push({ kind: "warn", text: "Nothing written yet today. Your " + streak + "-day streak ends at midnight unless you log something.", action: { label: "Write now", command: "write" } });
   } else {
-    lines.push({ kind: "info", text: "nothing written yet today. one honest line is enough to start.", action: { label: "write now", command: "write" } });
+    lines.push({ kind: "info", text: "Nothing written yet today. One honest line is enough to start.", action: { label: "Write now", command: "write" } });
   }
 
   if (tasks.length) {
     var open = tasks.filter(function (t) { return !t.completed; });
     lines.push(open.length
-      ? { kind: "info", text: (tasks.length - open.length) + " of " + tasks.length + " tasks done. next up: “" + open[0].title + "”." }
-      : { kind: "ok", text: "all " + plural(tasks.length, "task") + " done today." });
+      ? { kind: "info", text: (tasks.length - open.length) + " of " + tasks.length + " tasks done. Next up: “" + open[0].title + "”." }
+      : { kind: "ok", text: "All " + plural(tasks.length, "task") + " done today." });
   } else {
-    lines.push({ kind: "info", text: "no tasks planned for today.", action: { label: "add one", command: "add-task" } });
+    lines.push({ kind: "info", text: "No tasks planned for today.", action: { label: "Add one", command: "add-task" } });
   }
 
   var hs = habitSummary();
   if (hs.total) {
     var hot = hs.habits.filter(function (h) { return !h.doneToday && h.streak >= 3; })[0];
     lines.push(hs.doneToday === hs.total
-      ? { kind: "ok", text: "every habit checked today (" + hs.total + "/" + hs.total + ")." }
+      ? { kind: "ok", text: "Every habit checked today (" + hs.total + "/" + hs.total + ")." }
       : hot
         ? { kind: "warn", text: "“" + hot.name + "” is on a " + hot.streak + "-day streak and isn't checked yet today." }
         : { kind: "info", text: hs.doneToday + " of " + hs.total + " habits checked today." });
@@ -100,7 +100,7 @@ async function buildBrief() {
   var fm = Math.round(focus.focusMs / 60000);
   lines.push(fm
     ? { kind: "ok", text: fm + " minutes of focus across " + plural(focus.sessions, "session") + " today." }
-    : { kind: "info", text: "no focus sessions yet today.", action: { label: "start 25 min", command: "focus-start" } });
+    : { kind: "info", text: "No focus sessions yet today.", action: { label: "Start 25 min", command: "focus-start" } });
 
   // attention
   var todayStr = todayKey;
@@ -109,35 +109,35 @@ async function buildBrief() {
   var soonStr = dateKey(soon);
   goals.forEach(function (g) {
     if (g.completed || !g.targetDate) return;
-    if (g.targetDate < todayStr) lines.push({ kind: "warn", text: "goal “" + g.title + "” was due " + g.targetDate + " and sits at " + g.progress + "%." });
-    else if (g.targetDate <= soonStr) lines.push({ kind: "info", text: "goal “" + g.title + "” is due " + (g.targetDate === todayStr ? "today" : g.targetDate) + ", " + g.progress + "% done." });
+    if (g.targetDate < todayStr) lines.push({ kind: "warn", text: "Goal “" + g.title + "” was due " + g.targetDate + " and sits at " + g.progress + "%." });
+    else if (g.targetDate <= soonStr) lines.push({ kind: "info", text: "Goal “" + g.title + "” is due " + (g.targetDate === todayStr ? "today" : g.targetDate) + ", " + g.progress + "% done." });
   });
   var almost = goals.filter(function (g) { return !g.completed && g.progress >= 80; });
-  if (almost.length) lines.push({ kind: "ok", text: "“" + almost[0].title + "” is " + almost[0].progress + "% done. close it out?" });
+  if (almost.length) lines.push({ kind: "ok", text: "“" + almost[0].title + "” is " + almost[0].progress + "% done. Close it out?" });
 
   // patterns
   var recent = entries.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); }).slice(0, 7);
   var rough = recent.filter(function (e) { return e.mood === "rough"; }).length;
   if (recent.length >= 4 && rough >= 3) {
-    lines.push({ kind: "care", text: rough + " of your last " + recent.length + " entries were rough days. heavy stretch. rest counts as progress, and talking to someone you trust helps." });
+    lines.push({ kind: "care", text: rough + " of your last " + recent.length + " entries were rough days. Heavy stretch. Rest counts as progress, and talking to someone you trust helps." });
   } else if (recent.length >= 4 && rough === 0) {
-    lines.push({ kind: "ok", text: "no rough days in your last " + recent.length + " entries." });
+    lines.push({ kind: "ok", text: "No rough days in your last " + recent.length + " entries." });
   }
   if (density && density.inactiveCategories && density.inactiveCategories[0]) {
     var gap = density.inactiveCategories[0];
-    lines.push({ kind: "info", text: "you haven't logged " + gap.label.toLowerCase() + " in " + gap.daysSince + " days." });
+    lines.push({ kind: "info", text: "You haven't logged " + gap.label.toLowerCase() + " in " + gap.daysSince + " days." });
   }
   if (density && density.strongestCategory) {
-    lines.push({ kind: "info", text: "most of your logged energy this month went to " + density.strongestCategory.label.toLowerCase() + "." });
+    lines.push({ kind: "info", text: "Most of your logged energy this month went to " + density.strongestCategory.label.toLowerCase() + "." });
   }
 
   // memory
   var planned = yesterdayRecord && yesterdayRecord.nightReflection.tomorrowPlan.trim();
-  if (planned) lines.push({ kind: "memory", text: "last night you planned: “" + planned + "”" });
+  if (planned) lines.push({ kind: "memory", text: "Last night you planned: “" + planned + "”" });
   var yearAgo = new Date();
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
   var memory = entries.find(function (e) { return dateKey(e.date) === dateKey(yearAgo); });
-  if (memory) lines.push({ kind: "memory", text: "a year ago today you wrote: “" + memory.text.slice(0, 160) + (memory.text.length > 160 ? "…" : "") + "”", action: { label: "open that day", day: dateKey(yearAgo) } });
+  if (memory) lines.push({ kind: "memory", text: "A year ago today you wrote: “" + memory.text.slice(0, 160) + (memory.text.length > 160 ? "…" : "") + "”", action: { label: "Open that day", day: dateKey(yearAgo) } });
 
   return lines;
 }
@@ -154,7 +154,7 @@ export async function renderCompanion(force) {
   try {
     lines = await buildBrief();
   } catch (e) {
-    el.innerHTML = '<div class="companion-card"><p class="empty-line">couldn\'t read your data. is the backend running?</p></div>';
+    el.innerHTML = '<div class="companion-card"><p class="empty-line">Couldn\'t read your data. Is the backend running?</p></div>';
     return;
   }
 
@@ -162,15 +162,15 @@ export async function renderCompanion(force) {
   el.innerHTML =
     '<div class="companion-col">' +
       '<div class="companion-card prompt-card">' +
-        '<h3 class="daily-section-title">' + icon("feather") + "<span>a question for today</span></h3>" +
+        '<h3 class="daily-section-title">' + icon("feather") + "<span>A question for today</span></h3>" +
         '<p class="prompt-text">' + escapeHtml(prompt) + "</p>" +
-        '<button type="button" class="primary-btn" data-command="write-prompt" data-prompt="' + escapeHtml(prompt) + '">' + icon("pen-line") + "<span>answer in your journal</span></button>" +
+        '<button type="button" class="primary-btn" data-command="write-prompt" data-prompt="' + escapeHtml(prompt) + '">' + icon("pen-line") + "<span>Answer in your journal</span></button>" +
       "</div>" +
       '<div class="companion-card">' +
         '<header class="companion-head">' +
-          '<h3 class="daily-section-title">' + icon("sparkles") + "<span>today's brief</span></h3>" +
-          '<span class="companion-mode" title="built from your own entries, tasks, goals, and focus time. nothing is sent anywhere.">' + icon("shield-check") + "<span>stays on your side</span></span>" +
-          '<button type="button" class="icon-btn" id="companionRefresh" aria-label="refresh the brief" title="refresh">' + icon("refresh-cw") + "</button>" +
+          '<h3 class="daily-section-title">' + icon("sparkles") + "<span>Today's brief</span></h3>" +
+          '<span class="companion-mode" title="Built from your own entries, tasks, goals, and focus time. Nothing is sent anywhere.">' + icon("shield-check") + "<span>Stays on your side</span></span>" +
+          '<button type="button" class="icon-btn" id="companionRefresh" aria-label="Refresh the brief" title="Refresh">' + icon("refresh-cw") + "</button>" +
         "</header>" +
         '<ol class="brief">' + lines.map(function (l, i) {
           var action = l.action

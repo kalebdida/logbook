@@ -87,7 +87,7 @@ try:
         a.fill('#lockScreen [name="password"]', "nope")
         a.click("#lockScreen button[type=submit]")
         a.wait_for_function("document.querySelector('.lock-error').textContent.length > 0")
-        check("wrong admin password is refused", "wrong" in a.text_content(".lock-error"))
+        check("wrong admin password is refused", "wrong" in a.text_content(".lock-error").lower())
         a.fill('#lockScreen [name="password"]', ADMIN_PW)
         a.click("#lockScreen button[type=submit]")
         unlocked(a)
@@ -123,13 +123,13 @@ try:
         b.fill('#lockScreen [name="password"]', FRIEND_PW)
         b.fill('[name="password2"]', "not the same")
         b.click("#lockScreen button[type=submit]")
-        check("mismatched passwords are caught before sending", "match" in b.text_content(".lock-error"))
+        check("mismatched passwords are caught before sending", "match" in b.text_content(".lock-error").lower())
         b.fill('[name="password2"]', FRIEND_PW)
         b.screenshot(path=str(SHOTS / "phone-join.png"))
         b.click("#lockScreen button[type=submit]")
         unlocked(b)
         check("the friend's logbook starts empty: none of kal's data",
-              dev(b, "/entries/") == [] and dev(b, "/days/") == [] and "kal's private" not in b.evaluate("document.body.innerText"))
+              dev(b, "/entries/") == [] and dev(b, "/days/") == [] and "kal's private" not in b.evaluate("document.body.innerText").lower())
         dev(b, "/entries/", "POST", {"mood": "rough", "text": "amen's private entry"})
         habit = dev(b, "/habits/", "POST", {"name": "amen habit"})
         b.evaluate("sessionStorage.setItem('logbook-companion-chat', '[\"amen secret chat\"]')")
@@ -149,9 +149,9 @@ try:
               a.evaluate(f"window.__logbook.request('/habits/{habit['id']}', {{method: 'PATCH', headers: {{'Content-Type': 'application/json'}}, body: '{{\"name\": \"x\"}}'}}).then(() => 'changed', e => e.status)") == 404)
         open_settings(a)
         a.wait_for_function("document.querySelector('[data-users]').textContent.includes('amen')")
-        people_text = a.text_content("[data-people]")
+        people_text = a.text_content("[data-people]").lower()
         check("admin's people list: names and dates only", "amen" in people_text and "private" not in people_text and "habit" not in people_text)
-        check("the used invite says who joined", "joined as amen" in a.text_content("[data-invites]"))
+        check("the used invite says who joined", "joined as amen" in a.text_content("[data-invites]").lower())
 
         # ---------- log out clears what the browser kept ----------
         b.click("#settingsAccount [data-logout]")
@@ -160,13 +160,13 @@ try:
         check("log out wipes the chat history and the browser AI key", leftovers == [0, None], leftovers)
         check("old one-browser data isn't offered to the next person",
               b.evaluate("localStorage.getItem('logbook-legacy-imported')") is not None)
-        check("the next person on this phone sees no data behind the lock", "amen's private" not in b.evaluate("document.body.innerText"))
+        check("the next person on this phone sees no data behind the lock", "amen's private" not in b.evaluate("document.body.innerText").lower())
 
         # ---------- reset code ----------
         a.click('[data-user] [data-reset-user]')
         a.wait_for_selector(".code-box-code")
         reset = a.text_content(".code-box-code").strip()
-        check("admin can make a reset code", "reset code for amen" in a.text_content(".code-box-label"))
+        check("admin can make a reset code", "reset code for amen" in a.text_content(".code-box-label").lower())
         b.click('.lock-tab[data-mode="reset"]')
         b.fill('[name="code"]', reset)
         b.fill('#lockScreen [name="username"]', "amen")
