@@ -27,42 +27,42 @@ export async function renderStorageCard(el) {
   }
 
   el.innerHTML =
-    '<h3 class="daily-section-title">' + icon("hard-drive") + "<span>where your data lives</span></h3>" +
+    '<h3 class="daily-section-title">' + icon("hard-drive") + "<span>Where your data lives</span></h3>" +
     '<p class="storage-now"><span class="status-dot is-online"></span> ' +
       (device
-        ? "<strong>this device.</strong> everything is saved in this browser. no server, works offline. back it up now and then."
+        ? "<strong>This device.</strong> Everything is saved in this browser. No server, works offline. Back it up now and then."
         : "<strong>" + escapeHtml(describeConnection()) + ".</strong> " +
-          (me ? "logged in as " + escapeHtml(me.username) + "." : authRequired ? "password protected, you're logged in." : "no password.")) +
+          (me ? "Logged in as " + escapeHtml(me.username) + "." : authRequired ? "Password protected, you're logged in." : "No password.")) +
     "</p>" +
     (device && !persisted
-      ? '<p class="setting-hint storage-risk">this browser hasn\'t promised to keep it: it may clear site data you haven\'t visited in a while (Safari does after 7 days). installing logbook as an app protects it. either way, download a backup now and then, or connect a server.</p>'
+      ? '<p class="setting-hint storage-risk">This browser hasn\'t promised to keep it: it may clear site data you haven\'t visited in a while (Safari does after 7 days). Installing Logbook as an app protects it. Either way, download a backup now and then, or connect a server.</p>'
       : "") +
     '<div class="settings-actions">' +
       (device
         ? ""
-        : '<button type="button" class="tool-btn" id="toDevice">keep data on this device instead</button>' +
-          (authRequired && !me ? '<button type="button" class="tool-btn" id="logoutBtn">log out</button>' : "")) +
+        : '<button type="button" class="tool-btn" id="toDevice">' + icon("smartphone") + '<span>Keep data on this device instead</span></button>' +
+          (authRequired && !me ? '<button type="button" class="tool-btn" id="logoutBtn">Log out</button>' : "")) +
     "</div>" +
-    '<details class="connect-box"' + (device ? " open" : "") + "><summary>" + (device ? "connect to a logbook server" : "connect to a different server") + "</summary>" +
+    '<details class="connect-box"' + (device ? " open" : "") + "><summary>" + (device ? "Connect to a Logbook server" : "Connect to a different server") + "</summary>" +
       '<form id="connectForm" class="connect-form" autocomplete="off">' +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">server address</span>' +
-          '<span class="setting-hint">e.g. https://your-logbook.onrender.com, or http://127.0.0.1:8000 on this computer</span></span>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Server address</span>' +
+          '<span class="setting-hint">For example https://your-logbook.onrender.com, or http://127.0.0.1:8000 on this computer</span></span>' +
           '<input class="text-input" name="url" type="url" required placeholder="https://..." value="' + escapeHtml(c.serverUrl || "") + '"></label>' +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">username</span><span class="setting-hint">your account on that server</span></span>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Username</span><span class="setting-hint">Your account on that server</span></span>' +
           '<input class="text-input" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" value="' + escapeHtml(c.username || "") + '"></label>' +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">password</span><span class="setting-hint">leave empty if the server has none</span></span>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Password</span><span class="setting-hint">Leave empty if the server has none</span></span>' +
           '<input class="text-input" name="password" type="password" autocomplete="current-password"></label>' +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">copy what\'s here to the server</span>' +
-          '<span class="setting-hint">adds this copy\'s data to the server. never overwrites anything there.</span></span>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Copy what\'s here to the server</span>' +
+          '<span class="setting-hint">Adds this copy\'s data to the server. Never overwrites anything there.</span></span>' +
           '<input type="checkbox" class="switch" name="copy" checked></label>' +
-        '<button type="submit" class="primary-btn">connect</button>' +
+        '<button type="submit" class="primary-btn">Connect</button>' +
       "</form>" +
     "</details>";
 
   var toDeviceBtn = el.querySelector("#toDevice");
   if (toDeviceBtn) {
     toDeviceBtn.addEventListener("click", async function () {
-      if (!confirm("keep data on this device from now on? a copy of everything on the server comes along. the server keeps its data too.")) return;
+      if (!confirm("Keep data on this device from now on? A copy of everything on the server comes along. The server keeps its data too.")) return;
       toDeviceBtn.disabled = true;
       try {
         var backup = await serverRequest(serverBase(), c.token, "/backup", {});
@@ -72,7 +72,7 @@ export async function renderStorageCard(el) {
         location.reload();
       } catch (e) {
         toDeviceBtn.disabled = false;
-        toast("couldn't copy your data from the server: " + (e.detail || e.message), "error");
+        toast("Couldn't copy your data from the server: " + (e.detail || e.message), "error");
       }
     });
   }
@@ -85,10 +85,10 @@ export async function renderStorageCard(el) {
     var url = form.elements.url.value.trim().replace(/\/+$/, "");
     var btn = form.querySelector("button[type=submit]");
     btn.disabled = true;
-    btn.textContent = "connecting…";
+    btn.textContent = "Connecting…";
     try {
-      var health = await probeServer(url, 70000); // free hosts can take a minute to wake up
-      if (!health) throw new Error("no logbook server answered at that address");
+      var health = await probeServer(url, 90000); // free hosts can take a minute to wake up
+      if (!health) throw new Error("No Logbook server answered at that address");
       var token = "", who = "";
       if (health.auth_required) {
         var login = await apiLogin(url, form.elements.password.value, form.elements.username.value.trim().toLowerCase());
@@ -105,9 +105,9 @@ export async function renderStorageCard(el) {
       setConnection({ mode: "server", serverUrl: url === location.origin ? "" : url, token: token, username: who });
       location.reload();
     } catch (ex) {
-      toast(ex.status === 401 ? "wrong username or password" : ex.status === 429 ? ex.detail : "couldn't connect: " + (ex.detail || ex.message), "error");
+      toast(ex.status === 401 ? "Wrong username or password" : ex.status === 429 ? ex.detail : "Couldn't connect: " + (ex.detail || ex.message), "error");
       btn.disabled = false;
-      btn.textContent = "connect";
+      btn.textContent = "Connect";
     }
   });
 }
@@ -115,7 +115,7 @@ export async function renderStorageCard(el) {
 /* ---------- AI ---------- */
 
 var PROVIDERS = [
-  ["", "off"],
+  ["", "Off"],
   ["gemini", "Gemini (free key from Google AI Studio)"],
   ["anthropic", "Claude (Anthropic)"],
   ["openai", "OpenAI-compatible (OpenAI, OpenRouter, Groq, Ollama…)"]
@@ -131,28 +131,28 @@ export async function renderAICard(el) {
     '<h3 class="daily-section-title">' + icon("sparkles") + "<span>AI companion</span></h3>" +
     '<p class="storage-now"><span class="status-dot ' + (status.available ? "is-online" : "") + '"></span> ' +
       (status.available
-        ? "on, using <strong>" + escapeHtml(status.model || status.provider) + "</strong>" + (viaServer ? " through your server (the key stays on the server)." : " from this device.")
-        : "off. the companion still works with simple local rules.") +
+        ? "On, using <strong>" + escapeHtml(status.model || status.provider) + "</strong>" + (viaServer ? " through your server (the key stays on the server)." : " from this device.")
+        : "Off. The companion still works with simple local rules.") +
     "</p>" +
     (viaServer ? "" :
       '<form id="aiForm" autocomplete="off">' +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">provider</span></span>' +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Provider</span></span>' +
           '<select class="select-input select-input--wide" name="provider">' +
           PROVIDERS.map(function (p) { return '<option value="' + p[0] + '"' + (cfg.provider === p[0] ? " selected" : "") + ">" + escapeHtml(p[1]) + "</option>"; }).join("") +
           "</select></label>" +
-        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">API key</span><span class="setting-hint">saved in this browser only. not needed for a local model.</span></span>' +
+        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">API key</span><span class="setting-hint">Saved in this browser only. Not needed for a local model.</span></span>' +
           '<input class="text-input" name="apiKey" type="password" autocomplete="off"></label>' +
         '<p class="setting-hint" data-ai-field data-ai-gemini>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, then paste it above.</p>' +
-        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">model</span><span class="setting-hint">blank = gemini-3.5-flash-lite (Gemini), claude-haiku-5-5 (Claude) or gpt-4o-mini</span></span>' +
-          '<input class="text-input" name="model" value="' + escapeHtml(cfg.model) + '" placeholder="default"></label>' +
-        '<label class="setting-row" data-ai-field data-ai-openai><span class="setting-text"><span class="setting-label">address</span><span class="setting-hint">Ollama: http://localhost:11434/v1. blank = api.openai.com</span></span>' +
+        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">Model</span><span class="setting-hint">Blank = gemini-3.5-flash-lite (Gemini), claude-haiku-5-5 (Claude) or gpt-4o-mini</span></span>' +
+          '<input class="text-input" name="model" value="' + escapeHtml(cfg.model) + '" placeholder="Default"></label>' +
+        '<label class="setting-row" data-ai-field data-ai-openai><span class="setting-text"><span class="setting-label">Address</span><span class="setting-hint">Ollama: http://localhost:11434/v1. Blank = api.openai.com</span></span>' +
           '<input class="text-input" name="baseUrl" value="' + escapeHtml(cfg.baseUrl) + '" placeholder="https://api.openai.com/v1"></label>' +
-        '<div class="settings-actions"><button type="submit" class="primary-btn">save</button><button type="button" class="tool-btn" id="aiTest">test</button></div>' +
+        '<div class="settings-actions"><button type="submit" class="primary-btn">Save</button><button type="button" class="tool-btn" id="aiTest">Test</button></div>' +
       "</form>") +
-    '<label class="setting-row"><span class="setting-text"><span class="setting-label">let AI read entry text</span>' +
-      '<span class="setting-hint">off: it only sees numbers (streaks, focus minutes, task counts), never what you wrote</span></span>' +
+    '<label class="setting-row"><span class="setting-text"><span class="setting-label">Let AI read entry text</span>' +
+      '<span class="setting-hint">Off: it only sees numbers (streaks, focus minutes, task counts), never what you wrote</span></span>' +
       '<input type="checkbox" class="switch" id="aiShareText"' + (cfg.shareText ? " checked" : "") + "></label>" +
-    '<p class="setting-hint">nothing is sent until you ask the companion something. your provider\'s privacy terms apply to what you send. a local model (Ollama) keeps everything on your computer.</p>';
+    '<p class="setting-hint">Nothing is sent until you ask the companion something. Your provider\'s privacy terms apply to what you send. A local model (Ollama) keeps everything on your computer.</p>';
 
   el.querySelector("#aiShareText").addEventListener("change", function (e) {
     setAIConfig({ shareText: e.target.checked });
@@ -185,16 +185,16 @@ export async function renderAICard(el) {
   el.querySelector("#aiTest").addEventListener("click", async function (e) {
     var btn = e.target;
     btn.disabled = true;
-    btn.textContent = "testing…";
+    btn.textContent = "Testing…";
     setAIConfig({ provider: form.elements.provider.value, apiKey: form.elements.apiKey.value.trim(), model: form.elements.model.value.trim(), baseUrl: form.elements.baseUrl.value.trim() });
     try {
-      var reply = await aiChat([{ role: "user", content: "reply with exactly: logbook link ok" }], "You are a connection test. Follow the instruction exactly.", 20);
+      var reply = await aiChat([{ role: "user", content: "Reply with exactly: logbook link ok" }], "You are a connection test. Follow the instruction exactly.", 20);
       toast("AI answered: " + reply.slice(0, 80));
     } catch (ex) {
       toast(ex.message, "error");
     } finally {
       btn.disabled = false;
-      btn.textContent = "test";
+      btn.textContent = "Test";
     }
   });
 }
@@ -207,20 +207,20 @@ export function renderAppCard(el) {
   var ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   var native = Boolean(window.Capacitor);
   var line;
-  if (native) line = "you're in the Android app. your data is stored in the app on this phone.";
-  else if (isInstalled()) line = "installed. it opens in its own window and works offline.";
-  else if (canInstall()) line = "install logbook as an app: its own window, a home screen icon, works offline.";
-  else if (ios) line = "on iPhone or iPad: tap Share, then <strong>Add to Home Screen</strong>. it opens like an app and works offline.";
-  else line = "open this page in Chrome or Edge to install it as an app. it already works offline here once loaded.";
+  if (native) line = "You're in the Android app. Your data is stored in the app on this phone.";
+  else if (isInstalled()) line = "Installed. It opens in its own window and works offline.";
+  else if (canInstall()) line = "Install Logbook as an app: its own window, a home screen icon, works offline.";
+  else if (ios) line = "On iPhone or iPad: tap Share, then <strong>Add to Home Screen</strong>. It opens like an app and works offline.";
+  else line = "Open this page in Chrome or Edge to install it as an app. It already works offline here once loaded.";
   el.innerHTML =
-    '<h3 class="daily-section-title">' + icon("smartphone") + "<span>the app</span></h3>" +
+    '<h3 class="daily-section-title">' + icon("smartphone") + "<span>The app</span></h3>" +
     '<p class="storage-now">' + line + "</p>" +
-    (canInstall() && !native ? '<div class="settings-actions"><button type="button" class="primary-btn" id="installApp">install logbook</button></div>' : "") +
-    '<p class="setting-hint">android app (APK): built from the same code by the "android apk" GitHub action, or with <code>npm run apk</code>. see docs/ANDROID.md.</p>';
+    (canInstall() && !native ? '<div class="settings-actions"><button type="button" class="primary-btn" id="installApp">Install Logbook</button></div>' : "") +
+    '<p class="setting-hint">Android app (APK): built from the same code by the "android apk" GitHub action, or with <code>npm run apk</code>. See docs/ANDROID.md.</p>';
   var btn = el.querySelector("#installApp");
   if (btn) btn.addEventListener("click", async function () {
     var ok = await promptInstall();
-    if (!ok) toast("not installed. you can do it any time from here.", "warn");
+    if (!ok) toast("Not installed. You can do it any time from here.", "warn");
     renderAppCard(el);
   });
 }

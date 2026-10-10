@@ -1,6 +1,7 @@
 /* The "look & feel" card: pick a theme, describe a vibe, make one from a
    picture, or fine-tune every detail. Anything generated is shown as a
    preview first; nothing changes for good until you press keep. */
+import { sceneSvg, sceneFor } from './scene.js';
 import {
   BUILT_IN, BACKGROUNDS, GLYPHS, ROUNDNESS, FONTS, DEFAULT_THEME,
   allThemes, currentTheme, applyTheme, saveCustomTheme, deleteCustomTheme,
@@ -13,8 +14,8 @@ import { escapeHtml, submitForm } from './utils.js';
 import { icon } from './icons.js';
 
 var COLORS = [
-  ["bg", "background"], ["surface", "cards"], ["text", "text"], ["text2", "soft text"], ["muted", "muted"],
-  ["accent", "accent"], ["accent2", "second accent"], ["warm", "warm"], ["danger", "danger"]
+  ["bg", "Background"], ["surface", "Cards"], ["text", "Text"], ["text2", "Soft text"], ["muted", "Muted"],
+  ["accent", "Accent"], ["accent2", "Second accent"], ["warm", "Warm"], ["danger", "Danger"]
 ];
 
 var EXAMPLES = [
@@ -67,14 +68,15 @@ function swatch(t, activeId) {
     '<div class="theme-swatch-wrap">' +
       '<button type="button" class="theme-swatch" data-theme-id="' + escapeHtml(t.id) + '" aria-pressed="' + (t.id === activeId) + '" style="' + swatchStyle(t) + '"' +
         (t.note ? ' title="' + escapeHtml(t.note) + '"' : "") + ">" +
-        '<span class="sw-preview' + (t.image ? " sw-preview--image" : "") + (t.background === "night" || t.background === "window" ? " sw-preview--scene" : "") + '"' + (t.image ? ' style="background-image:url(&quot;' + escapeHtml(t.image) + '&quot;)"' : "") + ">" +
+        '<span class="sw-preview' + (t.image ? " sw-preview--image" : "") + (sceneFor(t.background) && !t.image ? " sw-preview--art" : "") + '"' + (t.image ? ' style="background-image:url(&quot;' + escapeHtml(t.image) + '&quot;)"' : "") + ">" +
+          (sceneFor(t.background) && !t.image ? '<span class="sw-scene" aria-hidden="true">' + sceneSvg({ scene: sceneFor(t.background) }) + "</span>" : "") +
           '<span class="sw-card"><span class="sw-aa">Aa</span><span class="sw-line"></span><span class="sw-line sw-line--short"></span></span>' +
           '<span class="sw-dots"><i></i><i></i><i></i></span>' +
-          (t.id === DEFAULT_THEME ? '<span class="sw-badge">default</span>' : "") +
+          (t.id === DEFAULT_THEME ? '<span class="sw-badge">Default</span>' : "") +
         "</span>" +
         '<span class="sw-name">' + escapeHtml(t.name) + "</span>" +
       "</button>" +
-      (custom ? '<button type="button" class="sw-delete" data-delete-theme="' + escapeHtml(t.id) + '" aria-label="delete ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" : "") +
+      (custom ? '<button type="button" class="sw-delete" data-delete-theme="' + escapeHtml(t.id) + '" aria-label="Delete ' + escapeHtml(t.name) + '">' + icon("x") + "</button>" : "") +
     "</div>"
   );
 }
@@ -90,31 +92,31 @@ function editorHtml(t) {
   var ratio = contrast(c.text, c.surface);
   return (
     '<div class="theme-editor-grid">' +
-      '<label class="te-field te-field--name"><span>name</span><input class="text-input" name="name" maxlength="40" value="' + escapeHtml(t.name) + '"></label>' +
-      '<label class="te-field"><span>mode</span>' + select("mode", ["dark", "light"], { dark: "dark", light: "light" }, t.mode) + "</label>" +
-      '<label class="te-field"><span>font</span>' + select("font", Object.keys(FONTS), LABELS.font, t.font) + "</label>" +
-      '<label class="te-field"><span>background</span>' + select("background", BACKGROUNDS, LABELS.background, t.background) + "</label>" +
-      '<label class="te-field"' + (t.background === "rain" ? "" : " hidden") + ' data-te-glyphs><span>rain glyphs</span>' + select("glyphs", GLYPHS, LABELS.glyphs, t.glyphs) + "</label>" +
-      '<label class="te-field"><span>corners</span>' + select("roundness", ROUNDNESS, LABELS.roundness, t.roundness) + "</label>" +
-      '<label class="te-check"><input type="checkbox" class="switch" name="scanlines"' + (t.scanlines ? " checked" : "") + "><span>crt scanlines</span></label>" +
-      '<label class="te-check"><input type="checkbox" class="switch" name="glow"' + (t.glow ? " checked" : "") + "><span>neon glow</span></label>" +
+      '<label class="te-field te-field--name"><span>Name</span><input class="text-input" name="name" maxlength="40" value="' + escapeHtml(t.name) + '"></label>' +
+      '<label class="te-field"><span>Mode</span>' + select("mode", ["dark", "light"], { dark: "Dark", light: "Light" }, t.mode) + "</label>" +
+      '<label class="te-field"><span>Font</span>' + select("font", Object.keys(FONTS), LABELS.font, t.font) + "</label>" +
+      '<label class="te-field"><span>Background</span>' + select("background", BACKGROUNDS, LABELS.background, t.background) + "</label>" +
+      '<label class="te-field"' + (t.background === "rain" ? "" : " hidden") + ' data-te-glyphs><span>Rain glyphs</span>' + select("glyphs", GLYPHS, LABELS.glyphs, t.glyphs) + "</label>" +
+      '<label class="te-field"><span>Corners</span>' + select("roundness", ROUNDNESS, LABELS.roundness, t.roundness) + "</label>" +
+      '<label class="te-check"><input type="checkbox" class="switch" name="scanlines"' + (t.scanlines ? " checked" : "") + "><span>CRT scanlines</span></label>" +
+      '<label class="te-check"><input type="checkbox" class="switch" name="glow"' + (t.glow ? " checked" : "") + "><span>Neon glow</span></label>" +
     "</div>" +
     '<div class="te-colors">' +
       COLORS.map(function (pair) {
         return '<label class="te-color"><input type="color" name="color-' + pair[0] + '" value="' + c[pair[0]] + '"><span>' + pair[1] + "</span></label>";
       }).join("") +
     "</div>" +
-    '<p class="te-contrast ' + (ratio >= 7 ? "is-good" : ratio >= 4.5 ? "is-ok" : "is-bad") + '">text contrast ' + ratio.toFixed(1) + ":1 " +
+    '<p class="te-contrast ' + (ratio >= 7 ? "is-good" : ratio >= 4.5 ? "is-ok" : "is-bad") + '">Text contrast ' + ratio.toFixed(1) + ":1 " +
       (ratio >= 7 ? "· easy to read" : ratio >= 4.5 ? "· readable" : "· hard to read") +
-      (ratio < 7 ? ' <button type="button" class="link-btn" data-te="fix">fix readability</button>' : "") + "</p>" +
-    (t.image ? '<p class="te-image">this theme has a backdrop picture. <button type="button" class="link-btn" data-te="remove-image">remove it</button></p>' : "") +
-    '<details class="te-css"><summary>custom CSS (advanced)</summary>' +
-      '<p class="setting-hint">for anything the options above don\'t cover. it\'s saved with the theme. the color variables are <code>--accent-rgb</code>, <code>--surface-rgb</code> and friends, used as <code>rgb(var(--accent-rgb) / 0.5)</code>.</p>' +
+      (ratio < 7 ? ' <button type="button" class="link-btn" data-te="fix">Fix readability</button>' : "") + "</p>" +
+    (t.image ? '<p class="te-image">This theme has a backdrop picture. <button type="button" class="link-btn" data-te="remove-image">Remove it</button></p>' : "") +
+    '<details class="te-css"><summary>Custom CSS (advanced)</summary>' +
+      '<p class="setting-hint">For anything the options above don\'t cover. It\'s saved with the theme. The color variables are <code>--accent-rgb</code>, <code>--surface-rgb</code> and friends, used as <code>rgb(var(--accent-rgb) / 0.5)</code>.</p>' +
       '<textarea class="text-input te-css-input" name="css" rows="6" spellcheck="false" placeholder=".console-clock { letter-spacing: 0; }">' + escapeHtml(t.css || "") + "</textarea>" +
     "</details>" +
     '<div class="settings-actions">' +
-      '<button type="button" class="primary-btn" data-te="save">save as my theme</button>' +
-      '<button type="button" class="tool-btn" data-te="reset">start over</button>' +
+      '<button type="button" class="primary-btn" data-te="save">Save as my theme</button>' +
+      '<button type="button" class="tool-btn" data-te="reset">Start over</button>' +
     "</div>"
   );
 }
@@ -124,52 +126,52 @@ function render() {
   var active = currentTheme().id;
   card.innerHTML =
     '<div class="theme-head">' +
-      '<h3 class="daily-section-title">' + icon("palette") + "<span>look &amp; feel</span></h3>" +
-      '<span class="theme-current">now: <b>' + escapeHtml(t.name) + "</b>" + (preview ? " <em>(preview)</em>" : "") + "</span>" +
+      '<h3 class="daily-section-title">' + icon("palette") + "<span>Themes</span></h3>" +
+      '<span class="theme-current">Now: <b>' + escapeHtml(t.name) + "</b>" + (preview ? " <em>(preview)</em>" : "") + "</span>" +
     "</div>" +
-    '<p class="setting-hint">night is the default. pick another look, describe the vibe you want, or make one from a picture. nothing changes for good until you keep it.</p>' +
-    '<div class="theme-gallery" role="group" aria-label="themes">' + allThemes().map(function (x) { return swatch(x, preview ? "" : active); }).join("") + "</div>" +
+    '<p class="setting-hint">Tap a theme to try it. Describe a vibe or use a picture to make your own. Nothing changes for good until you keep it.</p>' +
+    '<div class="theme-gallery" role="group" aria-label="Themes">' + allThemes().map(function (x) { return swatch(x, preview ? "" : active); }).join("") + "</div>" +
     '<div class="theme-preview-bar"' + (preview ? "" : " hidden") + ' role="status">' +
-      '<span>previewing <b>' + escapeHtml(preview ? preview.name : "") + "</b>. not saved yet.</span>" +
+      '<span>Previewing <b>' + escapeHtml(preview ? preview.name : "") + "</b>. Not saved yet.</span>" +
       '<span class="theme-preview-actions">' +
-        '<button type="button" class="primary-btn" data-preview="keep">' + icon("check") + "<span>keep it</span></button>" +
-        '<button type="button" class="tool-btn" data-preview="tweak">tweak</button>' +
-        '<button type="button" class="tool-btn" data-preview="undo">undo</button>' +
+        '<button type="button" class="primary-btn" data-preview="keep">' + icon("check") + "<span>Keep it</span></button>" +
+        '<button type="button" class="tool-btn" data-preview="tweak">Tweak</button>' +
+        '<button type="button" class="tool-btn" data-preview="undo">Undo</button>' +
       "</span>" +
     "</div>" +
     '<div class="theme-makers">' +
       '<form class="theme-maker" id="vibeForm">' +
-        '<label class="theme-maker-title" for="vibeText">describe your vibe</label>' +
-        '<textarea class="text-input vibe-input" id="vibeText" rows="2" maxlength="300" placeholder="e.g. cozy coffee shop at night, rain on the window, warm and calm"></textarea>' +
+        '<label class="theme-maker-title" for="vibeText">Describe your vibe</label>' +
+        '<textarea class="text-input vibe-input" id="vibeText" rows="2" maxlength="300" placeholder="For example: cozy coffee shop at night, rain on the window, warm and calm"></textarea>' +
         '<div class="vibe-examples">' + EXAMPLES.map(function (x) { return '<button type="button" class="chip" data-vibe="' + escapeHtml(x) + '">' + escapeHtml(x) + "</button>"; }).join("") + "</div>" +
         '<div class="settings-actions">' +
-          '<button type="submit" class="primary-btn">' + icon("wand-sparkles") + "<span>make it</span></button>" +
-          '<button type="button" class="tool-btn" id="vibeAI" hidden>' + icon("sparkles") + "<span>make it with AI</span></button>" +
-          '<button type="button" class="tool-btn" id="vibeSurprise">' + icon("dices") + "<span>surprise me</span></button>" +
+          '<button type="submit" class="primary-btn">' + icon("wand-sparkles") + "<span>Make it</span></button>" +
+          '<button type="button" class="tool-btn" id="vibeAI" hidden>' + icon("sparkles") + "<span>Make it with AI</span></button>" +
+          '<button type="button" class="tool-btn" id="vibeSurprise">' + icon("dices") + "<span>Surprise me</span></button>" +
         "</div>" +
         '<p class="setting-hint" id="vibeHint">' + OFFLINE_HINT + "</p>" +
       "</form>" +
       '<div class="theme-maker">' +
-        '<span class="theme-maker-title">from a picture</span>' +
-        '<p class="setting-hint">a wallpaper, a photo, album art. the colors are picked out on this device; the picture never leaves it.</p>' +
-        '<label class="file-pick"><input type="file" accept="image/*" id="themePicture"><span>' + icon("image") + "choose a picture</span></label>" +
-        '<label class="setting-row"><span class="setting-text"><span class="setting-label">use it as a faint backdrop</span></span>' +
+        '<span class="theme-maker-title">From a picture</span>' +
+        '<p class="setting-hint">A wallpaper, a photo, album art. The colors are picked out on this device; the picture never leaves it.</p>' +
+        '<label class="file-pick"><input type="file" accept="image/*" id="themePicture"><span>' + icon("image") + "Choose a picture</span></label>" +
+        '<label class="setting-row"><span class="setting-text"><span class="setting-label">Use it as a faint backdrop</span></span>' +
           '<input type="checkbox" class="switch" id="themePictureBackdrop" checked></label>' +
       "</div>" +
     "</div>" +
-    '<details class="theme-editor" id="themeEditor"><summary>fine-tune every detail</summary><form class="theme-editor-form" autocomplete="off"></form></details>' +
+    '<details class="theme-editor" id="themeEditor"><summary>Fine-tune every detail</summary><form class="theme-editor-form" autocomplete="off"></form></details>' +
     '<div class="settings-actions theme-io">' +
-      '<button type="button" class="tool-btn" id="themeExport">' + icon("download") + "<span>export this theme</span></button>" +
-      '<button type="button" class="tool-btn" id="themeImport">' + icon("upload") + "<span>import a theme</span></button>" +
+      '<button type="button" class="tool-btn" id="themeExport">' + icon("download") + "<span>Export this theme</span></button>" +
+      '<button type="button" class="tool-btn" id="themeImport">' + icon("upload") + "<span>Import a theme</span></button>" +
       '<input type="file" id="themeImportFile" accept="application/json,.json" hidden>' +
-      (active !== DEFAULT_THEME || preview ? '<button type="button" class="link-btn" id="themeDefault">back to night</button>' : "") +
+      (active !== DEFAULT_THEME || preview ? '<button type="button" class="link-btn" id="themeDefault">Back to Night</button>' : "") +
     "</div>";
 
   fillEditor();
   syncAIButton();
 }
 
-var OFFLINE_HINT = "works offline: it reads colors, moods, places and styles from your words.";
+var OFFLINE_HINT = "Works offline: it reads colors, moods, places and styles from your words.";
 function syncAIButton() {
   aiStatus().then(function (s) {
     var btn = card && card.querySelector("#vibeAI");
@@ -199,7 +201,7 @@ function keep() {
   preview = null;
   applyTheme(saved, true);
   render();
-  toast(saved.imageDropped ? "theme saved, but the picture was too big to keep" : "theme saved: " + saved.name, saved.imageDropped ? "warn" : "ok");
+  toast(saved.imageDropped ? "Theme saved, but the picture was too big to keep" : "Theme saved: " + saved.name, saved.imageDropped ? "warn" : "ok");
 }
 
 function undo() {
@@ -216,7 +218,7 @@ function pick(id) {
   applyTheme(next, true);
   render();
   if (before.id !== next.id) {
-    toast("theme: " + next.name, "ok", { action: { label: "undo", run: function () { applyTheme(before, true); preview = null; if (card && card.isConnected) render(); } } });
+    toast("Theme: " + next.name, "ok", { action: { label: "Undo", run: function () { applyTheme(before, true); preview = null; if (card && card.isConnected) render(); } } });
   }
 }
 
@@ -242,7 +244,7 @@ function readEditor(form) {
 /* Editing a built-in theme makes your own copy of it. */
 function asOwn(t) {
   if (BUILT_IN.some(function (b) { return b.id === t.id; })) {
-    return Object.assign({}, t, { id: "custom-" + Date.now().toString(36), name: t.name + " (mine)", note: "your take on " + t.name });
+    return Object.assign({}, t, { id: "custom-" + Date.now().toString(36), name: t.name + " (mine)", note: "Your take on " + t.name });
   }
   return t;
 }
@@ -266,12 +268,12 @@ function onEditorInput(e) {
     var line = form.querySelector(".te-contrast");
     if (line) {
       line.className = "te-contrast " + (ratio >= 7 ? "is-good" : ratio >= 4.5 ? "is-ok" : "is-bad");
-      line.firstChild.textContent = "text contrast " + ratio.toFixed(1) + ":1 " + (ratio >= 7 ? "· easy to read" : ratio >= 4.5 ? "· readable" : "· hard to read");
+      line.firstChild.textContent = "Text contrast " + ratio.toFixed(1) + ":1 " + (ratio >= 7 ? "· easy to read" : ratio >= 4.5 ? "· readable" : "· hard to read");
     }
     var bar = card.querySelector(".theme-preview-bar");
     bar.hidden = false;
     bar.querySelector("b").textContent = preview.name;
-    card.querySelector(".theme-current").innerHTML = "now: <b>" + escapeHtml(preview.name) + "</b> <em>(preview)</em>";
+    card.querySelector(".theme-current").innerHTML = "Now: <b>" + escapeHtml(preview.name) + "</b> <em>(preview)</em>";
   }, 60);
 }
 
@@ -290,7 +292,7 @@ function readFileText(file) {
   return new Promise(function (resolve, reject) {
     var r = new FileReader();
     r.onload = function () { resolve(String(r.result)); };
-    r.onerror = function () { reject(new Error("couldn't read the file")); };
+    r.onerror = function () { reject(new Error("Couldn't read the file")); };
     r.readAsText(file);
   });
 }
@@ -298,12 +300,12 @@ function readFileText(file) {
 async function makeWithAI(vibe, btn) {
   btn.disabled = true;
   var label = btn.innerHTML;
-  btn.innerHTML = icon("sparkles") + "<span>designing…</span>";
+  btn.innerHTML = icon("sparkles") + "<span>Designing…</span>";
   try {
     var reply = await aiChat([{ role: "user", content: "The vibe: " + vibe }], AI_THEME_PROMPT, 600);
-    showPreview(themeFromAIReply(reply, vibe), "the AI made you a theme. keep it if you like it.");
+    showPreview(themeFromAIReply(reply, vibe), "The AI made you a theme. Keep it if you like it.");
   } catch (e) {
-    toast("AI couldn't make a theme: " + (e.detail || e.message) + ". here's the offline version.", "warn", { duration: 5000 });
+    toast("AI couldn't make a theme: " + (e.detail || e.message) + ". Here's the offline version.", "warn", { duration: 5000 });
     showPreview(themeFromVibe(vibe));
   } finally {
     var again = card.querySelector("#vibeAI");
@@ -320,7 +322,7 @@ function wire() {
     if (del) {
       var id = del.getAttribute("data-delete-theme");
       var t = allThemes().find(function (x) { return x.id === id; });
-      if (t && confirm("delete the theme “" + t.name + "”?")) {
+      if (t && confirm("Delete the theme “" + t.name + "”?")) {
         deleteCustomTheme(id);
         if (preview && preview.id === id) preview = null;
         render();
@@ -360,13 +362,13 @@ function wire() {
 
     if (e.target.closest("#vibeAI")) {
       var vibe = card.querySelector("#vibeText").value.trim();
-      if (!vibe) return toast("describe the vibe first", "warn");
+      if (!vibe) return toast("Describe the vibe first", "warn");
       return makeWithAI(vibe, e.target.closest("#vibeAI"));
     }
     if (e.target.closest("#vibeSurprise")) {
       var v = SURPRISE[Math.floor(Math.random() * SURPRISE.length)];
       card.querySelector("#vibeText").value = v;
-      return showPreview(themeFromVibe(v), "surprise: " + v);
+      return showPreview(themeFromVibe(v), "Surprise: " + v);
     }
     if (e.target.closest("#themeDefault")) return pick(DEFAULT_THEME);
     if (e.target.closest("#themeExport")) {
@@ -374,7 +376,7 @@ function wire() {
       var out = Object.assign({}, cur);
       delete out.imageDropped;
       download({ logbook_theme: 1, theme: out }, "logbook-theme-" + cur.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".json");
-      return toast("theme exported. send the file to anyone with logbook.");
+      return toast("Theme exported. Send the file to anyone with Logbook.");
     }
     if (e.target.closest("#themeImport")) return card.querySelector("#themeImportFile").click();
   });
@@ -383,7 +385,7 @@ function wire() {
     if (e.target.id === "vibeForm") {
       e.preventDefault();
       var vibe = card.querySelector("#vibeText").value.trim();
-      if (!vibe) return toast("describe the vibe first. colors, a place, a mood, anything.", "warn");
+      if (!vibe) return toast("Describe the vibe first. Colors, a place, a mood, anything.", "warn");
       showPreview(themeFromVibe(vibe));
     } else if (e.target.classList.contains("theme-editor-form")) {
       e.preventDefault();
@@ -413,9 +415,9 @@ function wire() {
       try {
         var made = await themeFromImage(file);
         if (card.querySelector("#themePictureBackdrop").checked) made.theme.image = made.image;
-        showPreview(made.theme, "colors picked from your picture");
+        showPreview(made.theme, "Colors picked from your picture");
       } catch (err) {
-        toast(err.message || "couldn't read that picture", "error");
+        toast(err.message || "Couldn't read that picture", "error");
       }
     }
 
@@ -426,12 +428,12 @@ function wire() {
       try {
         var parsed = JSON.parse(await readFileText(f));
         var t = parsed && parsed.theme ? parsed.theme : parsed;
-        if (!t || typeof t !== "object" || !t.colors) throw new Error("that isn't a logbook theme file");
-        if (t.css && !confirm("this theme comes with custom CSS. CSS can change how anything looks and load things from the internet. only import it if you trust where it came from. continue?")) return;
+        if (!t || typeof t !== "object" || !t.colors) throw new Error("That isn't a Logbook theme file");
+        if (t.css && !confirm("This theme comes with custom CSS. CSS can change how anything looks and load things from the internet. Only import it if you trust where it came from. Continue?")) return;
         t = Object.assign({}, t, { id: "custom-" + Date.now().toString(36) });
-        showPreview(t, "imported " + (t.name || "a theme") + ". keep it if you like it.");
+        showPreview(t, "Imported " + (t.name || "a theme") + ". Keep it if you like it.");
       } catch (err) {
-        toast(err.message || "couldn't import that theme", "error");
+        toast(err.message || "Couldn't import that theme", "error");
       }
     }
   });
@@ -461,9 +463,9 @@ export function renderThemeCard(el) {
     document.addEventListener("logbook:navigated", function (e) {
       if (e.detail.page !== "settings" && preview) {
         var name = preview.name;
-        toast("the theme “" + name + "” is only a preview", "warn", {
+        toast("The theme “" + name + "” is only a preview", "warn", {
           duration: 8000,
-          action: { label: "keep it", run: function () { if (preview && preview.name === name) keep(); } }
+          action: { label: "Keep it", run: function () { if (preview && preview.name === name) keep(); } }
         });
       }
     });

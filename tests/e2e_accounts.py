@@ -104,7 +104,7 @@ try:
         check("making an invite shows a one-time code", len(code) == 14 and code.count("-") == 2, code)
         message = a.get_attribute(".code-box", "data-message")
         check("the share message has the address and the code", SERVER in message and code in message, message)
-        a.wait_for_function("document.querySelector('[data-invites]').textContent.includes('open until')")
+        a.wait_for_function("document.querySelector('[data-invites]').textContent.toLowerCase().includes('open until')")
         a.screenshot(path=str(SHOTS / "admin-settings.png"), full_page=False)
         a.locator("#settingsAccount").screenshot(path=str(SHOTS / "admin-account-card.png"))
 

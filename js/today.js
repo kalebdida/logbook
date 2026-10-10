@@ -4,7 +4,7 @@ import { getTodayFocus } from './pomodoro.js';
 import { calcStreak } from './stats.js';
 import { STATUS } from './entries.js';
 import { dateKey } from './dayRecord.js';
-import { displayName } from './prefs.js';
+import { displayName, getPrefs } from './prefs.js';
 import { onChange } from './bus.js';
 import { icon } from './icons.js';
 import { sceneSvg } from './scene.js';
@@ -66,7 +66,10 @@ function tickClock() {
   var hm = document.getElementById("consoleClock");
   var greet = document.getElementById("consoleGreeting");
   if (!hm) return;
-  var text = pad(now.getHours()) + ":" + pad(now.getMinutes());
+  var h24 = getPrefs().clock24 !== false;
+  var text = h24 ? pad(now.getHours()) + ":" + pad(now.getMinutes()) : ((now.getHours() % 12) || 12) + ":" + pad(now.getMinutes());
+  var ampm = document.getElementById("consoleAmPm");
+  if (ampm) ampm.textContent = h24 ? "" : (now.getHours() < 12 ? "AM" : "PM");
   if (hm.textContent !== text) hm.textContent = text;
   var g = greeting(now) + ", " + displayName();
   if (greet.textContent !== g) greet.textContent = g;
@@ -82,7 +85,7 @@ export function renderTodayConsole() {
       '<div class="hero-top">' +
         '<p class="console-date">' + now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) + "</p>" +
         '<h2 class="console-greeting" id="consoleGreeting"></h2>' +
-        '<div class="console-clock" aria-hidden="true"><span id="consoleClock">--:--</span></div>' +
+        '<div class="console-clock" aria-hidden="true"><span id="consoleClock">--:--</span><span class="console-ampm" id="consoleAmPm"></span></div>' +
       "</div>" +
       '<div class="console-readout" id="consoleReadout">' + readout() + "</div>" +
       '<div class="console-actions">' +
@@ -92,6 +95,10 @@ export function renderTodayConsole() {
   tickClock();
   try { mountMascot(el, { size: "md", place: "dash" }); } catch (e) { console.warn("logbook: mascot", e); }
   if (!clockTimer) clockTimer = setInterval(tickClock, 1000);
+}
+
+export function tickNow() {
+  tickClock();
 }
 
 export function refreshReadout() {

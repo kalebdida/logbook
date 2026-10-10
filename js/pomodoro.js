@@ -4,6 +4,8 @@ import { apiRecordPomodoroSession, apiListPomodoroDays } from "./api.js";
 import { getPrefs } from "./prefs.js";
 import { emitChange } from "./bus.js";
 import { toast } from "./toast.js";
+import { sceneSvg } from "./scene.js";
+import { mountMascot } from "./mascot.js";
 
 export var POMODORO_STORAGE_KEY = "logbook-pomodoro";
 
@@ -13,9 +15,9 @@ var SAVE_INTERVAL = 30 * 1000;
 var LONG_BREAK_EVERY = 4;
 
 var MODE_LABELS = {
-  focus: "focus",
-  shortBreak: "short break",
-  longBreak: "long break"
+  focus: "Focus",
+  shortBreak: "Short break",
+  longBreak: "Long break"
 };
 
 var DEFAULT_DURATIONS = {
@@ -45,31 +47,34 @@ export function renderPomodoro() {
   container.innerHTML = `
     <div class="pomodoro-card" data-pomodoro-mode="focus">
       <div class="pomodoro-head">
-        <h3 class="daily-section-title">${icon("timer")}<span>focus</span></h3>
-        <div class="segmented pomodoro-mode-row" role="group" aria-label="timer mode">
-          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="focus">focus</button>
-          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="shortBreak">short break</button>
-          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="longBreak">long break</button>
+        <h3 class="daily-section-title">${icon("timer")}<span>Focus</span></h3>
+        <div class="segmented pomodoro-mode-row" role="group" aria-label="Timer mode">
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="focus">Focus</button>
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="shortBreak">Short break</button>
+          <button class="seg-btn" type="button" data-pomodoro-action="mode" data-mode="longBreak">Long break</button>
         </div>
       </div>
+
+      <p class="pomodoro-for" id="pomodoroFor" hidden></p>
 
       <div class="pomodoro-dial" id="pomodoroRing">
         <div class="pomodoro-dial-inner">
           <div class="pomodoro-timer" id="pomodoroTime" role="timer">25:00</div>
-          <div class="pomodoro-status" id="pomodoroStatus" aria-live="polite">focus ready</div>
+          <div class="pomodoro-status" id="pomodoroStatus" aria-live="polite">Focus ready</div>
         </div>
       </div>
 
-      <div class="pomodoro-controls" role="group" aria-label="timer controls">
-        <button class="icon-btn icon-btn--lg" type="button" data-pomodoro-action="reset" aria-label="reset" title="reset">${icon("rotate-ccw")}</button>
-        <button class="primary-btn pomodoro-go" id="pomodoroStart" type="button" data-pomodoro-action="start">${icon("play")}<span>start</span></button>
-        <button class="primary-btn pomodoro-go" id="pomodoroPause" type="button" data-pomodoro-action="pause" hidden>${icon("pause")}<span>pause</span></button>
-        <button class="icon-btn icon-btn--lg" id="pomodoroSkip" type="button" data-pomodoro-action="skip" aria-label="skip the break" title="skip the break">${icon("skip-forward")}</button>
+      <div class="pomodoro-controls" role="group" aria-label="Timer controls">
+        <button class="icon-btn icon-btn--lg" type="button" data-pomodoro-action="reset" aria-label="Reset" title="Reset">${icon("rotate-ccw")}</button>
+        <button class="primary-btn pomodoro-go" id="pomodoroStart" type="button" data-pomodoro-action="start">${icon("play")}<span>Start</span></button>
+        <button class="primary-btn pomodoro-go" id="pomodoroPause" type="button" data-pomodoro-action="pause" hidden>${icon("pause")}<span>Pause</span></button>
+        <button class="icon-btn icon-btn--lg" id="pomodoroSkip" type="button" data-pomodoro-action="skip" aria-label="Skip the break" title="Skip the break">${icon("skip-forward")}</button>
       </div>
 
       <div class="pomodoro-summary">
         <span>${icon("circle-check")}<span id="pomodoroSessions">0 sessions today</span></span>
         <span>${icon("hourglass")}<span id="pomodoroFocusTime">0 min focused today</span></span>
+        <button type="button" class="link-btn pomodoro-space-btn" data-pomodoro-action="space">${icon("moon-star")}<span>Focus space</span></button>
       </div>
     </div>
   `;
@@ -77,10 +82,72 @@ export function renderPomodoro() {
   container.onclick = handleClick;
   attachGlobalListeners();
   updateView();
+  try { mountMascot(container, { size: "md", place: "focus" }); } catch (e) { console.warn("logbook: mascot", e); }
 
   if (state.timer.status === "running") {
     startTicking();
   }
+}
+
+/* ---------- the focus space ----------
+   While a focus block runs on the Focus page, everything else steps back:
+   the theme's scene fills the screen, the timer floats on it, the cat naps
+   beside it. Esc, the close button, or leaving the page steps out again. */
+var stage = null;
+
+function buildStage() {
+  if (stage) return stage;
+  stage = document.createElement("div");
+  stage.className = "focus-stage";
+  stage.setAttribute("aria-hidden", "true");
+  stage.innerHTML = '<div class="focus-stage-scene"></div><div class="focus-stage-veil"></div>';
+  var exit = document.createElement("button");
+  exit.type = "button";
+  exit.className = "focus-exit";
+  exit.setAttribute("aria-label", "Leave the focus space");
+  exit.innerHTML = icon("x") + "<span>Leave</span>";
+  exit.addEventListener("click", function () { leaveSpace(true); });
+  document.body.appendChild(stage);
+  document.body.appendChild(exit);
+  return stage;
+}
+
+function paintStage() {
+  var holder = stage && stage.querySelector(".focus-stage-scene");
+  if (!holder) return;
+  holder.innerHTML = sceneSvg(window.innerWidth < window.innerHeight * 1.1 ? { crop: "peak" } : null);
+}
+
+var spaceDismissed = false;
+
+export function enterSpace() {
+  if (document.body.classList.contains("is-focus-space")) return;
+  buildStage();
+  paintStage();
+  spaceDismissed = false;
+  document.body.classList.add("is-focus-space");
+  updateFocusFor();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+export function leaveSpace(byHand) {
+  if (!document.body.classList.contains("is-focus-space")) return;
+  if (byHand) spaceDismissed = true;
+  document.body.classList.remove("is-focus-space");
+}
+
+function maybeEnterSpace() {
+  var onFocusPage = document.body.dataset.page === "focus" || location.hash === "#focus";
+  if (getPrefs().focusScene !== false && onFocusPage && state.timer.status === "running" && !spaceDismissed) enterSpace();
+}
+
+function updateFocusFor() {
+  var el = document.getElementById("pomodoroFor");
+  if (!el) return;
+  var focusLine = document.getElementById("mainFocus");
+  var text = focusLine ? focusLine.value.trim() : "";
+  el.hidden = !text || state.timer.mode !== "focus";
+  el.textContent = text ? "Working on: " + text : "";
 }
 
 export function getPomodoroStats() {
@@ -303,6 +370,7 @@ function startTimer() {
   saveState();
   startTicking();
   updateView();
+  if (state.timer.mode === "focus") maybeEnterSpace();
   emitPomodoroEvent(state.timer.mode === "focus" ? "focus-started" : "break-started", {
     resumed: resumed
   });
@@ -401,16 +469,19 @@ function completeTimer(completedAt, recovered, skipped) {
     recovered: Boolean(recovered),
     skipped: Boolean(skipped)
   });
+  // the break can start by itself (settings); a focus block never does
+  if (completedMode === "focus" && !recovered && getPrefs().autoBreak) setTimeout(function () { startTimer(); }, 600);
+  updateView();
 }
 
 function announce(completedMode, skipped) {
   if (skipped) return;
-  var message = completedMode === "focus" ? "focus block done. take a break." : "break's over. ready to focus?";
+  var message = completedMode === "focus" ? "Focus block done. Take a break." : "Break's over. Ready to focus?";
   toast(message);
   var prefs = getPrefs();
-  if (prefs.sound) chime(completedMode === "focus" ? [660, 880, 990] : [880, 660]);
+  if (prefs.sound) chime(completedMode === "focus" ? [523, 659, 784] : [784, 659]);
   if (prefs.notifications && "Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
-    try { new Notification("logbook", { body: message, tag: "logbook-pomodoro" }); } catch (e) {}
+    try { new Notification("Logbook", { body: message, tag: "logbook-pomodoro" }); } catch (e) {}
   }
 }
 
@@ -422,14 +493,14 @@ function chime(notes) {
     notes.forEach(function (freq, i) {
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
-      osc.type = "square";
+      osc.type = "sine";   // a soft bell, not a beep
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, t + i * 0.16);
-      gain.gain.exponentialRampToValueAtTime(0.06, t + i * 0.16 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.16 + 0.14);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + i * 0.16 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.16 + 0.9);
       osc.connect(gain).connect(audioCtx.destination);
       osc.start(t + i * 0.16);
-      osc.stop(t + i * 0.16 + 0.15);
+      osc.stop(t + i * 0.16 + 0.95);
     });
   } catch (e) {}
 }
@@ -439,7 +510,7 @@ function updateTabTitle() {
   if (!state) return;
   if (state.timer.status === "running") {
     if (baseTitle === null) baseTitle = document.title;
-    document.title = formatTime(Math.ceil(remainingMs() / 1000)) + " " + MODE_LABELS[state.timer.mode] + " · logbook";
+    document.title = formatTime(Math.ceil(remainingMs() / 1000)) + " " + MODE_LABELS[state.timer.mode] + " · Logbook";
   } else if (baseTitle !== null) {
     document.title = baseTitle;
     baseTitle = null;
@@ -480,6 +551,7 @@ function handleClick(event) {
   if (action === "reset") resetTimer();
   if (action === "skip") skipBreak();
   if (action === "mode") selectMode(button.getAttribute("data-mode"));
+  if (action === "space") enterSpace();
 }
 
 function updateView() {
@@ -496,7 +568,8 @@ function updateView() {
   document.getElementById("pomodoroSessions").textContent = today.sessions + (today.sessions === 1 ? " session" : " sessions") + " today";
   document.getElementById("pomodoroFocusTime").textContent = formatFocusTime(today.focusMs) + " focused today";
   var start = document.getElementById("pomodoroStart");
-  start.querySelector("span").textContent = timer.status === "paused" ? "resume" : "start";
+  start.querySelector("span").textContent = timer.status === "paused" ? "Resume" : isBreak ? "Start break" : "Start";
+  updateFocusFor();
   start.disabled = isRunning;
   start.hidden = isRunning;
   var pause = document.getElementById("pomodoroPause");
@@ -596,4 +669,15 @@ function attachGlobalListeners() {
   });
   window.addEventListener("focus", refreshAfterAway);
   window.addEventListener("pagehide", saveState);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && document.body.classList.contains("is-focus-space") && !document.querySelector(".overlay:not([hidden])")) leaveSpace(true);
+  });
+  document.addEventListener("logbook:navigated", function (e) {
+    if (e.detail.page !== "focus") leaveSpace(false);
+    else maybeEnterSpace();
+  });
+  document.addEventListener("logbook:theme-changed", function () {
+    if (document.body.classList.contains("is-focus-space")) paintStage();
+  });
 }

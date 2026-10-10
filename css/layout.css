@@ -276,8 +276,7 @@ html.has-backdrop-image body::before {
   margin-bottom: 28px;
 }
 body[data-page="dashboard"] #pageHeader { display: none; }
-/* the sidebar already has search on wide screens */
-@media (min-width: 761px) { .header-cmd { display: none; } }
+
 
 #pageTitle {
   color: var(--text);
@@ -301,6 +300,8 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 }
 .header-cmd:hover { border-color: rgb(var(--accent2-rgb) / 0.45); color: var(--text-2); }
 .header-cmd > span:nth-child(2) { margin-right: 10px; }
+/* the sidebar already has search on wide screens */
+@media (min-width: 761px) { .header-cmd { display: none; } }
 
 #storageWarning {
   margin-bottom: 20px;

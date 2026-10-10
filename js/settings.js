@@ -12,6 +12,7 @@ import { renderAccountCard } from './account.js';
 import { renderThemeCard } from './themeSettings.js';
 import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
+import { LINE_KINDS, linesFor } from './verse.js';
 
 /* Copy this into the browser console on the OLD copy of logbook (the
    page where your old data lives) to download everything it stored. */
@@ -37,6 +38,11 @@ function number(id, label, value, min, max) {
   );
 }
 
+function cardHead(iconName, title, hint) {
+  return '<header class="settings-card-head"><h3 class="card-title">' + icon(iconName) + "<span>" + title + "</span></h3>" +
+    (hint ? '<p class="setting-hint">' + hint + "</p>" : "") + "</header>";
+}
+
 function download(obj, filename) {
   var blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
   var url = URL.createObjectURL(blob);
@@ -49,65 +55,153 @@ function download(obj, filename) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
+var GROUPS = [
+  ["look", "palette", "Look"],
+  ["you", "user", "You"],
+  ["today", "house", "Today page"],
+  ["focus", "timer", "Focus"],
+  ["account", "users", "Account"],
+  ["ai", "sparkles", "AI"],
+  ["data", "archive", "Your data"]
+];
+
+var DASH_CARDS = [
+  ["habits", "Habits", "The daily check-ins"],
+  ["brainDump", "Brain dump", "A place to empty your head"],
+  ["log", "Time log", "What you did, by life area"],
+  ["night", "Tonight", "Win, lesson, gratitude, tomorrow's tasks"],
+  ["replay", "On this day", "An entry from a week or more ago"]
+];
+
+function group(id, title, hint, body) {
+  return '<section class="settings-group" id="set-' + id + '" data-group="' + id + '" aria-labelledby="set-' + id + '-title">' +
+    '<header class="settings-group-head"><h2 class="settings-group-title" id="set-' + id + '-title">' + title + "</h2>" +
+    (hint ? '<p class="settings-group-hint">' + hint + "</p>" : "") + "</header>" +
+    '<div class="settings-grid">' + body + "</div></section>";
+}
+
 export function renderSettings() {
   var el = document.getElementById("settingsSection");
   if (!el) return;
   var p = getPrefs();
   var legacy = readLegacyLocalStorage();
+  var dash = Object.assign({}, DEFAULT_PREFS.dash, p.dash || {});
+  var kind = p.dailyLine || "verse";
 
   el.innerHTML =
-    '<div class="settings-grid">' +
-    '<section class="settings-card settings-card--wide" id="settingsTheme"></section>' +
-    '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>' +
-    '<section class="settings-card">' +
-      '<h3 class="daily-section-title">' + icon("user") + "<span>you</span></h3>" +
-      '<label class="setting-row" for="prefName">' +
-        '<span class="setting-text"><span class="setting-label">name</span><span class="setting-hint">used in greetings</span></span>' +
-        '<input class="text-input" id="prefName" maxlength="40" value="' + escapeHtml(p.name) + '">' +
-      "</label>" +
-      toggle("prefAutosave", "autosave the daily page", "saves a moment after you stop typing", p.autosave) +
-    "</section>" +
+    '<div class="settings-layout">' +
+    '<nav class="settings-nav" aria-label="Settings sections">' +
+      GROUPS.map(function (g) {
+        return '<a class="settings-nav-item" href="#set-' + g[0] + '" data-jump="' + g[0] + '">' + icon(g[1]) + "<span>" + g[2] + "</span></a>";
+      }).join("") +
+    "</nav>" +
+    '<div class="settings-groups">' +
 
-    '<section class="settings-card">' +
-      '<h3 class="daily-section-title">' + icon("timer") + "<span>focus timer</span></h3>" +
-      number("prefFocus", "focus", p.focusMinutes, 1, 180) +
-      number("prefShort", "short break", p.shortBreakMinutes, 1, 60) +
-      number("prefLong", "long break", p.longBreakMinutes, 1, 90) +
-      toggle("prefSound", "chime when a block ends", "", p.sound) +
-      toggle("prefNotify", "desktop notification", "only when the tab is in the background", p.notifications) +
-    "</section>" +
+    group("look", "Look", "Themes, the moving sky, and how the app feels.",
+      '<section class="settings-card settings-card--wide" id="settingsTheme"></section>' +
+      '<section class="settings-card">' +
+        cardHead("sparkle", "Effects") +
+        toggle("prefRain", "Moving sky", "Stars, rain, snow, fog: whatever your theme has. Off saves battery.", p.rain) +
+        toggle("prefScanlines", "CRT scanlines", "Only on the retro themes that have them", p.scanlines) +
+        toggle("prefBoot", "Boot sequence", "The terminal theme types its way in when the app opens", p.boot) +
+      "</section>" +
+      '<section class="settings-card">' +
+        cardHead("clock", "Clock") +
+        toggle("prefClock24", "24-hour clock", "Off shows 2:30 PM instead of 14:30", p.clock24 !== false) +
+      "</section>") +
 
-    '<section class="settings-card" id="settingsReminders"><h3 class="daily-section-title">' + icon("bell") + "<span>reminders</span></h3>" + renderReminderRows() + '</section>' +
-    '<section class="settings-card">' +
-      '<h3 class="daily-section-title">' + icon("sparkle") + "<span>effects</span></h3>" +
-      toggle("prefRain", "moving sky", "twinkling stars, rain, snow: whatever your theme uses. off saves battery", p.rain) +
-      toggle("prefScanlines", "crt scanlines", "only on the retro themes that have them", p.scanlines) +
-      toggle("prefBoot", "boot sequence", "the terminal theme types its way in when the app opens", p.boot) +
-      '<button type="button" class="link-btn" id="prefReset">reset these settings</button>' +
-    "</section>" +
+    group("you", "You", "What the app calls you, and who keeps you company.",
+      '<section class="settings-card">' +
+        cardHead("user", "Your name") +
+        '<label class="setting-row setting-row--stack" for="prefName">' +
+          '<span class="setting-text"><span class="setting-label">Name</span><span class="setting-hint">Used in greetings. Empty uses your username.</span></span>' +
+          '<input class="text-input" id="prefName" maxlength="40" placeholder="Your name" value="' + escapeHtml(p.name) + '">' +
+        "</label>" +
+      "</section>" +
+      '<section class="settings-card">' +
+        cardHead("heart", "Companion cat", "A small cat that naps, cheers when you finish things, and keeps you company in focus.") +
+        toggle("prefMascot", "Show the cat", "", p.mascot !== false) +
+        '<label class="setting-row setting-row--stack" for="prefMascotName">' +
+          '<span class="setting-text"><span class="setting-label">Its name</span></span>' +
+          '<input class="text-input" id="prefMascotName" maxlength="24" value="' + escapeHtml(p.mascotName || "Mochi") + '">' +
+        "</label>" +
+      "</section>" +
+      '<section class="settings-card settings-card--wide" id="settingsLine">' +
+        cardHead("quote", "The line on your dashboard", "Pick what greets you each day. The refresh button on the card shows another one.") +
+        '<div class="line-picker" role="radiogroup" aria-label="Daily line">' +
+          Object.keys(LINE_KINDS).map(function (k) {
+            var info = LINE_KINDS[k];
+            var sample = k === "off" ? "Hide the card" : k === "custom" ? "Write your own below" : (linesFor(k)[0] || {}).text || "";
+            return '<label class="line-option' + (kind === k ? " is-on" : "") + '">' +
+              '<input type="radio" name="dailyLine" value="' + k + '"' + (kind === k ? " checked" : "") + ">" +
+              '<span class="line-option-icon">' + icon(info.icon || "eye") + "</span>" +
+              '<span class="line-option-text"><b>' + info.label + "</b><small>" + escapeHtml(sample.length > 70 ? sample.slice(0, 68) + "…" : sample) + "</small></span>" +
+            "</label>";
+          }).join("") +
+        "</div>" +
+        '<label class="setting-row setting-row--stack" for="prefLineCustom"' + (kind === "custom" || kind === "mix" ? "" : " hidden") + ">" +
+          '<span class="setting-text"><span class="setting-label">Your lines</span><span class="setting-hint">One per line. Add a source after a dash: <em>Keep going — Mom</em></span></span>' +
+          '<textarea class="text-area" id="prefLineCustom" rows="4" placeholder="Discipline is remembering what you want.">' + escapeHtml(p.dailyLineCustom || "") + "</textarea>" +
+        "</label>" +
+      "</section>") +
 
-    '<section class="settings-card" id="settingsAI"></section>' +
-    '<section class="settings-card" id="settingsApp"></section>' +
-    '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
-    '<section class="settings-card settings-card--wide">' +
-      '<h3 class="daily-section-title">' + icon("archive") + "<span>your data</span></h3>" +
-      '<div class="db-status" id="dbStatus"><span class="status-dot"></span> checking the backend…</div>' +
-      '<div class="settings-actions">' +
-        '<button type="button" class="primary-btn" id="backupExport">' + icon("download") + "<span>download full backup</span></button>" +
-        '<button type="button" class="tool-btn" id="backupImport">' + icon("upload") + "<span>import a file</span></button>" +
-        '<input type="file" id="backupFile" accept="application/json,.json" hidden>' +
-      "</div>" +
-      '<p class="setting-hint">a backup holds everything: entries, daily pages, tasks, activities, goals, focus history. importing never deletes or overwrites anything, so it\'s safe to import the same file twice. it accepts full backups, old journal exports, and old-version data files.</p>' +
-      (legacy
-        ? '<div class="legacy-box"><p><strong>found data from the old version in this browser.</strong> bring it into the backend?</p><button type="button" class="primary-btn" id="legacyImport">import old data</button></div>'
-        : "") +
-      '<details class="legacy-help"><summary>moving data from an old copy at a different address</summary>' +
-        "<p>old versions saved everything inside the browser, at whatever address you opened them from. to move it here: open the old copy, open devtools (F12), go to console, paste this, press enter. it downloads <code>logbook-old-data.json</code>. then use “import a file” above.</p>" +
-        '<div class="snippet"><code id="legacySnippet">' + escapeHtml(LEGACY_SNIPPET) + '</code><button type="button" class="tool-btn" id="copySnippet">copy</button></div>' +
-      "</details>" +
-    "</section>" +
+    group("today", "Today page", "Show only what you use. Hidden cards keep their data.",
+      '<section class="settings-card settings-card--wide">' +
+        cardHead("layout-grid", "Cards on the Today page") +
+        '<div class="toggle-grid">' +
+          DASH_CARDS.map(function (c) { return toggle("dash-" + c[0], c[1], c[2], dash[c[0]] !== false); }).join("") +
+        "</div>" +
+      "</section>") +
 
-    "</div>";
+    group("focus", "Focus", "The timer, the focus space, and gentle nudges.",
+      '<section class="settings-card">' +
+        cardHead("timer", "Focus timer") +
+        number("prefFocus", "Focus", p.focusMinutes, 1, 180) +
+        number("prefShort", "Short break", p.shortBreakMinutes, 1, 60) +
+        number("prefLong", "Long break", p.longBreakMinutes, 1, 90) +
+        toggle("prefAutoBreak", "Start breaks by themselves", "When a focus block ends, the break starts right away", p.autoBreak) +
+      "</section>" +
+      '<section class="settings-card">' +
+        cardHead("moon-star", "Focus space") +
+        toggle("prefFocusScene", "Fill the screen while focusing", "The timer sits on your theme's scene with nothing else around. Esc or the button leaves.", p.focusScene !== false) +
+        toggle("prefSound", "Chime when a block ends", "", p.sound) +
+        toggle("prefNotify", "Desktop notification", "Only when the tab is in the background", p.notifications) +
+      "</section>" +
+      '<section class="settings-card" id="settingsReminders">' + cardHead("bell", "Reminders") + renderReminderRows() + "</section>") +
+
+    group("account", "Account", "",
+      '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>') +
+
+    group("ai", "AI companion", "Optional. The companion works without it, using simple local rules.",
+      '<section class="settings-card settings-card--wide" id="settingsAI"></section>') +
+
+    group("data", "Your data", "Where it lives, backups, and the app itself.",
+      '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
+      '<section class="settings-card settings-card--wide">' +
+        cardHead("archive", "Backups") +
+        '<div class="db-status" id="dbStatus"><span class="status-dot"></span> Checking…</div>' +
+        '<div class="settings-actions">' +
+          '<button type="button" class="primary-btn" id="backupExport">' + icon("download") + "<span>Download full backup</span></button>" +
+          '<button type="button" class="tool-btn" id="backupImport">' + icon("upload") + "<span>Import a file</span></button>" +
+          '<input type="file" id="backupFile" accept="application/json,.json" hidden>' +
+        "</div>" +
+        '<p class="setting-hint">A backup holds everything: entries, daily pages, tasks, activities, goals, habits, focus history. Importing never deletes or overwrites anything, so it\'s safe to import the same file twice. It accepts full backups, journal exports, and data from older versions.</p>' +
+        (legacy
+          ? '<div class="legacy-box"><p><strong>Found data from the old version in this browser.</strong> Bring it in?</p><button type="button" class="primary-btn" id="legacyImport">Import old data</button></div>'
+          : "") +
+        '<details class="legacy-help"><summary>Moving data from an old copy at a different address</summary>' +
+          "<p>Old versions saved everything inside the browser, at whatever address you opened them from. To move it here: open the old copy, open devtools (F12), go to Console, paste this, press Enter. It downloads <code>logbook-old-data.json</code>. Then use “Import a file” above.</p>" +
+          '<div class="snippet"><code id="legacySnippet">' + escapeHtml(LEGACY_SNIPPET) + '</code><button type="button" class="tool-btn" id="copySnippet">Copy</button></div>' +
+        "</details>" +
+      "</section>" +
+      '<section class="settings-card" id="settingsApp"></section>' +
+      '<section class="settings-card">' +
+        cardHead("rotate-ccw", "Start over") +
+        '<p class="setting-hint">Puts this page\'s settings back to how they started. Your journal and themes stay.</p>' +
+        '<div class="settings-actions"><button type="button" class="tool-btn" id="prefReset">' + icon("rotate-ccw") + "<span>Reset settings</span></button></div>" +
+      "</section>") +
+
+    "</div></div>";
 
   wire(el);
   wireReminderRows(el.querySelector("#settingsReminders"));
@@ -115,6 +209,28 @@ export function renderSettings() {
   renderThemeCard(el.querySelector("#settingsTheme"));
   refreshServerCards();
   renderAppCard(el.querySelector("#settingsApp"));
+  wireNav(el);
+}
+
+/* the section list follows you down the page */
+function wireNav(el) {
+  var links = el.querySelectorAll("[data-jump]");
+  links.forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      var target = document.getElementById("set-" + a.getAttribute("data-jump"));
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  if (!("IntersectionObserver" in window)) return;
+  var io = new IntersectionObserver(function (items) {
+    items.forEach(function (it) {
+      if (!it.isIntersecting) return;
+      var id = it.target.getAttribute("data-group");
+      links.forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("data-jump") === id); });
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  el.querySelectorAll(".settings-group").forEach(function (g) { io.observe(g); });
 }
 
 /* The cards that depend on who's logged in. Settings is first drawn while
@@ -123,7 +239,15 @@ export function renderSettings() {
 export function refreshServerCards() {
   var warn = function (e) { console.warn(e); };
   renderStorageCard(document.getElementById("settingsStorage")).catch(warn);
-  renderAccountCard(document.getElementById("settingsAccount")).catch(warn);
+  var acct = document.getElementById("settingsAccount");
+  renderAccountCard(acct).then(function () {
+    // no accounts on this server: the whole Account section goes away
+    var off = !acct || acct.hidden;
+    var grp = document.getElementById("set-account");
+    var nav = document.querySelector('[data-jump="account"]');
+    if (grp) grp.hidden = off;
+    if (nav) nav.hidden = off;
+  }).catch(warn);
   renderAICard(document.getElementById("settingsAI")).catch(warn);
 }
 
@@ -135,14 +259,14 @@ async function refreshDbStatus() {
     var c = h.counts || {};
     box.className = "db-status is-online";
     box.innerHTML =
-      '<span class="status-dot"></span> ' + (isDevice() ? "saved on this device" : "backend online, v" + escapeHtml(h.version) + ", " + escapeHtml(h.database || "")) +
+      '<span class="status-dot"></span> ' + (isDevice() ? "Saved on this device" : "Server online · version " + escapeHtml(h.version) + " · " + escapeHtml(h.database || "")) +
       '<div class="db-counts">' +
-        [["entries", c.entries], ["days", c.day_records], ["tasks", c.tasks], ["activities", c.activities], ["goals", c.goals], ["focus days", c.pomodoro_days]]
-          .map(function (x) { return "<span><b>" + x[1] + "</b> " + x[0] + "</span>"; }).join("") +
+        [["entries", c.entries], ["days", c.day_records], ["tasks", c.tasks], ["activities", c.activities], ["goals", c.goals], ["habits", c.habits], ["focus days", c.pomodoro_days]]
+          .map(function (x) { return "<span><b>" + (x[1] || 0) + "</b> " + x[0] + "</span>"; }).join("") +
       "</div>";
   } catch (e) {
     box.className = "db-status is-offline";
-    box.innerHTML = '<span class="status-dot"></span> backend offline. start it with <code>uvicorn app.main:app --reload</code> in the backend folder.';
+    box.innerHTML = '<span class="status-dot"></span> Server offline. If it runs on this computer, start it with <code>uvicorn app.main:app --reload</code> in the backend folder.';
   }
 }
 
@@ -163,7 +287,8 @@ function wire(el) {
     nameTimer = setTimeout(function () { setPrefs({ name: v || DEFAULT_PREFS.name }); }, 300);
   });
 
-  var toggles = { prefAutosave: "autosave", prefSound: "sound", prefRain: "rain", prefScanlines: "scanlines", prefBoot: "boot" };
+  var toggles = { prefSound: "sound", prefRain: "rain", prefScanlines: "scanlines", prefBoot: "boot", prefClock24: "clock24",
+    prefMascot: "mascot", prefAutoBreak: "autoBreak", prefFocusScene: "focusScene" };
   Object.keys(toggles).forEach(function (id) {
     el.querySelector("#" + id).addEventListener("change", function (e) {
       var patch = {};
@@ -172,17 +297,46 @@ function wire(el) {
     });
   });
 
+  var catTimer = null;
+  el.querySelector("#prefMascotName").addEventListener("input", function (e) {
+    clearTimeout(catTimer);
+    var v = e.target.value.trim();
+    catTimer = setTimeout(function () { setPrefs({ mascotName: v || "Mochi" }); }, 300);
+  });
+
+  el.querySelectorAll('input[name="dailyLine"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      setPrefs({ dailyLine: r.value });
+      el.querySelectorAll(".line-option").forEach(function (o) { o.classList.toggle("is-on", o.contains(r)); });
+      var custom = el.querySelector('[for="prefLineCustom"]');
+      if (custom) custom.hidden = !(r.value === "custom" || r.value === "mix");
+    });
+  });
+  var lineTimer = null;
+  el.querySelector("#prefLineCustom").addEventListener("input", function (e) {
+    clearTimeout(lineTimer);
+    lineTimer = setTimeout(function () { setPrefs({ dailyLineCustom: e.target.value }); }, 400);
+  });
+
+  el.querySelectorAll('[id^="dash-"]').forEach(function (box) {
+    box.addEventListener("change", function () {
+      var dash = Object.assign({}, DEFAULT_PREFS.dash, getPrefs().dash || {});
+      dash[box.id.slice(5)] = box.checked;
+      setPrefs({ dash: dash });
+    });
+  });
+
   el.querySelector("#prefNotify").addEventListener("change", async function (e) {
     var box = e.target;
     if (!box.checked) return setPrefs({ notifications: false });
     if (!("Notification" in window)) {
       box.checked = false;
-      return toast("this browser doesn't support notifications", "warn");
+      return toast("This browser doesn't support notifications", "warn");
     }
     var perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
     box.checked = perm === "granted";
     setPrefs({ notifications: box.checked });
-    if (!box.checked) toast("notifications are blocked for this site in your browser settings", "warn");
+    if (!box.checked) toast("Notifications are blocked for this site in your browser settings", "warn");
   });
 
   var nums = { prefFocus: "focusMinutes", prefShort: "shortBreakMinutes", prefLong: "longBreakMinutes" };
@@ -192,13 +346,13 @@ function wire(el) {
       var min = Number(e.target.min), max = Number(e.target.max);
       if (!(v >= min && v <= max)) {
         e.target.value = getPrefs()[nums[id]];
-        return toast("pick between " + min + " and " + max + " minutes", "warn");
+        return toast("Pick between " + min + " and " + max + " minutes", "warn");
       }
       var patch = {};
       patch[nums[id]] = v;
       setPrefs(patch);
       applyPomodoroDurations();
-      toast("timer updated");
+      toast("Timer updated");
     });
   });
 
@@ -207,16 +361,16 @@ function wire(el) {
     setPrefs(Object.assign({}, DEFAULT_PREFS, { name: keepName }));
     applyPomodoroDurations();
     renderSettings();
-    toast("settings reset");
+    toast("Settings reset");
   });
 
   el.querySelector("#backupExport").addEventListener("click", async function () {
     try {
       var data = await apiExportBackup();
       download(data, "logbook-backup-" + new Date().toISOString().slice(0, 10) + ".json");
-      toast("backup downloaded");
+      toast("Backup downloaded");
     } catch (e) {
-      toast("couldn't create the backup. is the backend running?", "error");
+      toast("Couldn't create the backup. Check your connection and try again.", "error");
     }
   });
 
@@ -230,7 +384,7 @@ function wire(el) {
     try {
       await runImport(await readImportFile(file));
     } catch (err) {
-      toast("import failed: " + (err.message || "invalid file"), "error");
+      toast("Import failed: " + (err.message || "invalid file"), "error");
     }
   });
 
@@ -241,10 +395,10 @@ function wire(el) {
       try {
         await runImport(readLegacyLocalStorage(true));
         markLegacyImported();
-        legacyBtn.closest(".legacy-box").innerHTML = "<p>old data imported. it's still in this browser too, untouched.</p>";
+        legacyBtn.closest(".legacy-box").innerHTML = "<p>Old data imported. It's still in this browser too, untouched.</p>";
       } catch (err) {
         legacyBtn.disabled = false;
-        toast("import failed: " + (err.message || "unknown error"), "error");
+        toast("Import failed: " + (err.message || "unknown error"), "error");
       }
     });
   }
@@ -252,14 +406,14 @@ function wire(el) {
   el.querySelector("#copySnippet").addEventListener("click", async function () {
     try {
       await navigator.clipboard.writeText(LEGACY_SNIPPET);
-      toast("copied");
+      toast("Copied");
     } catch (e) {
       var range = document.createRange();
       range.selectNodeContents(el.querySelector("#legacySnippet"));
       var sel = window.getSelection();
       sel.removeAllRanges();
       sel.addRange(range);
-      toast("selected. press ctrl+c to copy", "warn");
+      toast("Selected. Press Ctrl+C to copy", "warn");
     }
   });
 

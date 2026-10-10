@@ -9,14 +9,20 @@ import { sceneSvg } from './scene.js';
 var waiting = null;
 
 var MODES = {
-  login: { line: "welcome back. log in to open your logbook.", button: "log in" },
-  join: { line: "got an invite? make your account.", button: "create account" },
-  reset: { line: "got a reset code from the admin? set a new password.", button: "set password" }
+  login: { line: "Welcome back. Log in to open your logbook.", button: "Log in" },
+  join: { line: "Got an invite? Make your account. Your logbook is yours alone.", button: "Create account" },
+  reset: { line: "Got a reset code? Set a new password.", button: "Set new password" }
 };
 
-function field(label, name, type, autocomplete, extra) {
+function field(label, name, type, autocomplete, iconName, extra) {
+  var peek = type === "password"
+    ? '<button type="button" class="icon-btn icon-btn--sm lock-peek" data-peek="' + name + '" aria-label="Show password" aria-pressed="false">' + icon("eye") + "</button>"
+    : "";
   return '<label class="lock-field" data-field="' + name + '"><span>' + label + "</span>" +
-    '<input type="' + type + '" name="' + name + '" autocomplete="' + autocomplete + '"' + (extra || "") + "></label>";
+    '<span class="lock-input">' +
+      '<input type="' + type + '" name="' + name + '" autocomplete="' + autocomplete + '"' + (extra || "") + ">" +
+      icon(iconName) + peek +
+    "</span></label>";
 }
 
 /* What a browser keeps between people on a shared phone: the companion
@@ -42,23 +48,30 @@ export function showLock(reason) {
     el.innerHTML =
       '<div class="lock-scene" aria-hidden="true">' + sceneSvg(window.innerWidth < window.innerHeight * 1.2 ? { crop: "peak" } : null) + "</div>" +
       '<form class="lock-panel" autocomplete="on" novalidate>' +
-        '<div class="lock-brand"><span class="brand-mark">' + icon("moon-star") + "</span>logbook</div>" +
-        '<p class="lock-line"></p>' +
-        '<p class="lock-server">' + icon("server") + "<span>" + escapeHtml(describeConnection()) + "</span></p>" +
-        '<div class="lock-tabs" role="tablist">' +
-          '<button type="button" class="lock-tab" data-mode="login">log in</button>' +
-          '<button type="button" class="lock-tab" data-mode="join">join</button>' +
-          '<button type="button" class="lock-tab" data-mode="reset">reset</button>' +
+        '<header class="lock-head">' +
+          '<span class="lock-mark" aria-hidden="true">' + icon("moon-star") + "</span>" +
+          '<h1 class="lock-brand">Logbook</h1>' +
+          '<p class="lock-line"></p>' +
+        "</header>" +
+        '<div class="lock-tabs" role="tablist" aria-label="What do you want to do?">' +
+          '<button type="button" class="lock-tab" role="tab" data-mode="login">Log in</button>' +
+          '<button type="button" class="lock-tab" role="tab" data-mode="join">Join</button>' +
+          '<button type="button" class="lock-tab" role="tab" data-mode="reset">Reset</button>' +
         "</div>" +
-        field("invite code", "invite", "text", "off", ' placeholder="xxxx-xxxx-xxxx" spellcheck="false" autocapitalize="off"') +
-        field("reset code", "code", "text", "off", ' placeholder="xxxx-xxxx-xxxx" spellcheck="false" autocapitalize="off"') +
-        field("username", "username", "text", "username", ' spellcheck="false" autocapitalize="off" maxlength="32"') +
-        field("password", "password", "password", "current-password", "") +
-        field("password again", "password2", "password", "new-password", "") +
-        '<p class="lock-hint" data-hint="new">at least 10 characters. the app never shows your logbook to anyone else, the admin included.</p>' +
+        '<div class="lock-fields">' +
+          field("Invite code", "invite", "text", "off", "key-round", ' placeholder="xxxx-xxxx-xxxx" spellcheck="false" autocapitalize="off"') +
+          field("Reset code", "code", "text", "off", "key-round", ' placeholder="xxxx-xxxx-xxxx" spellcheck="false" autocapitalize="off"') +
+          field("Username", "username", "text", "username", "user", ' spellcheck="false" autocapitalize="off" maxlength="32"') +
+          field("Password", "password", "password", "current-password", "lock", "") +
+          field("Password again", "password2", "password", "new-password", "lock", "") +
+        "</div>" +
+        '<p class="lock-hint" data-hint="new">At least 10 characters. Nobody else can read your logbook, the admin included.</p>' +
         '<p class="lock-error" role="alert"></p>' +
         '<button type="submit" class="primary-btn"></button>' +
-        '<button type="button" class="link-btn lock-switch" data-lock="device">use this device instead</button>' +
+        '<footer class="lock-foot">' +
+          '<span class="lock-server" title="Where your logbook lives">' + icon("server") + "<span>" + escapeHtml(describeConnection()) + "</span></span>" +
+          '<button type="button" class="link-btn lock-switch" data-lock="device">Use this device instead</button>' +
+        "</footer>" +
       "</form>";
     document.body.appendChild(el);
     document.body.classList.add("has-overlay", "is-booted");
@@ -71,7 +84,7 @@ export function showLock(reason) {
     function setMode(next) {
       mode = next;
       var isNew = mode !== "login";
-      form.querySelector(".lock-line").textContent = mode === "login" && reason === "expired" ? "you were logged out. log in again." : MODES[mode].line;
+      form.querySelector(".lock-line").textContent = mode === "login" && reason === "expired" ? "You were logged out. Log in again." : MODES[mode].line;
       form.querySelector("button[type=submit]").textContent = MODES[mode].button;
       form.querySelectorAll(".lock-tab").forEach(function (t) {
         t.classList.toggle("is-active", t.getAttribute("data-mode") === mode);
@@ -82,7 +95,7 @@ export function showLock(reason) {
       form.querySelector('[data-field="password2"]').hidden = !isNew;
       form.querySelector('[data-hint="new"]').hidden = !isNew;
       f.password.setAttribute("autocomplete", isNew ? "new-password" : "current-password");
-      form.querySelector('[data-field="password"] span').textContent = isNew ? "new password" : "password";
+      form.querySelector('[data-field="password"] > span').textContent = isNew ? "New password" : "Password";
       err.textContent = "";
       var first = mode === "join" ? f.invite : mode === "reset" ? f.code : (f.username.value ? f.password : f.username);
       setTimeout(function () { first.focus(); }, 30);
@@ -92,15 +105,26 @@ export function showLock(reason) {
     form.querySelectorAll(".lock-tab").forEach(function (t) {
       t.addEventListener("click", function () { setMode(t.getAttribute("data-mode")); });
     });
+    form.querySelectorAll("[data-peek]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var input = f[b.getAttribute("data-peek")];
+        var show = input.type === "password";
+        input.type = show ? "text" : "password";
+        b.setAttribute("aria-pressed", String(show));
+        b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+        b.innerHTML = icon(show ? "eye-off" : "eye");
+        input.focus();
+      });
+    });
 
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
       err.textContent = "";
       var username = f.username.value.trim().toLowerCase();
       if (mode !== "login") {
-        if (!username) { err.textContent = "pick a username."; return f.username.focus(); }
-        if (f.password.value.length < 10) { err.textContent = "password needs at least 10 characters."; return f.password.focus(); }
-        if (f.password.value !== f.password2.value) { err.textContent = "the two passwords don't match."; return f.password2.focus(); }
+        if (!username) { err.textContent = "Pick a username."; return f.username.focus(); }
+        if (f.password.value.length < 10) { err.textContent = "Your password needs at least 10 characters."; return f.password.focus(); }
+        if (f.password.value !== f.password2.value) { err.textContent = "The two passwords don't match."; return f.password2.focus(); }
       } else if (!f.password.value) {
         return f.password.focus();
       }
@@ -129,16 +153,16 @@ export function showLock(reason) {
         waiting = null;
         resolve(true);
       } catch (ex) {
-        err.textContent = ex.status === 401 ? "wrong username or password."
+        err.textContent = ex.status === 401 ? "Wrong username or password."
           : ex.status === 429 || ex.status === 400 ? ex.detail
-          : "can't reach the server.";
+          : "Can't reach the server. It may be waking up; try again in a moment.";
         f.password.select();
       } finally {
         btn.disabled = false;
       }
     });
     form.querySelector('[data-lock="device"]').addEventListener("click", function () {
-      if (!confirm("switch this copy of logbook to keep data on this device? your server data stays on the server.")) return;
+      if (!confirm("Switch this copy of Logbook to keep data on this device? Your server data stays on the server.")) return;
       clearLocalTraces();
       setConnection({ mode: "device", token: "" });
       location.reload();

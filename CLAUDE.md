@@ -4,11 +4,15 @@ Personal OS. Kal runs the server; a few friends get invite-only accounts, each f
 Default look is the "night" theme: Fuji under the stars, a quiet town, a lit corner shop.
 Deep navy `#0a1430`, glass cards, window gold `#f4c56c` for actions and what's active,
 street-lamp blue `#8ec8ff` for focus, links and selection, lantern `#f5ad7a`, soft red `#ec8f95`.
-Type: Zen Maru Gothic for UI, Shippori Mincho for headings, the clock, the verse and the
-companion's question (both self-hosted in `assets/fonts`, OFL). Moods are weather:
+Type: Lexend for UI, headings and the clock (bold and big where it matters); Shippori Mincho
+only for the daily verse/quote and the companion's question (all self-hosted in
+`assets/fonts`, OFL). Moods are weather:
 good = sun, okay = cloud-sun, rough = cloud-rain (`STATUS` in `entries.js`).
-Voice: lowercase, short, plain, warm. No terminal jargon in the default look (no "> ",
+Voice: Sentence case, short, plain, warm. No terminal jargon in the default look (no "> ",
 ".exe", "commit", status codes); the terminal theme keeps those touches in `themes.css`.
+Fewer buttons: one primary action per area; numbers and cards are themselves the way in.
+Scene themes (night, window, bluehour, city, room, torii, mist, rooftop) draw `js/scene.js`;
+Mochi the cat is `js/mascot.js` + `css/mascot.css`.
 Icons, never emoji: `icon("name")` from `js/icons.js` (Lucide paths; add new names there),
 or `<span data-icon="name">` in static HTML.
 
@@ -56,7 +60,13 @@ or `<span data-icon="name">` in static HTML.
 grids, overlays; `scene.css` the night (page sky, dashboard window, lock screen); `components.css`
 every feature, in page order; `themes.css` per-theme touches; `motion.css` all keyframes.
 Buttons: `.primary-btn` (lit, one per area), `.tool-btn`, `.icon-btn`, `.chip`, `.seg-btn` in a
-`.segmented`. Motion answers the user (press, check, open); the only ambient motion is the sky.
+`.segmented`. Motion answers the user (press, check, open); ambient motion is the sky, the scene's
+small details and the cat, all slow and off under reduced motion. `css/mascot.css` holds the cat.
+
+## Working on big changes
+
+Commit after each finished stage so the repo is always in a working state, and keep stages
+small enough that a cut-off session can pick up from `git log`.
 
 ## Backend
 
@@ -71,5 +81,6 @@ Buttons: `.primary-btn` (lit, one per area), `.tool-btn`, `.icon-btn`, `.chip`, 
 
 ## Hosting and Android
 
-- `docs/HOSTING.md`: GitHub Pages (device mode), Render + Neon, Docker.
+- `docs/HOSTING.md`: GitHub Pages as the front door (clean link; `config.js` carries the API URL,
+  baked in by `build_web.py` from `LOGBOOK_API_URL`), Render API + Neon database, Docker.
 - `docs/ANDROID.md`: Capacitor 8; `.github/workflows/android.yml` builds a debug APK.

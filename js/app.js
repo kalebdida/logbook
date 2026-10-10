@@ -17,7 +17,7 @@ import { startMusic } from './music.js';
 import { renderHabits } from './habits.js';
 import { startPWA } from './pwa.js';
 import { showStorageWarning, startBoot, initSplash } from './ui.js';
-import { renderTodayConsole, refreshReadout } from './today.js';
+import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
 import { renderCalendar } from './calendar.js';
@@ -33,6 +33,9 @@ import { checkBackend, startStatusWatch, onStatus } from './status.js';
 function applyLook() {
   var p = getPrefs();
   document.body.classList.toggle("no-scanlines", !p.scanlines);
+  // Today page cards switched off in settings
+  var dash = p.dash || {};
+  document.body.dataset.hide = Object.keys(dash).filter(function (k) { return dash[k] === false; }).join(" ");
 }
 
 function renderEntryViews() {
@@ -172,7 +175,7 @@ async function init() {
 
   document.addEventListener("logbook:prefs-changed", function (e) {
     applyLook();
-    if ("name" in e.detail.patch) refreshReadout();
+    if ("name" in e.detail.patch || "clock24" in e.detail.patch) { refreshReadout(); tickNow(); }
   });
 
   // a new day started while the tab was open: reload today's views

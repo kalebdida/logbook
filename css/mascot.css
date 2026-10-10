@@ -326,3 +326,4 @@ html[data-theme-mode="light"] .mascot {
   .mascot.is-fx[data-fx="both"] .m-fx-item { opacity: 1; }
   .mascot.is-sleeping .m-z { opacity: 0.85; }
 }
+body.is-focus-space .mascot.is-sleeping .mascot-bubble { display: none; }

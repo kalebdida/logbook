@@ -522,34 +522,30 @@ html[data-background="window"] .scene { filter: blur(1.4px) saturate(1.1); }
 .scene .wing { transform-box: fill-box; transform-origin: 50% 50%; animation: flap 4.6s ease-in-out infinite; }
 
 /* ---------- lock screen ---------- */
+/* the whole scene fills the screen, the card floats in the middle of it */
 .lock-screen {
   position: fixed;
   inset: 0;
   z-index: 90;
   display: grid;
-  align-content: start;
-  justify-items: center;
-  padding: max(24px, 7vh) 16px 30vh;
+  place-items: center;
+  padding: max(20px, 5vh) 16px;
   overflow: auto;
   background: linear-gradient(180deg, var(--scene-sky-top), var(--scene-sky-mid) 70%, var(--scene-sky-low));
 }
-.lock-scene { position: fixed; right: 0; bottom: 0; left: 0; height: 44vh; pointer-events: none; }
-.lock-scene .scene-sky { display: none; }
-@media (min-width: 900px) and (min-aspect-ratio: 6/5) {
-  .lock-screen { align-content: center; justify-items: start; padding: 24px 24px 24px max(24px, 8vw); }
-  .lock-scene { height: 64vh; }
+.lock-scene { position: fixed; inset: 0; pointer-events: none; }
+.lock-scene .scene { width: 100%; height: 100%; }
+.lock-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 55% at 50% 48%, rgb(var(--bg-rgb) / 0.55), rgb(var(--bg-rgb) / 0) 75%),
+    linear-gradient(180deg, rgb(var(--bg-rgb) / 0.35), rgb(var(--bg-rgb) / 0) 40%, rgb(var(--bg-rgb) / 0.25));
 }
 html:not(:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])) .lock-screen { background: rgb(var(--bg-rgb) / 0.97); }
 html:not(:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])) .lock-scene { display: none; }
-/* the room and the forest fill the lock screen rather than sitting under a sky */
-.lock-scene .scene--room .scene-sky,
-.lock-scene .scene--mist .scene-sky { display: inline; }
-html:is([data-background="room"], [data-background="mist"]) .lock-scene { top: 0; height: auto; }
-/* the other new scenes melt into the lock screen's sky at their top edge */
-html:is([data-background="bluehour"], [data-background="city"], [data-background="torii"], [data-background="rooftop"]) .lock-scene {
-  -webkit-mask-image: linear-gradient(180deg, transparent, black 30%);
-  mask-image: linear-gradient(180deg, transparent, black 30%);
-}
+html[data-background="window"] .lock-scene .scene { filter: blur(1.4px) saturate(1.1); }
 
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {
