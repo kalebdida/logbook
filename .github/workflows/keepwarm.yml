@@ -1,0 +1,49 @@
+# Optional: pings your server every 14 minutes so Render's free plan doesn't
+# put it to sleep (it sleeps after 15 idle minutes, then takes about a minute
+# to wake).
+#
+# Uses the same repo variable as the Pages build, LOGBOOK_API_URL (Settings →
+# Secrets and variables → Actions → Variables). Unset: every run skips quietly.
+#
+# Be realistic about what this buys you:
+# - GitHub's scheduler is best effort. Runs often start several minutes late,
+#   and at busy times some are dropped, so the server will still fall asleep
+#   now and then. The app's own loading screen covers those times.
+# - GitHub turns scheduled workflows off in a public repo after 60 days with
+#   no commits. Re-enable it from the Actions tab if that happens.
+# - An always-awake service uses about 730 of Render's free instance hours a
+#   month (750 at the time of writing). Fine for one service, not for two.
+# To stop it, disable this workflow in the Actions tab, or delete the file.
+name: keep the server awake
+
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keepwarm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: ping /health
+        env:
+          API_URL: ${{ vars.LOGBOOK_API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "LOGBOOK_API_URL isn't set, nothing to ping."
+            exit 0
+          fi
+          # a sleeping server can take a minute to answer; don't fail the run
+          # (and email you) when it's slow or down, just leave a note
+          if curl -fsS --max-time 100 --retry 2 --retry-delay 5 -o /dev/null "${API_URL%/}/health"; then
+            echo "server is awake"
+          else
+            echo "::warning::couldn't reach ${API_URL%/}/health"
+          fi

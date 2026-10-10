@@ -4,7 +4,8 @@
 #
 # Render's free instances sleep after 15 idle minutes and take about a
 # minute to wake. The app handles that: it waits for the server, and in the
-# meantime nothing you type is lost.
+# meantime nothing you type is lost. Open the app from the GitHub Pages
+# address (the "front door") and you never see Render's own waking page.
 services:
   - type: web
     name: logbook
@@ -26,5 +27,9 @@ services:
         generateValue: true
       - key: LOGBOOK_ENVIRONMENT
         value: production
-      - key: LOGBOOK_AI_API_KEY    # optional: an Anthropic key, so AI works from any device
+      - key: LOGBOOK_CORS_ORIGINS  # the front door's address, e.g. https://kalebdida.github.io (no path)
+        sync: false
+      - key: LOGBOOK_AI_PROVIDER   # gemini: free key from https://aistudio.google.com/apikey
+        value: gemini
+      - key: LOGBOOK_AI_API_KEY    # optional: the Gemini key (or GEMINI_API_KEY), so AI works on every device
         sync: false

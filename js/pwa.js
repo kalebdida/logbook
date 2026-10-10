@@ -56,7 +56,12 @@ export function startPWA() {
     });
   }).catch(function (e) { console.warn("logbook: offline mode unavailable", e); });
   var reloading = false;
+  // a first visit gets its first worker without a reload (it would wipe
+  // whatever was typed meanwhile, like a half-filled login); only an update
+  // that replaces a running worker reloads
+  var hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (!hadController) { hadController = true; return; }
     if (reloading) return;
     reloading = true;
     location.reload();

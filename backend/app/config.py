@@ -43,13 +43,23 @@ class Settings(BaseSettings):
     token_days: int = 30
 
     # AI companion. Empty provider = AI off.
+    #   gemini:    Google's Gemini (free key from aistudio.google.com/apikey):
+    #              LOGBOOK_AI_API_KEY (or GEMINI_API_KEY), model defaults to gemini-3.5-flash-lite
     #   anthropic: LOGBOOK_AI_API_KEY (or ANTHROPIC_API_KEY), model defaults to claude-haiku-5-5
     #   openai:    any OpenAI-compatible API: OpenAI, OpenRouter, Groq, or a local
     #              Ollama / LM Studio via LOGBOOK_AI_BASE_URL=http://localhost:11434/v1
+    # No provider set: a LOGBOOK_AI_API_KEY / ANTHROPIC_API_KEY means anthropic,
+    # a GEMINI_API_KEY alone means gemini.
     ai_provider: str = ""
     ai_api_key: str = Field(default="", validation_alias=AliasChoices("LOGBOOK_AI_API_KEY", "ANTHROPIC_API_KEY"))
+    gemini_api_key: str = Field(default="", validation_alias=AliasChoices("GEMINI_API_KEY"))
     ai_model: str = ""
     ai_base_url: str = ""
+
+    # Extra sites allowed to call the API from a browser, comma-separated, e.g.
+    # https://kalebdida.github.io (the GitHub Pages front door). Origins only:
+    # scheme + host (+ port), no path.
+    cors_origins: str = ""
 
     @field_validator("database_url")
     @classmethod
@@ -61,6 +71,10 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             value = "postgresql+psycopg://" + value[len("postgresql://"):]
         return value
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def is_sqlite(self) -> bool:

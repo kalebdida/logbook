@@ -2,8 +2,11 @@
 # One-time setup: repo Settings → Pages → Source: "GitHub Actions".
 # Until that's done, this workflow skips the deploy with a note instead of
 # failing (so it doesn't email you a failure on every push).
-# The Pages copy runs in device mode (data stays in each browser) and can
-# connect to your Logbook server from settings.
+# With the repo variable LOGBOOK_API_URL set (Settings → Secrets and
+# variables → Actions → Variables), the Pages copy is the front door to that
+# server: a first visit connects to it by itself. Without it, the Pages copy
+# runs in device mode (data stays in each browser) and can connect to a
+# server from settings.
 name: web app (GitHub Pages)
 
 on:
@@ -54,6 +57,8 @@ jobs:
         with:
           python-version: "3.13"
       - run: python scripts/build_web.py
+        env:
+          LOGBOOK_API_URL: ${{ vars.LOGBOOK_API_URL }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

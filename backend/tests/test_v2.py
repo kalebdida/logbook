@@ -150,6 +150,65 @@ def test_ai_provider_errors_are_reported_plainly(client, monkeypatch):
     assert r.status_code == 502 and "invalid x-api-key" in r.json()["detail"]
 
 
+def test_ai_gemini_request_shape(client, monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen["url"] = str(request.url)
+        seen["auth"] = request.headers.get("authorization")
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "steady week."}}]})
+
+    _fake_provider(monkeypatch, handler)
+    settings.ai_provider, settings.ai_api_key = "gemini", "AIza-test"
+    assert client.get("/ai/status").json() == {"available": True, "provider": "gemini", "model": "gemini-3.5-flash-lite"}
+    r = client.post("/ai/chat", json={"system": "be brief", "max_tokens": 20, "messages": [
+        {"role": "user", "content": "how am i doing?"}, {"role": "assistant", "content": "well"}, {"role": "user", "content": "more?"}]})
+    assert r.status_code == 200 and r.json() == {"text": "steady week.", "model": "gemini-3.5-flash-lite"}
+    assert seen["url"] == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    assert seen["auth"] == "Bearer AIza-test"
+    assert seen["body"]["model"] == "gemini-3.5-flash-lite"
+    assert seen["body"]["max_tokens"] >= 1024  # room for the model's thinking, so a tiny cap can't come back empty
+    assert seen["body"]["messages"][0] == {"role": "system", "content": "be brief"}
+    assert [m["role"] for m in seen["body"]["messages"][1:]] == ["user", "assistant", "user"]
+
+
+def test_ai_gemini_key_alone_means_gemini(client, monkeypatch):
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        seen["model"] = json.loads(request.content)["model"]
+        return httpx.Response(200, json={"choices": [{"message": {"content": "hi"}}]})
+
+    _fake_provider(monkeypatch, handler)
+    settings.gemini_api_key, settings.ai_model = "AIza-env", "gemini-3.8-flash"
+    assert client.get("/ai/status").json() == {"available": True, "provider": "gemini", "model": "gemini-3.8-flash"}
+    assert client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]}).json()["text"] == "hi"
+    assert seen == {"auth": "Bearer AIza-env", "model": "gemini-3.8-flash"}
+    # an explicit provider key still wins over the inference
+    settings.ai_api_key = "sk-ant"
+    assert client.get("/ai/status").json()["provider"] == "anthropic"
+
+
+def test_ai_gemini_needs_a_key(client):
+    settings.ai_provider = "gemini"
+    assert client.get("/ai/status").json()["available"] is False
+
+
+def test_ai_gemini_errors_are_reported_plainly(client, monkeypatch):
+    # Google's OpenAI-compatible endpoint can wrap its error in a list
+    _fake_provider(monkeypatch, lambda req: httpx.Response(400, json=[{"error": {"code": 400, "message": "API key not valid", "status": "INVALID_ARGUMENT"}}]))
+    settings.ai_provider, settings.ai_api_key = "gemini", "bad"
+    r = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 502 and "API key not valid" in r.json()["detail"]
+
+
+def test_gemini_key_read_from_its_own_variable():
+    from app.config import Settings
+    assert Settings(_env_file=None, GEMINI_API_KEY="AIza-x").gemini_api_key == "AIza-x"
+
+
 def test_ai_requires_login_when_password_set(client):
     settings.password = "pw"
     settings.ai_provider, settings.ai_api_key = "anthropic", "sk"
@@ -202,6 +261,41 @@ def test_only_frontend_files_are_served(client):
     assert client.get("/manifest.webmanifest").headers["content-type"].startswith("application/manifest+json")
     for path in ["/backend/logbook.db", "/backend/app/config.py", "/backend/requirements.txt", "/CLAUDE.md", "/scripts/build_web.py", "/.github/workflows/pages.yml"]:
         assert client.get(path).status_code == 404, path
+
+
+def _preflight(options, origin):
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.testclient import TestClient as StarletteClient
+    tiny = Starlette(middleware=[Middleware(CORSMiddleware, **options)])
+    with StarletteClient(tiny) as c:
+        r = c.options("/health", headers={"Origin": origin, "Access-Control-Request-Method": "GET",
+                                          "Access-Control-Request-Headers": "authorization"})
+        return r.headers.get("access-control-allow-origin")
+
+
+def test_cors_extra_origins_from_settings():
+    from app.config import Settings
+    from app.main import cors_options
+    pages = "https://kalebdida.github.io"
+    open_server = Settings(_env_file=None, password="", cors_origins=pages + "/ , https://logbook.example.me")
+    assert open_server.cors_origin_list == [pages, "https://logbook.example.me"]
+    opts = cors_options(open_server)
+    assert _preflight(opts, pages) == pages
+    assert _preflight(opts, "https://logbook.example.me") == "https://logbook.example.me"
+    assert _preflight(opts, "http://localhost:5173") == "http://localhost:5173"   # still allowed
+    assert _preflight(opts, "https://evil.example") is None                       # still refused
+    assert _preflight(cors_options(Settings(_env_file=None, password="")), pages) is None
+    # with a password every origin may call (bearer tokens, no cookies): the list changes nothing
+    locked = cors_options(Settings(_env_file=None, password="pw", cors_origins=pages))
+    assert _preflight(locked, "https://anything.example") == "*"
+    assert locked["allow_credentials"] is False
+
+
+def test_config_js_is_served(client):
+    r = client.get("/config.js")
+    assert r.status_code == 200 and "LOGBOOK_CONFIG" in r.text
 
 
 def test_ai_key_alone_means_anthropic(client):

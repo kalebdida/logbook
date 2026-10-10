@@ -176,7 +176,7 @@ try:
               and page.evaluate("document.documentElement.dataset.glow") == "on")
         page.click('[data-preview="keep"]')
         page.wait_for_timeout(200)
-        check("kept theme joins the gallery", page.locator(".theme-swatch").count() == 10 and page.evaluate("document.documentElement.dataset.theme").startswith("custom-"))
+        check("kept theme joins the gallery", page.locator(".theme-swatch").count() == 16 and page.evaluate("document.documentElement.dataset.theme").startswith("custom-"))
 
         page.set_input_files("#themeImportFile", str(theme_file))
         page.wait_for_selector(".theme-preview-bar:not([hidden])")

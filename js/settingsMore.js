@@ -116,6 +116,7 @@ export async function renderStorageCard(el) {
 
 var PROVIDERS = [
   ["", "off"],
+  ["gemini", "Gemini (free key from Google AI Studio)"],
   ["anthropic", "Claude (Anthropic)"],
   ["openai", "OpenAI-compatible (OpenAI, OpenRouter, Groq, Ollama…)"]
 ];
@@ -141,7 +142,8 @@ export async function renderAICard(el) {
           "</select></label>" +
         '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">API key</span><span class="setting-hint">saved in this browser only. not needed for a local model.</span></span>' +
           '<input class="text-input" name="apiKey" type="password" autocomplete="off"></label>' +
-        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">model</span><span class="setting-hint">blank = claude-haiku-5-5 (Claude) or gpt-4o-mini</span></span>' +
+        '<p class="setting-hint" data-ai-field data-ai-gemini>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, then paste it above.</p>' +
+        '<label class="setting-row" data-ai-field><span class="setting-text"><span class="setting-label">model</span><span class="setting-hint">blank = gemini-3.5-flash-lite (Gemini), claude-haiku-5-5 (Claude) or gpt-4o-mini</span></span>' +
           '<input class="text-input" name="model" value="' + escapeHtml(cfg.model) + '" placeholder="default"></label>' +
         '<label class="setting-row" data-ai-field data-ai-openai><span class="setting-text"><span class="setting-label">address</span><span class="setting-hint">Ollama: http://localhost:11434/v1. blank = api.openai.com</span></span>' +
           '<input class="text-input" name="baseUrl" value="' + escapeHtml(cfg.baseUrl) + '" placeholder="https://api.openai.com/v1"></label>' +
@@ -164,6 +166,7 @@ export async function renderAICard(el) {
     var p = form.elements.provider.value;
     el.querySelectorAll("[data-ai-field]").forEach(function (row) { row.hidden = !p; });
     el.querySelectorAll("[data-ai-openai]").forEach(function (row) { row.hidden = p !== "openai"; });
+    el.querySelectorAll("[data-ai-gemini]").forEach(function (row) { row.hidden = p !== "gemini"; });
   }
   syncFields();
   form.elements.provider.addEventListener("change", syncFields);

@@ -1,11 +1,13 @@
 /* =====================================================================
-   scene.css: the night. The page sky for the night and rainy-window
-   themes, the dashboard's window onto Fuji (js/scene.js), and the lock
-   screen. Scene colors are mixed from the theme tokens, so a custom
-   theme with the night background still matches itself.
+   scene.css: the scenes. The page sky for each scene background, the
+   dashboard's window (js/scene.js), and the lock screen. Scene colors are
+   mixed from the theme tokens, one palette per scene, so a custom theme
+   with a scene background still matches itself. A palette sits on <html>
+   for the current background (the page sky and lock screen use it) and on
+   the scene's own <svg>, so a scene drawn on purpose keeps its colors.
    ===================================================================== */
 
-:root {
+:root, .scene--night {
   --scene-sky-top: color-mix(in srgb, var(--bg) 55%, black);
   --scene-sky-mid: color-mix(in srgb, var(--bg) 90%, var(--accent2));
   --scene-sky-low: color-mix(in srgb, var(--bg) 74%, var(--accent2));
@@ -21,6 +23,207 @@
   --scene-shop-light: color-mix(in srgb, var(--accent) 45%, white);
   --scene-lamp: color-mix(in srgb, var(--accent2) 45%, white);
   --scene-sign: color-mix(in srgb, var(--accent2) 62%, var(--bg));
+}
+
+/* blue hour: everything a shade of the same evening blue, a few warm windows */
+html[data-background="bluehour"], .scene--bluehour {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 70%, var(--accent2));
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 58%, var(--accent2));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 48%, var(--accent2));
+  --scene-star: var(--text);
+  --scene-peak: color-mix(in srgb, var(--bg) 60%, var(--accent2));
+  --scene-far: color-mix(in srgb, var(--bg) 56%, var(--accent2));
+  --scene-ridge: color-mix(in srgb, var(--bg) 70%, black);
+  --scene-snow: color-mix(in srgb, var(--text) 80%, var(--accent2));
+  --scene-snow-shade: color-mix(in srgb, var(--accent2) 66%, var(--bg));
+  --scene-cloud: color-mix(in srgb, var(--accent2) 62%, var(--text));
+  --scene-haze: color-mix(in srgb, var(--accent2) 70%, var(--text));
+  --scene-far-town: color-mix(in srgb, var(--bg) 64%, var(--accent2));
+  --scene-ground: color-mix(in srgb, var(--bg) 78%, var(--accent2));
+  --scene-road-far: color-mix(in srgb, var(--bg) 60%, var(--accent2));
+  --scene-road: color-mix(in srgb, var(--bg) 84%, var(--accent2));
+  --scene-paint: var(--text);
+  --scene-snow-ground: color-mix(in srgb, var(--accent2) 60%, var(--text));
+  --scene-house: color-mix(in srgb, var(--bg) 84%, var(--accent2));
+  --scene-house-end: color-mix(in srgb, var(--bg) 74%, var(--accent2));
+  --scene-house-dark: color-mix(in srgb, var(--bg) 80%, black);
+  --scene-roof: color-mix(in srgb, var(--bg) 82%, black);
+  --scene-roof-snow: color-mix(in srgb, var(--accent2) 66%, var(--text));
+  --scene-pole: color-mix(in srgb, var(--bg) 86%, black);
+  --scene-wire: color-mix(in srgb, var(--bg) 80%, black);
+  --scene-window: var(--accent);
+  --scene-window-cool: color-mix(in srgb, var(--accent2) 55%, white);
+  --scene-lamp: color-mix(in srgb, var(--accent2) 40%, white);
+  --scene-sig-go: color-mix(in srgb, var(--accent2) 70%, white);
+  --scene-sig-amber: var(--accent);
+  --scene-sig-stop: var(--danger);
+  --scene-head: color-mix(in srgb, var(--accent) 35%, white);
+  --scene-car: color-mix(in srgb, var(--bg) 76%, var(--accent2));
+  --scene-car-glass: color-mix(in srgb, var(--bg) 56%, var(--accent2));
+  --scene-tire: color-mix(in srgb, var(--bg) 70%, black);
+  --scene-plate: color-mix(in srgb, var(--text) 70%, var(--accent2));
+  --scene-tail: var(--danger);
+  --scene-tail-core: color-mix(in srgb, var(--danger) 40%, white);
+  --scene-shadow: color-mix(in srgb, var(--bg) 60%, black);
+  --scene-flake: var(--text);
+  --scene-vend: color-mix(in srgb, var(--accent2) 30%, white);
+}
+
+/* city lights: blue overhead, a pink band where the sun went down */
+html[data-background="city"], .scene--city {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 72%, var(--accent2));
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 52%, var(--accent2));
+  --scene-horizon: color-mix(in srgb, color-mix(in srgb, var(--warm) 62%, var(--accent2)) 78%, var(--bg));
+  --scene-sky-low: color-mix(in srgb, var(--warm) 64%, var(--bg));
+  --scene-star: var(--text);
+  --scene-cloud: color-mix(in srgb, var(--bg) 66%, var(--accent2));
+  --scene-cloud-lit: color-mix(in srgb, var(--warm) 80%, var(--text));
+  --scene-far: color-mix(in srgb, color-mix(in srgb, var(--warm) 40%, var(--accent2)) 52%, var(--bg));
+  --scene-city-far: color-mix(in srgb, var(--bg) 56%, var(--accent2));
+  --scene-city-tower: color-mix(in srgb, var(--bg) 68%, var(--accent2));
+  --scene-city-mid: color-mix(in srgb, var(--bg) 80%, var(--accent2));
+  --scene-city-near: color-mix(in srgb, var(--bg) 82%, black);
+  --scene-haze: color-mix(in srgb, var(--warm) 50%, var(--accent2));
+  --scene-window: var(--accent);
+  --scene-window-cool: color-mix(in srgb, var(--accent2) 45%, white);
+  --scene-neon: var(--warm);
+  --scene-beacon: var(--danger);
+  --scene-ground-far: color-mix(in srgb, var(--bg) 76%, var(--accent2));
+  --scene-ground: color-mix(in srgb, var(--bg) 80%, black);
+  --scene-paint: color-mix(in srgb, var(--text) 70%, var(--accent2));
+  --scene-rail: color-mix(in srgb, color-mix(in srgb, var(--accent2) 60%, var(--text)) 68%, var(--bg));
+  --scene-rail-shade: color-mix(in srgb, var(--accent2) 28%, var(--bg));
+  --scene-pole: color-mix(in srgb, var(--bg) 78%, black);
+  --scene-wire: color-mix(in srgb, var(--bg) 74%, black);
+  --scene-lamp: color-mix(in srgb, var(--accent2) 35%, white);
+  --scene-lamp-head: color-mix(in srgb, var(--text) 60%, white);
+  --scene-sign: var(--danger);
+}
+
+/* rainy room: a dark blue room, rain outside, one warm lamp */
+html[data-background="room"], .scene--room {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 74%, var(--accent2));
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 60%, var(--accent2));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 54%, var(--accent2));
+  --scene-far: color-mix(in srgb, var(--bg) 66%, var(--accent2));
+  --scene-out-mid: color-mix(in srgb, var(--bg) 76%, var(--accent2));
+  --scene-out-near: color-mix(in srgb, var(--bg) 80%, black);
+  --scene-rain: color-mix(in srgb, var(--text) 70%, var(--accent2));
+  --scene-glass: var(--text);
+  --scene-window: var(--accent);
+  --scene-window-cool: color-mix(in srgb, var(--accent2) 60%, white);
+  --scene-wall-top: color-mix(in srgb, var(--bg) 78%, black);
+  --scene-wall: color-mix(in srgb, var(--bg) 86%, var(--accent2));
+  --scene-frame: color-mix(in srgb, var(--bg) 66%, black);
+  --scene-frame-lit: var(--accent2);
+  --scene-sill: color-mix(in srgb, var(--bg) 72%, var(--warm));
+  --scene-curtain: color-mix(in srgb, var(--bg) 70%, black);
+  --scene-curtain-fold: color-mix(in srgb, var(--bg) 84%, var(--accent2));
+  --scene-plant: color-mix(in srgb, color-mix(in srgb, var(--accent2) 45%, var(--accent)) 26%, var(--bg));
+  --scene-plant-lit: color-mix(in srgb, color-mix(in srgb, var(--accent2) 40%, var(--accent)) 42%, var(--bg));
+  --scene-pot: color-mix(in srgb, var(--warm) 34%, var(--bg));
+  --scene-book: color-mix(in srgb, var(--accent2) 34%, var(--bg));
+  --scene-lamp: color-mix(in srgb, var(--accent) 55%, white);
+  --scene-lamp-core: color-mix(in srgb, var(--accent) 18%, white);
+  --scene-lamp-base: color-mix(in srgb, var(--warm) 40%, var(--bg));
+  --scene-blanket-lit: color-mix(in srgb, var(--accent2) 46%, var(--bg));
+  --scene-blanket: color-mix(in srgb, var(--accent2) 30%, var(--bg));
+  --scene-blanket-deep: color-mix(in srgb, var(--bg) 82%, var(--accent2));
+  --scene-blanket-fold: color-mix(in srgb, var(--bg) 66%, black);
+  --scene-pillow: color-mix(in srgb, var(--accent2) 56%, var(--bg));
+  --scene-sparkle: var(--text);
+  --scene-cat: color-mix(in srgb, color-mix(in srgb, var(--bg) 82%, var(--warm)) 82%, var(--accent2));
+  --scene-cat-rim: color-mix(in srgb, var(--accent) 52%, var(--bg));
+  --scene-cat-stripe: color-mix(in srgb, var(--bg) 60%, black);
+  --scene-shadow: color-mix(in srgb, var(--bg) 50%, black);
+}
+
+/* torii: a moonlit blue, a vermilion gate, warm windows on a wet road */
+html[data-background="torii"], .scene--torii {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 72%, var(--accent2));
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 58%, var(--accent2));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 50%, var(--accent2));
+  --scene-star: var(--text);
+  --scene-moon: color-mix(in srgb, var(--text) 86%, var(--accent));
+  --scene-moon-core: color-mix(in srgb, var(--text) 80%, white);
+  --scene-moon-shade: var(--accent2);
+  --scene-cloud: color-mix(in srgb, var(--bg) 76%, var(--accent2));
+  --scene-cloud-lit: color-mix(in srgb, var(--accent2) 50%, var(--text));
+  --scene-mt1: color-mix(in srgb, var(--bg) 58%, var(--accent2));
+  --scene-mt2: color-mix(in srgb, var(--bg) 68%, var(--accent2));
+  --scene-mt3: color-mix(in srgb, var(--bg) 82%, var(--accent2));
+  --scene-haze: var(--accent2);
+  --scene-house-far: color-mix(in srgb, var(--bg) 74%, var(--accent2));
+  --scene-ground: color-mix(in srgb, var(--bg) 84%, black);
+  --scene-road-far: color-mix(in srgb, var(--bg) 56%, var(--accent2));
+  --scene-road: color-mix(in srgb, var(--bg) 82%, var(--accent2));
+  --scene-puddle: color-mix(in srgb, var(--text) 60%, var(--accent2));
+  --scene-paint: var(--text);
+  --scene-house: color-mix(in srgb, var(--bg) 76%, var(--accent2));
+  --scene-house-end: color-mix(in srgb, var(--bg) 68%, var(--accent2));
+  --scene-house-dark: color-mix(in srgb, var(--bg) 82%, black);
+  --scene-roof: color-mix(in srgb, var(--bg) 78%, black);
+  --scene-roof-snow: color-mix(in srgb, var(--bg) 78%, black);
+  --scene-roof-edge: color-mix(in srgb, var(--bg) 66%, var(--accent2));
+  --scene-torii: color-mix(in srgb, color-mix(in srgb, var(--warm) 70%, var(--danger)) 52%, var(--bg));
+  --scene-torii-top: color-mix(in srgb, var(--bg) 66%, black);
+  --scene-torii-lit: color-mix(in srgb, var(--warm) 55%, var(--text));
+  --scene-hedge: color-mix(in srgb, color-mix(in srgb, var(--accent2) 60%, var(--accent)) 16%, var(--bg));
+  --scene-pole: color-mix(in srgb, var(--bg) 80%, black);
+  --scene-wire: color-mix(in srgb, var(--bg) 76%, black);
+  --scene-window: var(--accent);
+  --scene-window-cool: color-mix(in srgb, var(--accent2) 50%, white);
+  --scene-lamp: color-mix(in srgb, var(--accent) 60%, white);
+  --scene-head: color-mix(in srgb, var(--accent) 35%, white);
+  --scene-car: color-mix(in srgb, var(--danger) 34%, var(--bg));
+  --scene-car-glass: color-mix(in srgb, var(--bg) 58%, var(--accent2));
+  --scene-tire: color-mix(in srgb, var(--bg) 66%, black);
+  --scene-plate: color-mix(in srgb, var(--text) 80%, var(--accent));
+  --scene-tail: var(--danger);
+  --scene-tail-core: color-mix(in srgb, var(--danger) 40%, white);
+  --scene-shadow: color-mix(in srgb, var(--bg) 50%, black);
+  --scene-rain: color-mix(in srgb, var(--text) 64%, var(--accent2));
+}
+
+/* misty forest: layers of trees, each one further into the teal fog */
+html[data-background="mist"], .scene--mist {
+  --scene-sky-top: color-mix(in srgb, var(--bg) 72%, var(--accent));
+  --scene-sky-mid: color-mix(in srgb, var(--bg) 60%, var(--accent));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 74%, var(--accent));
+  --scene-glow: color-mix(in srgb, var(--accent) 78%, white);
+  --scene-fog: color-mix(in srgb, var(--accent) 60%, var(--accent2));
+  --scene-tree0: color-mix(in srgb, var(--bg) 54%, var(--accent));
+  --scene-tree1: color-mix(in srgb, var(--bg) 66%, var(--accent));
+  --scene-tree2: color-mix(in srgb, var(--bg) 78%, var(--accent));
+  --scene-tree3: color-mix(in srgb, var(--bg) 88%, var(--accent));
+  --scene-tree4: color-mix(in srgb, var(--bg) 72%, black);
+  --scene-floor-lit: color-mix(in srgb, var(--bg) 82%, var(--accent));
+  --scene-floor: color-mix(in srgb, var(--bg) 76%, black);
+}
+
+/* rooftop: a pale bright day, white railing, soft blue shadows */
+html[data-background="rooftop"], .scene--rooftop {
+  --scene-sky-top: color-mix(in srgb, var(--accent2) 40%, var(--bg));
+  --scene-sky-mid: color-mix(in srgb, var(--accent2) 18%, var(--bg));
+  --scene-sky-low: color-mix(in srgb, var(--bg) 60%, white);
+  --scene-sun: white;
+  --scene-cloud: color-mix(in srgb, var(--surface) 50%, white);
+  --scene-cloud-shade: color-mix(in srgb, var(--accent2) 20%, var(--bg));
+  --scene-bld-far: color-mix(in srgb, var(--accent2) 15%, var(--bg));
+  --scene-bld-far-line: color-mix(in srgb, var(--accent2) 26%, var(--bg));
+  --scene-haze: color-mix(in srgb, var(--bg) 50%, white);
+  --scene-bld-mid: color-mix(in srgb, var(--accent2) 24%, var(--bg));
+  --scene-bld-mid-line: color-mix(in srgb, var(--accent2) 36%, var(--bg));
+  --scene-bld-lit: color-mix(in srgb, var(--bg) 55%, white);
+  --scene-bld-near: color-mix(in srgb, var(--accent2) 32%, var(--bg));
+  --scene-bld-near-line: color-mix(in srgb, var(--accent2) 46%, var(--bg));
+  --scene-bird: color-mix(in srgb, var(--text) 78%, var(--accent2));
+  --scene-rail: color-mix(in srgb, var(--surface) 70%, white);
+  --scene-rail-shade: color-mix(in srgb, var(--accent2) 34%, var(--bg));
+  --scene-ledge: color-mix(in srgb, var(--accent2) 16%, var(--bg));
+  --scene-floor: color-mix(in srgb, var(--accent2) 10%, var(--bg));
+  --scene-floor-near: color-mix(in srgb, var(--accent2) 20%, var(--bg));
+  --scene-shadow: var(--accent2);
 }
 
 /* ---------- the page sky ---------- */
@@ -54,6 +257,122 @@ html[data-background="window"] #sky {
 }
 html[data-background="window"] #rain { opacity: 1; }
 
+/* blue hour: an evening blue that lightens toward the horizon, Fuji at the foot */
+html[data-background="bluehour"] #sky {
+  background:
+    radial-gradient(80% 45% at 62% 108%, rgb(var(--accent2-rgb) / 0.16), transparent 66%),
+    radial-gradient(40% 30% at 70% 100%, rgb(var(--accent-rgb) / 0.05), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 82%, black) 0%, var(--bg) 42%, color-mix(in srgb, var(--bg) 76%, var(--accent2)) 100%);
+}
+html[data-background="bluehour"] #sky::after {
+  content: "";
+  position: absolute;
+  right: 2vw;
+  bottom: 0;
+  width: min(1000px, 86vw);
+  height: 25vh;
+  background: linear-gradient(180deg, var(--scene-snow) 0%, var(--scene-snow-shade) 34%, var(--scene-peak) 46%, var(--scene-far) 100%);
+  opacity: 0.32;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 260' preserveAspectRatio='none'%3E%3Cpath d='M0 260 C140 254 260 230 360 196 C440 150 510 84 550 40 Q570 24 590 40 C640 90 720 156 810 196 C880 226 950 246 1000 254 L1000 260 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 260' preserveAspectRatio='none'%3E%3Cpath d='M0 260 C140 254 260 230 360 196 C440 150 510 84 550 40 Q570 24 590 40 C640 90 720 156 810 196 C880 226 950 246 1000 254 L1000 260 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+html[data-background="bluehour"] #rain { opacity: 0.8; }
+
+/* city lights: dusk fading from blue to pink, a lit skyline along the bottom */
+html[data-background="city"] #sky {
+  background:
+    radial-gradient(90% 40% at 50% 104%, rgb(var(--warm-rgb) / 0.2), transparent 70%),
+    radial-gradient(60% 40% at 15% -10%, rgb(var(--accent2-rgb) / 0.1), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 84%, black) 0%, var(--bg) 46%, color-mix(in srgb, var(--bg) 80%, var(--accent2)) 82%, color-mix(in srgb, var(--bg) 78%, var(--warm)) 100%);
+}
+html[data-background="city"] #sky::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 20vh;
+  background:
+    radial-gradient(circle, rgb(var(--accent-rgb) / 0.55) 0 1px, transparent 1.6px) 3px 5px / 11px 9px,
+    radial-gradient(circle, rgb(var(--warm-rgb) / 0.4) 0 1px, transparent 1.6px) 0 2px / 17px 13px,
+    linear-gradient(180deg, var(--scene-city-tower), var(--scene-city-near));
+  opacity: 0.4;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 V150 H30 V128 H52 V140 H80 V100 H96 V90 H112 V104 H140 V136 H170 V120 H196 V146 H230 V110 H250 V70 H262 V60 H274 V72 H290 V118 H320 V140 H352 V124 H380 V150 H420 V132 H446 V96 H470 V104 H492 V140 H530 V128 H560 V150 H600 V118 H626 V80 H640 V50 H656 V82 H676 V112 H700 V136 H730 V100 H752 V60 H770 V30 H786 V62 H806 V96 H830 V120 H860 V90 H884 V108 H910 V140 H940 V122 H970 V146 H1000 V200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 V150 H30 V128 H52 V140 H80 V100 H96 V90 H112 V104 H140 V136 H170 V120 H196 V146 H230 V110 H250 V70 H262 V60 H274 V72 H290 V118 H320 V140 H352 V124 H380 V150 H420 V132 H446 V96 H470 V104 H492 V140 H530 V128 H560 V150 H600 V118 H626 V80 H640 V50 H656 V82 H676 V112 H700 V136 H730 V100 H752 V60 H770 V30 H786 V62 H806 V96 H830 V120 H860 V90 H884 V108 H910 V140 H940 V122 H970 V146 H1000 V200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+html[data-background="city"] #rain { opacity: 0.9; }
+
+/* rainy room: a dark room, the lamp low on one side, the window's cool light from above */
+html[data-background="room"] #sky {
+  background:
+    radial-gradient(55% 45% at 92% 100%, rgb(var(--accent-rgb) / 0.12), transparent 70%),
+    radial-gradient(70% 50% at 30% -6%, rgb(var(--accent2-rgb) / 0.1), transparent 66%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 80%, black) 0%, var(--bg) 55%, color-mix(in srgb, var(--bg) 90%, var(--warm)) 100%);
+}
+html[data-background="room"] #rain { opacity: 1; }
+
+/* torii: moonlight from the upper right, mountains at the foot */
+html[data-background="torii"] #sky {
+  background:
+    radial-gradient(36% 34% at 84% 8%, rgb(var(--text-rgb) / 0.08), transparent 70%),
+    radial-gradient(70% 40% at 40% 104%, rgb(var(--accent-rgb) / 0.06), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 80%, black) 0%, var(--bg) 44%, color-mix(in srgb, var(--bg) 80%, var(--accent2)) 100%);
+}
+html[data-background="torii"] #sky::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 24vh;
+  background: linear-gradient(180deg, var(--scene-mt1), var(--scene-mt3) 70%);
+  opacity: 0.5;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 L0 120 C60 108 120 84 190 70 C250 58 300 76 360 96 C420 116 470 104 540 92 C620 78 690 98 760 118 C830 138 900 128 1000 110 L1000 200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 L0 120 C60 108 120 84 190 70 C250 58 300 76 360 96 C420 116 470 104 540 92 C620 78 690 98 760 118 C830 138 900 128 1000 110 L1000 200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+html[data-background="torii"] #rain { opacity: 0.85; }
+
+/* mist: light falling in from above, trees fading into fog at the foot */
+html[data-background="mist"] #sky {
+  background:
+    radial-gradient(60% 50% at 58% -12%, rgb(var(--accent-rgb) / 0.2), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 80%, var(--accent)) 0%, var(--bg) 52%, color-mix(in srgb, var(--bg) 70%, black) 100%);
+}
+html[data-background="mist"] #sky::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 30vh;
+  background: linear-gradient(180deg, var(--scene-tree1), var(--scene-tree3) 75%);
+  opacity: 0.55;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 L0 150 L13 51 L26 156 L43 51 L59 159 L67 73 L74 159 L87 38 L101 144 L113 90 L124 152 L137 109 L150 146 L160 37 L169 156 L178 46 L187 144 L200 100 L213 142 L229 93 L244 146 L261 40 L278 147 L295 67 L311 154 L320 35 L329 154 L346 39 L363 147 L373 97 L384 145 L391 86 L399 153 L406 56 L413 148 L423 45 L433 151 L444 72 L454 155 L461 32 L469 142 L483 42 L498 142 L513 81 L528 152 L535 106 L542 145 L558 94 L575 156 L591 35 L607 148 L618 68 L629 156 L637 50 L645 156 L660 107 L676 159 L684 83 L692 153 L708 83 L724 159 L737 85 L749 148 L758 104 L767 145 L780 30 L794 145 L802 31 L809 152 L820 91 L831 153 L847 74 L862 150 L870 37 L877 143 L889 43 L901 144 L915 34 L930 153 L944 101 L959 150 L968 42 L976 147 L988 30 L999 157 L1016 74 L1033 151 L1000 200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 L0 150 L13 51 L26 156 L43 51 L59 159 L67 73 L74 159 L87 38 L101 144 L113 90 L124 152 L137 109 L150 146 L160 37 L169 156 L178 46 L187 144 L200 100 L213 142 L229 93 L244 146 L261 40 L278 147 L295 67 L311 154 L320 35 L329 154 L346 39 L363 147 L373 97 L384 145 L391 86 L399 153 L406 56 L413 148 L423 45 L433 151 L444 72 L454 155 L461 32 L469 142 L483 42 L498 142 L513 81 L528 152 L535 106 L542 145 L558 94 L575 156 L591 35 L607 148 L618 68 L629 156 L637 50 L645 156 L660 107 L676 159 L684 83 L692 153 L708 83 L724 159 L737 85 L749 148 L758 104 L767 145 L780 30 L794 145 L802 31 L809 152 L820 91 L831 153 L847 74 L862 150 L870 37 L877 143 L889 43 L901 144 L915 34 L930 153 L944 101 L959 150 L968 42 L976 147 L988 30 L999 157 L1016 74 L1033 151 L1000 200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+html[data-background="mist"] #rain { opacity: 0.9; }
+
+/* rooftop: a pale bright sky, the sun up in the corner, the city hazy below */
+html[data-background="rooftop"] #sky {
+  background:
+    radial-gradient(50% 50% at 90% -8%, rgb(var(--white-rgb) / 0.7), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent2) 22%, var(--bg)) 0%, var(--bg) 55%, color-mix(in srgb, var(--bg) 70%, white) 100%);
+}
+html[data-background="rooftop"] #sky::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 18vh;
+  background: linear-gradient(180deg, var(--scene-bld-mid), var(--scene-bld-far));
+  opacity: 0.5;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 V130 H60 V90 H120 V120 H150 V60 H230 V110 H300 V140 H360 V80 H420 V100 H470 V130 H540 V70 H620 V120 H680 V96 H740 V140 H800 V50 H880 V110 H940 V90 H1000 V200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 200' preserveAspectRatio='none'%3E%3Cpath d='M0 200 V130 H60 V90 H120 V120 H150 V60 H230 V110 H300 V140 H360 V80 H420 V100 H470 V130 H540 V70 H620 V120 H680 V96 H740 V140 H800 V50 H880 V110 H940 V90 H1000 V200 Z'/%3E%3C/svg%3E") center bottom / 100% 100% no-repeat;
+}
+/* light themes dim the canvas; the birds need it back */
+html[data-background="rooftop"][data-theme-mode] #rain { opacity: 0.85; }
+
 /* ---------- the dashboard window ---------- */
 .today-hero {
   position: relative;
@@ -68,8 +387,7 @@ html[data-background="window"] #rain { opacity: 1; }
 }
 
 .hero-scene { position: absolute; inset: 0; z-index: -1; display: none; }
-html[data-background="night"] .hero-scene,
-html[data-background="window"] .hero-scene { display: block; }
+html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"]) .hero-scene { display: block; }
 .scene { display: block; width: 100%; height: 100%; }
 
 .hero-body {
@@ -79,10 +397,15 @@ html[data-background="window"] .hero-scene { display: block; }
   min-height: 340px;
   padding: 28px 32px 26px;
 }
-html[data-background="night"] .hero-body,
-html[data-background="window"] .hero-body {
+html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"]) .hero-body {
   background: linear-gradient(90deg, rgb(var(--bg-rgb) / 0.66) 0%, rgb(var(--bg-rgb) / 0.3) 40%, rgb(var(--bg-rgb) / 0) 66%);
 }
+/* the light scene needs a little more paper behind the dark text */
+html[data-background="rooftop"] .hero-body {
+  background: linear-gradient(90deg, rgb(var(--bg-rgb) / 0.8) 0%, rgb(var(--bg-rgb) / 0.45) 40%, rgb(var(--bg-rgb) / 0) 68%);
+}
+/* every scene keeps the clock in the text color (themes.css colors it for plain cards) */
+html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])[data-background] .hero-body .console-clock { color: var(--text); }
 
 .console-date { color: var(--text-2); font-size: 14px; letter-spacing: 0.02em; }
 .console-greeting {
@@ -160,6 +483,37 @@ html[data-background="window"] .scene { filter: blur(1.4px) saturate(1.1); }
 .scene-train { animation: train 64s linear infinite; }
 .shop-glow { animation: hum 7s ease-in-out infinite; }
 
+/* the newer scenes: city lights that shimmer a little, a beacon on the
+   towers, rain and snow, a signal changing, a car driving off, a cat
+   breathing, fog and clouds drifting, birds now and then. All slow, and
+   reduced motion leaves each one standing still where it was drawn. */
+.scene .twl { animation: shimmer 8s ease-in-out infinite; }
+.scene .blink { animation: beacon 3.4s linear infinite; }
+.scene .lamp-hum, .scene .moon-glow { animation: hum 9s ease-in-out infinite; }
+.scene-fall .fall-tile { animation: sceneFall 30s linear infinite; }
+.fall-slow .fall-tile { animation-duration: 38s; }
+.fall-near .fall-tile { animation-duration: 21s; }
+.fall-slow, .fall-near { animation: sway 13s ease-in-out infinite alternate; }
+.fall-rain-far .fall-tile { animation-duration: 1.5s; }
+.fall-rain .fall-tile { animation-duration: 0.95s; }
+.scene .sig-amber, .scene .sig-stop { opacity: 0; }
+.scene .sig-go { animation: sigGo 40s linear infinite; }
+.scene .sig-amber { animation: sigAmber 40s linear infinite; }
+.scene .sig-stop { animation: sigStop 40s linear infinite; }
+.scene-car { transform-box: view-box; animation: carAway 52s linear infinite; }
+.scene--torii .scene-car { animation-delay: -18s; }
+.scene .slide { animation: dropSlide 14s ease-in infinite; }
+.cat-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: catBreathe 5.2s ease-in-out infinite; }
+.cat-head { transform-box: fill-box; transform-origin: 10% 95%; animation: catStir 23s ease-in-out infinite; }
+.scene-drift { animation: drift 70s ease-in-out infinite alternate; }
+.scene-drift.fog-a { animation-duration: 40s; }
+.scene-drift.fog-b { animation-duration: 56s; }
+.scene .rays { animation: rays 16s ease-in-out infinite alternate; }
+.scene .mote { animation: mote 16s linear infinite; }
+.scene-birds { animation: birdsCross 84s linear infinite; }
+.birds-bob { animation: bob 6s ease-in-out infinite alternate; }
+.scene .wing { transform-box: fill-box; transform-origin: 50% 50%; animation: flap 4.6s ease-in-out infinite; }
+
 /* ---------- lock screen ---------- */
 .lock-screen {
   position: fixed;
@@ -178,20 +532,36 @@ html[data-background="window"] .scene { filter: blur(1.4px) saturate(1.1); }
   .lock-screen { align-content: center; justify-items: start; padding: 24px 24px 24px max(24px, 8vw); }
   .lock-scene { height: 64vh; }
 }
-html:not([data-background="night"]):not([data-background="window"]) .lock-screen { background: rgb(var(--bg-rgb) / 0.97); }
-html:not([data-background="night"]):not([data-background="window"]) .lock-scene { display: none; }
+html:not(:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])) .lock-screen { background: rgb(var(--bg-rgb) / 0.97); }
+html:not(:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])) .lock-scene { display: none; }
+/* the room and the forest fill the lock screen rather than sitting under a sky */
+.lock-scene .scene--room .scene-sky,
+.lock-scene .scene--mist .scene-sky { display: inline; }
+html:is([data-background="room"], [data-background="mist"]) .lock-scene { top: 0; height: auto; }
+/* the other new scenes melt into the lock screen's sky at their top edge */
+html:is([data-background="bluehour"], [data-background="city"], [data-background="torii"], [data-background="rooftop"]) .lock-scene {
+  -webkit-mask-image: linear-gradient(180deg, transparent, black 30%);
+  mask-image: linear-gradient(180deg, transparent, black 30%);
+}
 
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {
   .today-hero { min-height: 0; margin: -6px -4px 20px; border-radius: var(--r-lg); }
   .hero-body { gap: 14px; min-height: 380px; padding: 22px 18px 18px; }
-  html[data-background="night"] .hero-body,
-  html[data-background="window"] .hero-body {
+  html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"]) .hero-body {
     background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.5) 0%, rgb(var(--bg-rgb) / 0.08) 45%, rgb(var(--bg-rgb) / 0.55) 100%);
+  }
+  html[data-background="rooftop"] .hero-body {
+    background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.7) 0%, rgb(var(--bg-rgb) / 0.2) 45%, rgb(var(--bg-rgb) / 0.62) 100%);
   }
   .console-readout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .readout-cell { padding: 7px 10px 7px 8px; }
   .readout-icon { width: 28px; height: 28px; font-size: 14px; }
   .console-actions .primary-btn { flex: 1 1 auto; }
-  html[data-background="night"] #sky::after { height: 18vh; }
+  html[data-background="night"] #sky::after,
+  html[data-background="bluehour"] #sky::after { height: 18vh; }
+  html[data-background="city"] #sky::after,
+  html[data-background="torii"] #sky::after,
+  html[data-background="rooftop"] #sky::after { height: 15vh; }
+  html[data-background="mist"] #sky::after { height: 20vh; }
 }

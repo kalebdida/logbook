@@ -47,15 +47,22 @@ app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=li
 # Android app and the GitHub Pages copy talk to your server.
 # Without a password, only pages on this computer may call it: otherwise any
 # website you visit could read your journal from 127.0.0.1.
+# LOGBOOK_CORS_ORIGINS adds sites by name on top of either rule (e.g. the
+# GitHub Pages front door), so they're allowed whatever else changes.
 LOCAL_ORIGINS = r"^(https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?|capacitor://localhost)$"
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"] if settings.password else [],
-    allow_origin_regex=None if settings.password else LOCAL_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+
+def cors_options(config=settings) -> dict:
+    return {
+        "allow_origins": ["*"] if config.password else config.cors_origin_list,
+        "allow_origin_regex": None if config.password else LOCAL_ORIGINS,
+        "allow_credentials": False,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
+
+
+app.add_middleware(CORSMiddleware, **cors_options())
 
 app.include_router(auth_router.router)
 app.include_router(api_router, dependencies=[Depends(current_user)])
@@ -86,7 +93,7 @@ def health(authorization: str | None = Header(default=None), db: Session = Depen
 
 # backend/app/main.py -> project root, where index.html lives.
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent
-FRONTEND_FILES = {".", "index.html", "sw.js", "manifest.webmanifest"}
+FRONTEND_FILES = {".", "index.html", "sw.js", "manifest.webmanifest", "config.js"}
 FRONTEND_DIRS = {"css", "js", "assets"}
 
 mimetypes.add_type("application/manifest+json", ".webmanifest")

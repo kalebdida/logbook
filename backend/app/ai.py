@@ -4,6 +4,8 @@ Two protocols cover nearly everything:
   anthropic  Claude via the Messages API
   openai     any OpenAI-compatible chat API: OpenAI, OpenRouter, Groq, and
              local models through Ollama or LM Studio (free, fully private)
+  gemini     Google's Gemini, through its OpenAI-compatible endpoint (a free
+             key from Google AI Studio)
 """
 
 import httpx
@@ -12,7 +14,12 @@ from app.config import settings
 
 ANTHROPIC_URL = "https://api.anthropic.com"
 ANTHROPIC_VERSION = "2023-06-01"
-DEFAULTS = {"anthropic": "claude-haiku-5-5", "openai": "gpt-4o-mini"}
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+DEFAULTS = {"anthropic": "claude-haiku-5-5", "openai": "gpt-4o-mini", "gemini": "gemini-3.5-flash-lite"}
+# Gemini 3 models always think, and the thinking comes out of the same token
+# budget as the reply. A tiny cap can leave nothing for the answer, so Gemini
+# always gets at least this much room.
+GEMINI_MIN_TOKENS = 1024
 
 
 class AIError(Exception):
@@ -20,14 +27,27 @@ class AIError(Exception):
 
 
 def provider_name() -> str:
-    """The provider in use. A key with no provider set means Anthropic."""
-    return settings.ai_provider.lower() or ("anthropic" if settings.ai_api_key else "")
+    """The provider in use. With none set, a LOGBOOK_AI_API_KEY (or
+    ANTHROPIC_API_KEY) means Anthropic, and a GEMINI_API_KEY alone means Gemini."""
+    if settings.ai_provider:
+        return settings.ai_provider.strip().lower()
+    if settings.ai_api_key:
+        return "anthropic"
+    if settings.gemini_api_key:
+        return "gemini"
+    return ""
+
+
+def api_key() -> str:
+    if provider_name() == "gemini":
+        return settings.ai_api_key or settings.gemini_api_key
+    return settings.ai_api_key
 
 
 def configured() -> bool:
     provider = provider_name()
-    if provider == "anthropic":
-        return bool(settings.ai_api_key)
+    if provider in ("anthropic", "gemini"):
+        return bool(api_key())
     if provider == "openai":
         # local servers (Ollama) need no key, hosted ones do
         return bool(settings.ai_api_key or settings.ai_base_url)
@@ -55,12 +75,15 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
                 data = _json(response)
                 return "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
 
-            if provider == "openai":
+            if provider in ("openai", "gemini"):
                 headers = {"content-type": "application/json"}
-                if settings.ai_api_key:
-                    headers["authorization"] = f"Bearer {settings.ai_api_key}"
+                if api_key():
+                    headers["authorization"] = f"Bearer {api_key()}"
+                default_url = GEMINI_URL if provider == "gemini" else "https://api.openai.com/v1"
+                if provider == "gemini":
+                    max_tokens = max(max_tokens, GEMINI_MIN_TOKENS)
                 response = await client.post(
-                    (settings.ai_base_url or "https://api.openai.com/v1").rstrip("/") + "/chat/completions",
+                    (settings.ai_base_url or default_url).rstrip("/") + "/chat/completions",
                     headers=headers,
                     json={
                         "model": model_name(),
@@ -82,7 +105,10 @@ def _json(response: httpx.Response) -> dict:
         detail = ""
         try:
             body = response.json()
-            detail = (body.get("error") or {}).get("message", "") if isinstance(body.get("error"), dict) else str(body.get("error", ""))
+            if isinstance(body, list) and body:  # Google's endpoints sometimes wrap the error in a list
+                body = body[0]
+            error = body.get("error", "") if isinstance(body, dict) else ""
+            detail = error.get("message", "") if isinstance(error, dict) else str(error)
         except ValueError:
             pass
         raise AIError(f"AI provider error {response.status_code}" + (f": {detail}" if detail else ""))

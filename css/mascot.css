@@ -1,0 +1,330 @@
+/* =====================================================================
+   mascot.css: the cat (js/mascot.js). A dark tabby drawn flat in the
+   theme's own colors: fur is mixed from --muted, --warm and the surface
+   (or the text color on light themes), eyes are the window gold, blush
+   and nose the lantern. Every motion is short and calm; reduced motion
+   leaves still poses.
+   ===================================================================== */
+
+.mascot {
+  --m-w: 96px;
+  --m-fur: color-mix(in srgb, color-mix(in srgb, var(--muted) 84%, var(--warm)) 72%, var(--surface));
+  --m-stripe: color-mix(in srgb, var(--m-fur) 64%, rgb(var(--shade-rgb)));
+  --m-light: color-mix(in srgb, var(--m-fur) 58%, rgb(var(--white-rgb)));
+  --m-ink: color-mix(in srgb, var(--m-fur) 22%, rgb(var(--shade-rgb)));
+  --m-ear: color-mix(in srgb, var(--warm) 52%, var(--m-fur));
+  --m-nose: color-mix(in srgb, var(--warm) 72%, rgb(var(--white-rgb)));
+  --m-blush: rgb(var(--warm-rgb) / 0.36);
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  width: var(--m-w);
+  line-height: 0;
+  vertical-align: bottom;
+}
+html[data-theme-mode="light"] .mascot {
+  --m-fur: color-mix(in srgb, color-mix(in srgb, var(--muted) 84%, var(--warm)) 74%, var(--text));
+  --m-stripe: color-mix(in srgb, var(--m-fur) 62%, rgb(var(--shade-rgb)));
+  --m-light: color-mix(in srgb, var(--m-fur) 46%, var(--surface));
+  --m-blush: rgb(var(--warm-rgb) / 0.3);
+}
+.mascot--sm { --m-w: 64px; }
+.mascot--lg { --m-w: 136px; }
+
+/* ---------- where it sits ---------- */
+/* dash: in the corner of the dashboard window, by the lit shop */
+.mascot--dash {
+  position: absolute;
+  right: clamp(14px, 3vw, 36px);
+  bottom: 14px;
+}
+/* focus: perched on the top edge of whatever it is mounted in (the timer card) */
+*:has(> .mascot--focus) { position: relative; }
+.mascot--focus {
+  position: absolute;
+  right: 30px;
+  bottom: calc(100% - var(--m-w) * 0.075);
+}
+/* corner: fixed to the viewport */
+.mascot--corner {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + var(--safe-bottom));
+  z-index: 40;
+}
+@media (max-width: 760px) {
+  .mascot--dash { --m-w: 64px; right: 12px; bottom: auto; top: 12px; }
+  .mascot--focus { --m-w: 64px; right: auto; left: 50%; translate: -50% 0; }
+  .mascot--corner { right: 12px; bottom: calc(var(--bar-h) + var(--safe-bottom) + 12px); }
+}
+
+/* ---------- the button ---------- */
+.mascot-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mascot-btn:focus { outline: none; }
+.mascot-btn:focus-visible { outline: 2px solid var(--accent2); outline-offset: 4px; }
+.mascot-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  transition: transform 0.18s var(--ease-out);
+}
+.mascot-btn:active .mascot-svg { transform: scale(0.96); }
+
+/* ---------- the speech bubble ---------- */
+.mascot-bubble {
+  position: absolute;
+  right: calc(var(--m-w) * 0.24);
+  bottom: calc(100% - var(--m-w) * 0.06);
+  width: max-content;
+  max-width: min(230px, 70vw);
+  padding: 8px 13px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: 0 10px 24px -14px rgb(var(--shade-rgb) / 0.55);
+  color: var(--text);
+  font: 500 13.5px/1.45 var(--font-ui);
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  transform-origin: calc(100% - 18px) 100%;
+  animation: mascotBubbleIn 0.34s var(--ease-spring) both;
+}
+.mascot-bubble::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  border-bottom-right-radius: 2px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+.mascot-bubble.is-leaving { animation: mascotBubbleOut 0.22s ease both; }
+.mascot.is-sleeping .mascot-bubble { bottom: calc(100% - var(--m-w) * 0.4); }
+
+/* focus: the bubble opens to the left, beside the cat */
+.mascot--focus .mascot-bubble { right: calc(100% + 4px); bottom: calc(var(--m-w) * 0.4); max-width: 200px; transform-origin: 100% 60%; }
+.mascot--focus .mascot-bubble::after { right: -5px; bottom: 12px; transform: rotate(-45deg); }
+.mascot--focus.is-sleeping .mascot-bubble { bottom: calc(var(--m-w) * 0.16); }
+
+@media (max-width: 760px) {
+  /* small screens: the bubble hangs below the cat, pointing up */
+  .mascot--dash .mascot-bubble,
+  .mascot--focus .mascot-bubble { top: calc(100% + 6px); bottom: auto; max-width: min(210px, 62vw); transform-origin: calc(100% - 18px) 0; }
+  .mascot--dash .mascot-bubble { right: 0; }
+  .mascot--focus .mascot-bubble { right: auto; left: 50%; translate: -50% 0; transform-origin: 50% 0; }
+  .mascot--dash .mascot-bubble::after,
+  .mascot--focus .mascot-bubble::after { top: -5px; bottom: auto; transform: rotate(-135deg); }
+  .mascot--dash .mascot-bubble::after { right: 26px; }
+  .mascot--focus .mascot-bubble::after { right: calc(50% - 5px); }
+  .mascot--dash.is-sleeping .mascot-bubble,
+  .mascot--focus.is-sleeping .mascot-bubble { bottom: auto; }
+}
+
+.mascot-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- the drawing ---------- */
+.mascot .m-fur { fill: var(--m-fur); }
+.mascot .m-ear-shape { stroke: var(--m-fur); stroke-width: 3; stroke-linejoin: round; }
+.mascot .m-light,
+.mascot .m-paw { fill: var(--m-light); }
+.mascot .m-stripe { fill: none; stroke: var(--m-stripe); stroke-width: 2.4; stroke-linecap: round; }
+.mascot .m-toes { fill: none; stroke: color-mix(in srgb, var(--m-light) 55%, var(--m-stripe)); stroke-width: 0.9; stroke-linecap: round; }
+.mascot .m-tail-fur { fill: none; stroke: var(--m-fur); stroke-width: 8; stroke-linecap: round; }
+.mascot .m-tail-stripe { fill: none; stroke: var(--m-stripe); stroke-width: 8; stroke-dasharray: 2.6 6.2; stroke-dashoffset: -5; }
+.mascot .m-ear-in { fill: var(--m-ear); stroke: var(--m-ear); stroke-width: 1.4; stroke-linejoin: round; }
+.mascot .m-blush { fill: var(--m-blush); transition: fill 0.3s ease; }
+.mascot .m-iris { fill: var(--accent); }
+.mascot .m-pupil { fill: var(--m-ink); }
+.mascot .m-glint { fill: rgb(var(--white-rgb) / 0.95); }
+.mascot .m-line { fill: none; stroke: var(--m-ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mascot .m-mouth { stroke-width: 1.3; }
+.mascot .m-nose { fill: var(--m-nose); }
+.mascot .m-whisker { fill: none; stroke: rgb(var(--text-rgb) / 0.3); stroke-width: 0.9; stroke-linecap: round; }
+.mascot .m-shadow { fill: rgb(var(--shade-rgb) / 0.3); }
+.mascot .m-z { fill: none; stroke: var(--accent2); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.mascot .m-heart { fill: var(--danger); }
+.mascot .m-spark { fill: var(--accent); }
+
+/* every moving part turns around a point in the drawing */
+.mascot .m-cat,
+.mascot .m-body,
+.mascot .m-head-bob,
+.mascot .m-head,
+.mascot .m-tail,
+.mascot .m-ear-r,
+.mascot .m-curl-body,
+.mascot .m-curl-head { transform-box: view-box; }
+.mascot .m-cat { transform-origin: 60px 101px; }
+.mascot .m-body { transform-origin: 60px 100px; }
+.mascot .m-head { transform-origin: 60px 62px; transition: transform 0.5s var(--ease-spring); }
+.mascot .m-tail { transform-origin: 80px 96px; }
+.mascot .m-ear-r { transform-origin: 74px 31px; }
+.mascot .m-curl-body { transform-origin: 64px 101px; }
+.mascot .m-curl-head { transform-origin: 36px 98px; }
+.mascot .m-eye,
+.mascot .m-pupil,
+.mascot .m-shadow,
+.mascot .m-z,
+.mascot .m-fx-item { transform-box: fill-box; transform-origin: center; }
+.mascot .m-eyes { transition: transform 0.35s var(--ease-out); }
+.mascot .m-pupil { transition: transform 0.35s var(--ease-out); }
+.mascot .m-eye { transition: opacity 0.15s ease; }
+.mascot .m-eyes-happy { opacity: 0; transition: opacity 0.15s ease; }
+
+/* two poses in one drawing: sitting up, curled asleep */
+.mascot .m-sit,
+.mascot .m-curl { transition: opacity 0.6s ease; }
+.mascot .m-curl { opacity: 0; }
+.mascot.is-sleeping .m-sit { opacity: 0; }
+.mascot.is-sleeping .m-curl { opacity: 1; }
+
+/* idle: breathing, a blink now and then, the tail, an ear */
+.mascot:not(.is-sleeping) .m-body { animation: mascotBreathe 3.8s ease-in-out infinite; }
+.mascot:not(.is-sleeping) .m-head-bob { animation: mascotBob 3.8s ease-in-out infinite; }
+.mascot:not(.is-sleeping) .m-tail { animation: mascotTail 5.6s ease-in-out infinite; }
+.mascot:not(.is-sleeping) .m-eye { animation: mascotBlink 6.2s ease-in-out infinite 1.2s; }
+.mascot:not(.is-sleeping) .m-ear-r { animation: mascotTwitch 12s ease-in-out infinite 4s; }
+
+/* attentive: head tilts toward what you're typing, eyes follow */
+.mascot.is-attentive .m-head { transform: rotate(calc(var(--look-x, -0.6) * 13deg)); }
+.mascot.is-attentive .m-eyes { transform: translate(calc(var(--look-x, -0.6) * 2.6px), calc(var(--look-y, 0) * 1.6px)); }
+.mascot.is-attentive .m-pupil { transform: scale(1.12, 1.06); }
+
+/* gentle: a soft lean, no bounce */
+.mascot.is-soft .m-head { transform: rotate(5deg) translateY(1px); }
+
+/* happy: a little hop, eyes squeezed shut */
+.mascot.is-happy .m-cat { animation: mascotHop 0.76s var(--ease-out) both; }
+.mascot.is-happy .m-sit .m-shadow { animation: mascotShadow 0.76s var(--ease-out) both; }
+.mascot.is-happy .m-eye,
+.mascot.is-pet .m-eye { opacity: 0; }
+.mascot.is-happy .m-eyes-happy,
+.mascot.is-pet .m-eyes-happy { opacity: 1; }
+
+/* pet: lean into the hand, a purr wiggle, cheeks warm up */
+.mascot.is-pet .m-cat { animation: mascotPurr 1s ease-in-out both; }
+.mascot.is-pet .m-head { transform: rotate(-7deg); }
+.mascot.is-pet .m-blush { fill: rgb(var(--warm-rgb) / 0.6); }
+
+/* asleep: slow breathing, a small z drifting up */
+.mascot.is-sleeping .m-curl-body { animation: mascotSleepBreathe 5s ease-in-out infinite; }
+.mascot.is-sleeping .m-curl-head { animation: mascotSleepHead 5s ease-in-out infinite; }
+.mascot.is-sleeping .m-z1 { animation: mascotZ 4.8s ease-in-out infinite 0.4s; }
+.mascot.is-sleeping .m-z2 { animation: mascotZ 4.8s ease-in-out infinite 2.8s; }
+
+/* hearts and sparkles */
+.mascot .m-fx-item { opacity: 0; }
+.mascot.is-fx[data-fx="hearts"] .m-heart,
+.mascot.is-fx[data-fx="sparkles"] .m-spark,
+.mascot.is-fx[data-fx="both"] .m-fx-item { animation: mascotFloat 1.3s var(--ease-out) both; }
+.mascot.is-fx .m-fx2 { animation-delay: 0.14s !important; }
+.mascot.is-fx .m-fx3 { animation-delay: 0.08s !important; }
+.mascot.is-fx .m-fx4 { animation-delay: 0.24s !important; }
+
+/* tab hidden: everything holds still */
+.mascot.is-paused,
+.mascot.is-paused * { animation-play-state: paused !important; }
+
+@keyframes mascotBreathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.012, 1.028); }
+}
+@keyframes mascotBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.9px); }
+}
+@keyframes mascotTail {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes mascotBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94.5% { transform: scaleY(0.08); }
+}
+@keyframes mascotTwitch {
+  0%, 86%, 100% { transform: rotate(0); }
+  88% { transform: rotate(-13deg); }
+  91% { transform: rotate(3deg); }
+  94% { transform: rotate(0); }
+}
+@keyframes mascotHop {
+  0% { transform: none; }
+  16% { transform: scale(1.05, 0.93); }
+  44% { transform: translateY(-9px) scale(0.97, 1.04); }
+  70% { transform: translateY(0) scale(1.04, 0.95); }
+  86% { transform: scale(0.99, 1.01); }
+  100% { transform: none; }
+}
+@keyframes mascotShadow {
+  0%, 100% { transform: none; opacity: 1; }
+  44% { transform: scale(0.72); opacity: 0.6; }
+}
+@keyframes mascotPurr {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(-2.4deg); }
+  30% { transform: rotate(2deg); }
+  45% { transform: rotate(-1.6deg); }
+  60% { transform: rotate(1.2deg); }
+  75% { transform: rotate(-0.6deg); }
+}
+@keyframes mascotSleepBreathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.012, 1.045); }
+}
+@keyframes mascotSleepHead {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.7px); }
+}
+@keyframes mascotZ {
+  0% { opacity: 0; transform: translate(-2px, 5px) scale(0.6); }
+  22% { opacity: 0.9; }
+  70% { opacity: 0.5; }
+  100% { opacity: 0; transform: translate(7px, -12px) scale(1.05); }
+}
+@keyframes mascotFloat {
+  0% { opacity: 0; transform: translateY(5px) scale(0.4); }
+  25% { opacity: 1; transform: translateY(0) scale(1.06); }
+  100% { opacity: 0; transform: translateY(-13px) scale(0.9); }
+}
+@keyframes mascotBubbleIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mascotBubbleOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px) scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot *,
+  .mascot *::after { animation: none !important; transition: none !important; }
+  .mascot.is-fx[data-fx="hearts"] .m-heart,
+  .mascot.is-fx[data-fx="sparkles"] .m-spark,
+  .mascot.is-fx[data-fx="both"] .m-fx-item { opacity: 1; }
+  .mascot.is-sleeping .m-z { opacity: 0.85; }
+}

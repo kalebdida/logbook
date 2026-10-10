@@ -12,7 +12,9 @@ export var DEFAULT_PREFS = {
   notifications: false,
   focusMinutes: 25,
   shortBreakMinutes: 5,
-  longBreakMinutes: 15
+  longBreakMinutes: 15,
+  mascot: true,
+  mascotName: "Mochi"
 };
 
 var cache = null;

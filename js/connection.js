@@ -5,10 +5,19 @@
    Android app. Optional password login.
    "device": everything stays in this browser (IndexedDB). No server needed.
 
-   First visit decides by itself: if the page was served by a Logbook
-   backend, use it; otherwise use this device. After that the choice is
-   remembered, so a server that's briefly down never silently flips you
-   onto an empty device database. */
+   First visit decides by itself: if config.js names a server (the GitHub
+   Pages front door for a server on Render), use that; else if the page was
+   served by a Logbook backend, use it; otherwise use this device. After that
+   the choice is remembered, so a server that's briefly down never silently
+   flips you onto an empty device database.
+
+   Every page load reports how connecting goes, for a loading screen:
+     document "logbook:connect-progress", detail { phase, elapsed, server }
+     phase "connecting" -> "waking" (after ~4s; a free host is waking up) ->
+     "ready" or "offline". While waiting it fires about once a second, and
+     each load ends with exactly one "ready" or "offline". "offline" means we
+     gave up waiting; the app then shows its usual "can't reach" warning and
+     keeps checking in the background. */
 var KEY = "logbook-connection";
 var state = null;
 
@@ -72,12 +81,96 @@ async function probe(base, timeoutMs) {
   }
 }
 
+/* The server config.js names (window.LOGBOOK_CONFIG.apiUrl), or "". */
+export function configuredServer() {
+  try {
+    var url = window.LOGBOOK_CONFIG && window.LOGBOOK_CONFIG.apiUrl;
+    return typeof url === "string" && /^https?:\/\//.test(url.trim()) ? url.trim().replace(/\/+$/, "") : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+var WAIT_LIMIT_MS = 90000;    // Render's free plan can take about a minute to wake
+var WAKING_AFTER_MS = 4000;   // slower than this: it's probably waking up
+var PROBE_TIMEOUT_MS = 15000;
+
+function hostOf(base) {
+  if (base === null) return "";
+  if (!base) return location.host;
+  return base.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+}
+
+function progress(phase, started, base) {
+  try {
+    document.dispatchEvent(new CustomEvent("logbook:connect-progress", {
+      detail: { phase: phase, elapsed: Math.max(0, Date.now() - started), server: hostOf(base) }
+    }));
+  } catch (e) {}
+}
+
+/* "connecting" now, then "connecting"/"waking" about once a second until stopped. */
+function ticker(base, started) {
+  progress("connecting", started, base);
+  var id = setInterval(function () {
+    progress(Date.now() - started >= WAKING_AFTER_MS ? "waking" : "connecting", started, base);
+  }, 1000);
+  return function stop() { clearInterval(id); };
+}
+
+function sleep(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+/* Keeps asking a remote server until it answers, for up to ~90s: a free host
+   that was asleep answers nothing (or an error page) while it wakes up. */
+async function waitForServer(base) {
+  var started = Date.now();
+  var stop = ticker(base, started);
+  var ok = false;
+  try {
+    while (!ok) {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) break; // no network: don't make anyone wait
+      var left = WAIT_LIMIT_MS - (Date.now() - started);
+      if (left <= 0) break;
+      var r = await probe(base, Math.min(PROBE_TIMEOUT_MS, left));
+      if (r.kind === "logbook") ok = true;
+      else await sleep(Math.min(1000, Math.max(0, WAIT_LIMIT_MS - (Date.now() - started))));
+    }
+  } finally {
+    stop();
+  }
+  progress(ok ? "ready" : "offline", started, base);
+  return ok;
+}
+
 export async function resolveConnection() {
   var c = getConnection();
-  if (c.mode === "device" || c.mode === "server") return c;
-  if (location.protocol.indexOf("http") !== 0) return setConnection({ mode: "device", serverUrl: "" });
-  var r = await probe("", 6000);
-  if (r.kind === "unknown") r = await probe("", 10000);
+  if (!c.mode && configuredServer()) c = setConnection({ mode: "server", serverUrl: configuredServer() });
+  if (c.mode === "device") {
+    progress("ready", Date.now(), null);
+    return c;
+  }
+  if (c.mode === "server") {
+    // the page's own server served this page, so it's awake; a remote one may be asleep
+    if (serverBase()) await waitForServer(serverBase());
+    else progress("ready", Date.now(), "");
+    return getConnection();
+  }
+  if (location.protocol.indexOf("http") !== 0) {
+    progress("ready", Date.now(), null);
+    return setConnection({ mode: "device", serverUrl: "" });
+  }
+  var started = Date.now();
+  var stop = ticker("", started);
+  var r;
+  try {
+    r = await probe("", 6000);
+    if (r.kind === "unknown") r = await probe("", 10000);
+  } finally {
+    stop();
+  }
+  progress(r.kind === "unknown" ? "offline" : "ready", started, r.kind === "absent" ? null : "");
   if (r.kind === "logbook") return setConnection({ mode: "server", serverUrl: "" });
   if (r.kind === "absent") return setConnection({ mode: "device", serverUrl: "" });
   // the page came from somewhere that isn't answering right now: assume its
@@ -86,8 +179,11 @@ export async function resolveConnection() {
   return state;
 }
 
+/* A short name for where the data lives, for settings and the lock screen. */
 export function describeConnection() {
   var c = getConnection();
-  if (c.mode === "device") return "this device";
-  return c.serverUrl ? c.serverUrl.replace(/^https?:\/\//, "") : "this computer's server";
+  if (c.mode === "device") return "This device";
+  var host = hostOf(serverBase());
+  if (!host || /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) return "Your server on this computer";
+  return host;
 }

@@ -8,7 +8,15 @@ import { apiAIStatus, apiAIChat } from './api.js';
 import { isDevice } from './connection.js';
 
 var KEY = "logbook-ai";
-var DEFAULT_MODELS = { anthropic: "claude-haiku-5-5", openai: "gpt-4o-mini" };
+var DEFAULT_MODELS = { gemini: "gemini-3.5-flash-lite", anthropic: "claude-haiku-5-5", openai: "gpt-4o-mini" };
+var GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta";
+// Gemini 3 models always think, out of the same token budget as the reply,
+// so a tiny cap can leave nothing for the answer. Give it at least this much.
+var GEMINI_MIN_TOKENS = 1024;
+
+export function defaultModel(provider) {
+  return DEFAULT_MODELS[provider] || "";
+}
 
 export function getAIConfig() {
   try {
@@ -25,7 +33,7 @@ export function setAIConfig(patch) {
 }
 
 function directReady(c) {
-  if (c.provider === "anthropic") return Boolean(c.apiKey);
+  if (c.provider === "anthropic" || c.provider === "gemini") return Boolean(c.apiKey);
   if (c.provider === "openai") return Boolean(c.apiKey || c.baseUrl);
   return false;
 }
@@ -70,6 +78,13 @@ async function direct(c, messages, system, maxTokens) {
         },
         body: JSON.stringify({ model: model, max_tokens: maxTokens, system: system, messages: messages })
       });
+    } else if (c.provider === "gemini") {
+      // Google's own API (its OpenAI-style one doesn't promise browser calls)
+      res = await fetch(GEMINI_URL + "/models/" + encodeURIComponent(model) + ":generateContent", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": c.apiKey },
+        body: JSON.stringify(geminiBody(messages, system, maxTokens))
+      });
     } else {
       var headers = { "content-type": "application/json" };
       if (c.apiKey) headers.authorization = "Bearer " + c.apiKey;
@@ -80,11 +95,12 @@ async function direct(c, messages, system, maxTokens) {
       });
     }
   } catch (e) {
-    throw new Error(c.baseUrl && /localhost|127\.0\.0\.1/.test(c.baseUrl)
+    throw new Error(c.provider === "openai" && c.baseUrl && /localhost|127\.0\.0\.1/.test(c.baseUrl)
       ? "can't reach your local model. is it running? (for Ollama, start it with OLLAMA_ORIGINS=* so the browser may call it)"
       : "can't reach the AI provider. check your connection.");
   }
   try { body = await res.json(); } catch (e) { body = {}; }
+  if (Array.isArray(body)) body = body[0] || {}; // Google sometimes wraps its errors in a list
   if (!res.ok) {
     var msg = body && body.error ? (body.error.message || body.error) : "";
     throw new Error("AI provider error " + res.status + (msg ? ": " + msg : ""));
@@ -92,5 +108,29 @@ async function direct(c, messages, system, maxTokens) {
   if (c.provider === "anthropic") {
     return (body.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("");
   }
+  if (c.provider === "gemini") return geminiText(body);
   return ((body.choices || [])[0] || {}).message ? body.choices[0].message.content || "" : "";
+}
+
+/* Gemini's native shape: a system instruction, and turns as "user" / "model". */
+export function geminiBody(messages, system, maxTokens) {
+  var body = {
+    contents: messages.map(function (m) {
+      return { role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] };
+    }),
+    generationConfig: { maxOutputTokens: Math.max(maxTokens || 0, GEMINI_MIN_TOKENS) }
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system }] };
+  return body;
+}
+
+export function geminiText(body) {
+  var candidate = ((body && body.candidates) || [])[0];
+  if (!candidate) {
+    var blocked = body && body.promptFeedback && body.promptFeedback.blockReason;
+    throw new Error(blocked ? "Gemini didn't answer that one (" + String(blocked).toLowerCase() + ")." : "Gemini sent back an empty reply.");
+  }
+  var parts = (candidate.content && candidate.content.parts) || [];
+  // skip the model's thinking if it ever comes back, keep only the answer
+  return parts.filter(function (p) { return typeof p.text === "string" && !p.thought; }).map(function (p) { return p.text; }).join("");
 }

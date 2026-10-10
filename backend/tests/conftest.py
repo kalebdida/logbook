@@ -9,7 +9,8 @@ import pytest
 # whole suite against PostgreSQL. Never your real logbook.db.
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{Path(_tmp, 'test.db').as_posix()}"
-for var in ("LOGBOOK_PASSWORD", "LOGBOOK_AI_PROVIDER", "LOGBOOK_AI_API_KEY", "ANTHROPIC_API_KEY", "LOGBOOK_AI_BASE_URL"):
+for var in ("LOGBOOK_PASSWORD", "LOGBOOK_AI_PROVIDER", "LOGBOOK_AI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
+            "LOGBOOK_AI_BASE_URL", "LOGBOOK_AI_MODEL", "LOGBOOK_CORS_ORIGINS"):
     os.environ.pop(var, None)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -33,6 +34,7 @@ def client():
     settings.password = ""
     settings.ai_provider = ""
     settings.ai_api_key = ""
+    settings.gemini_api_key = ""
     settings.ai_base_url = ""
     settings.ai_model = ""
     with TestClient(app) as c:  # runs the lifespan: migrations

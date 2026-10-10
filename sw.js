@@ -1,6 +1,9 @@
 /* Logbook service worker: makes the app open offline.
    - the app's own files (html, css, js, icons): network first, falling back
      to the last copy, so updates show up as soon as you're online
+   - config.js (which server to use) also skips the browser's HTTP cache, so
+     a changed server address is picked up on the next online load. It's
+     cached like the other files the first time the page loads it.
    - everything else (your server's API, Spotify, AI providers): untouched,
      never cached here
    The build script stamps VERSION; a new version clears old caches. */
@@ -39,8 +42,9 @@ function isAppFile(req) {
 self.addEventListener("fetch", function (event) {
   var req = event.request;
   if (!isAppFile(req)) return;
+  var fresh = /\/config\.js$/.test(new URL(req.url).pathname) ? new Request(req, { cache: "no-cache" }) : req;
   event.respondWith(
-    fetch(req).then(function (res) {
+    fetch(fresh).then(function (res) {
       if (res && res.ok && res.type === "basic") {
         var copy = res.clone();
         caches.open(CACHE).then(function (c) { c.put(req, copy); });
