@@ -88,7 +88,7 @@ HELP = (
     "/due nov 1 Early decision  ·  /deadlines\n"
     "/morning 7 (or off)  ·  /backup\n"
     "/sleep  ·  /wake  ·  /grateful family dinner\n\n"
-    "Send a voice note and it becomes a journal entry. Send a photo and it's today's photo.\n"
+    "Send a photo and it becomes today's photo.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
     "(and friends like #study #gym #church).\n\n"
@@ -217,7 +217,7 @@ async def send_backup(db: Session, user: User, chat_id: int, tz: int) -> bool:
 
 
 async def download(file_id: str, limit: int = 20_000_000) -> bytes | None:
-    """A file someone sent the bot (a voice note, a photo)."""
+    """A file someone sent the bot (a photo)."""
     try:
         info = await call(state["token"], "getFile", {"file_id": file_id})
         if not info or info.get("file_size", 0) > limit:
@@ -247,35 +247,6 @@ async def handle_media(db: Session, user: User, link: TelegramLink, msg: dict) -
                    ". It's on your Today page and the calendar.")
         return
 
-    voice = msg.get("voice") or msg.get("audio") or {}
-    if not allowed_ai(user) or ai.provider_name() != "gemini":
-        await send(chat, "Voice notes need Gemini turned on for your account. Typing works: /j today felt...")
-        return
-    if voice.get("duration", 0) > 600:
-        await send(chat, "That's a long one. Voice notes up to 10 minutes, please.")
-        return
-    try:
-        await call(state["token"], "sendChatAction", {"chat_id": chat, "action": "typing"})
-    except TelegramError:
-        pass
-    audio = await download(voice["file_id"])
-    if not audio:
-        await send(chat, "Couldn't get that voice note from Telegram. Try again?")
-        return
-    try:
-        words = await ai.transcribe(audio, voice.get("mime_type") or "audio/ogg")
-    except ai.AIError as exc:
-        log.warning("logbook: transcription failed: %s", str(exc)[:200])
-        await send(chat, "I couldn't make out that voice note just now. Try again in a minute?")
-        return
-    if not words:
-        await send(chat, "I didn't hear any words in that one.")
-        return
-    entry = Entry(user_id=user.id, occurred_at=datetime.now(timezone.utc), mood="okay", text=words[:20000], source="voice")
-    db.add(entry)
-    db.commit()
-    await send(chat, f"🎙 Saved to your journal:\n<i>{esc(words[:1500])}</i>\n\nHow did today feel?",
-               [[{"text": label, "callback_data": f"m:{entry.id}:{mood}"} for mood, label in MOODS.items()]])
 
 
 async def send_letter(db: Session, user: User, chat_id: int, tz: int, today: date) -> None:
@@ -1010,7 +981,7 @@ async def process(update: dict) -> None:
 
             msg = update.get("message") or {}
             chat = msg.get("chat") or {}
-            media = msg.get("voice") or msg.get("audio") or msg.get("photo")
+            media = msg.get("photo")
             if chat.get("type") != "private" or ("text" not in msg and not media):
                 return
             chat_id = chat["id"]

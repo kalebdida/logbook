@@ -117,31 +117,6 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
     raise AIError("AI isn't configured on this server")
 
 
-async def transcribe(audio: bytes, mime: str, transport: httpx.AsyncBaseTransport | None = None) -> str:
-    """A voice note to text. Only Gemini listens to audio here; the free
-    models do this well."""
-    if provider_name() != "gemini":
-        raise AIError("Voice notes need Gemini as the AI provider")
-    import base64
-    body = {
-        "contents": [{"role": "user", "parts": [
-            {"inline_data": {"mime_type": mime, "data": base64.b64encode(audio).decode()}},
-            {"text": "Transcribe this voice note exactly as spoken, in the language spoken, with normal punctuation. "
-                     "Reply with the transcript only. If there is no speech, reply with nothing."},
-        ]}],
-        "generationConfig": {"maxOutputTokens": 2048},
-    }
-    async with httpx.AsyncClient(timeout=120, transport=transport) as client:
-        try:
-            response = await client.post(_gemini_base() + "/models/" + model_name() + ":generateContent",
-                                         headers={"x-goog-api-key": api_key(), "content-type": "application/json"}, json=body)
-            return gemini_text(_json(response)).strip()
-        except httpx.HTTPError as exc:
-            raise AIError(f"Couldn't reach the AI provider: {exc.__class__.__name__}") from exc
-        except (KeyError, IndexError, TypeError) as exc:
-            raise AIError("The AI provider sent back something unexpected") from exc
-
-
 def _gemini_base() -> str:
     return (settings.ai_base_url or GEMINI_URL).rstrip("/")
 

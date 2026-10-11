@@ -26,5 +26,5 @@ class Entry(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     mood: Mapped[str] = mapped_column(String(20))
     text: Mapped[str] = mapped_column(Text)
-    # where it came from when it wasn't typed in the app: voice (Telegram), lantern
+    # where it came from when it wasn't typed in the app: lantern
     source: Mapped[str | None] = mapped_column(String(20), default=None)

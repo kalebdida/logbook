@@ -310,29 +310,12 @@ def test_streak_forgives_one_missed_day_a_week(client):
         assert bot.streak(db, 1, today, 0) == 5
 
 
-def test_voice_photo_sleep_gratitude_and_the_letter(server, tg, monkeypatch):
+def test_photo_sleep_gratitude_and_the_letter(server, tg, monkeypatch):
     c = server
     admin = admin_token(c)
     H = h(admin)
     c.post("/telegram/setup", json={"token": TOKEN}, headers=H)
     connect(c, H, chat=11, tz=180)
-
-    voice = {"message": {"chat": {"id": 11, "type": "private"}, "voice": {"file_id": "v1", "duration": 7, "mime_type": "audio/ogg"}}}
-    run(voice)
-    assert "need Gemini" in tg.last_text()                     # no AI on this server yet
-
-    async def heard(audio, mime, transport=None):
-        assert audio == PNG_BYTES and mime == "audio/ogg"
-        return "Today I finally finished the essay."
-    settings.ai_provider, settings.gemini_api_key = "gemini", "test-key"
-    monkeypatch.setattr(bot.ai, "transcribe", heard)
-    try:
-        run(voice)
-    finally:
-        settings.ai_provider, settings.gemini_api_key = "", ""
-    entry = c.get("/entries/", headers=H).json()[0]
-    assert entry["text"] == "Today I finally finished the essay." and entry["source"] == "voice"
-    assert "finished the essay" in tg.last_text()
 
     run({"message": {"chat": {"id": 11, "type": "private"}, "caption": "sunset",
                      "photo": [{"file_id": "s", "width": 90}, {"file_id": "m", "width": 320}, {"file_id": "l", "width": 1280}]}})

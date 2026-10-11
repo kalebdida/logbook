@@ -207,7 +207,6 @@ function entryCard(e, opts, q) {
   var top =
     '<div class="entry-card-top">' +
       '<span class="entry-date">' + timeOf(e.date) + "</span>" +
-      (e.source === "voice" ? '<span class="entry-source" title="From a voice note">' + icon("audio-lines") + "<span>Voice note</span></span>" : "") +
       (e.source === "lantern" ? '<span class="entry-source" title="Kept from Let something go">' + icon("flame") + "<span>Lantern</span></span>" : "") +
       moodTag(e.mood, "entry-status") +
     "</div>";

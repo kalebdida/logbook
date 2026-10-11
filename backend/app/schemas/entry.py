@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.common import Mood, UTCDateTime
 
-EntrySource = Literal["voice", "lantern", "telegram"]
+EntrySource = Literal["lantern", "telegram"]
 
 
 class EntryCreate(BaseModel):

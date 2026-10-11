@@ -241,7 +241,7 @@ route("POST", "/entries", async function (p, q, body) {
   var id = body.id != null ? text(String(body.id), "id", 64) : hex(16);
   if (mem.entries.has(id)) fail(409, "An entry with that id already exists");
   var row = { id: id, occurred_at: body.occurred_at ? iso(body.occurred_at, "occurred_at") : now(), mood: mood, text: txt,
-    source: body.source == null ? null : oneOf(body.source, ["voice", "lantern", "telegram"], "source") };
+    source: body.source == null ? null : oneOf(body.source, ["lantern", "telegram"], "source") };
   await commit([put("entries", row)]);
   return copy(row);
 });
