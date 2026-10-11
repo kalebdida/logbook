@@ -55,10 +55,10 @@ export async function renderTelegramCard(el) {
         '<span class="setting-hint">Today\'s verse, what\'s due, and your tasks</span></span>' +
         '<select class="select-input" data-tg="morning">' + hours(s.morning_hour) + "</select></label>" +
       '<div class="tg-cheats">' +
-        ["/log 45m #coding fixed the login bug", "/task call the bank", "/j today felt long but good", "/due nov 1 Early decision", "/pray wisdom", "/today"]
+        ["/log 45m #coding fixed the login bug", "/task call the bank", "/j today felt long but good", "/due nov 1 23:59 Early decision", "/pray wisdom", "/grateful family dinner", "/sleep", "/wake", "/today"]
           .map(function (c) { return "<code>" + escapeHtml(c) + "</code>"; }).join("") +
       "</div>" +
-      '<p class="setting-hint">Anything that isn\'t a command goes to your companion. Hashtags pick the life area.</p>' +
+      '<p class="setting-hint">Anything that isn\'t a command goes to your companion. Send a voice note and it becomes a journal entry; send a photo and it\'s today\'s photo. Hashtags pick the life area.</p>' +
       '<div class="settings-actions"><a class="tool-btn" href="https://t.me/' + escapeHtml(s.bot) + '" target="_blank" rel="noopener">' + icon("external-link") + "<span>Open the chat</span></a>" +
         '<button type="button" class="link-btn" data-tg="unlink">Disconnect</button></div>';
   }

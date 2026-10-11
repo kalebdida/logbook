@@ -11,6 +11,7 @@ from app.config import settings
 from tests.test_accounts import admin_token, h, make_user, server  # noqa: F401  (server is a fixture)
 
 TOKEN = "123456789:" + "A" * 35
+PNG_BYTES = __import__("base64").b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
 
 
 class FakeTelegram:
@@ -18,6 +19,8 @@ class FakeTelegram:
         self.calls = []
 
     def __call__(self, request: httpx.Request):
+        if "/file/bot" in request.url.path:       # downloading something the user sent
+            return httpx.Response(200, content=PNG_BYTES)
         method = request.url.path.rsplit("/", 1)[-1]
         try:
             body = json.loads(request.content or b"{}")
@@ -28,6 +31,8 @@ class FakeTelegram:
             if TOKEN not in str(request.url):
                 return httpx.Response(401, json={"ok": False, "description": "Unauthorized"})
             return httpx.Response(200, json={"ok": True, "result": {"id": 1, "username": "kal_logbook_bot"}})
+        if method == "getFile":
+            return httpx.Response(200, json={"ok": True, "result": {"file_path": "media/file_1", "file_size": 2048}})
         if method == "sendMessage":
             return httpx.Response(200, json={"ok": True, "result": {"message_id": len(self.calls)}})
         return httpx.Response(200, json={"ok": True, "result": True})
@@ -303,3 +308,57 @@ def test_streak_forgives_one_missed_day_a_week(client):
         db.commit()
         # Monday the 5th is missed too, and that week's charm is already spent on the 9th
         assert bot.streak(db, 1, today, 0) == 5
+
+
+def test_voice_photo_sleep_gratitude_and_the_letter(server, tg, monkeypatch):
+    c = server
+    admin = admin_token(c)
+    H = h(admin)
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=H)
+    connect(c, H, chat=11, tz=180)
+
+    voice = {"message": {"chat": {"id": 11, "type": "private"}, "voice": {"file_id": "v1", "duration": 7, "mime_type": "audio/ogg"}}}
+    run(voice)
+    assert "need Gemini" in tg.last_text()                     # no AI on this server yet
+
+    async def heard(audio, mime, transport=None):
+        assert audio == PNG_BYTES and mime == "audio/ogg"
+        return "Today I finally finished the essay."
+    settings.ai_provider, settings.gemini_api_key = "gemini", "test-key"
+    monkeypatch.setattr(bot.ai, "transcribe", heard)
+    try:
+        run(voice)
+    finally:
+        settings.ai_provider, settings.gemini_api_key = "", ""
+    entry = c.get("/entries/", headers=H).json()[0]
+    assert entry["text"] == "Today I finally finished the essay." and entry["source"] == "voice"
+    assert "finished the essay" in tg.last_text()
+
+    run({"message": {"chat": {"id": 11, "type": "private"}, "caption": "sunset",
+                     "photo": [{"file_id": "s", "width": 90}, {"file_id": "m", "width": 320}, {"file_id": "l", "width": 1280}]}})
+    today = bot.local_today(180).isoformat()
+    assert c.get("/photos/", headers=H).json() == [{"date": today, "caption": "sunset", "created_at": c.get("/photos/", headers=H).json()[0]["created_at"]}]
+    assert c.get(f"/photos/{today}", headers=H).content == PNG_BYTES
+
+    run(message(11, "/sleep"))
+    run(message(11, "/wake"))
+    assert "doesn't look like one night" in tg.last_text() or "You slept" in tg.last_text()
+
+    run(message(11, "/grateful family dinner"))
+    assert "1 firefly" in tg.last_text()
+    assert c.get(f"/days/{today}", headers=H).json()["reflection_gratitude"] == "family dinner"
+
+    # the morning of the 1st brings the letter about last month
+    from app.database import SessionLocal
+    from app.models import Entry
+    with SessionLocal() as db:
+        db.add(Entry(user_id=1, mood="good", text="A good September day", occurred_at=datetime(2026, 9, 20, 9, tzinfo=timezone.utc)))
+        db.commit()
+    first = datetime(2026, 10, 1, 4, 0, tzinfo=timezone.utc)       # 07:00 at UTC+3
+
+    async def a_verse(ref, translation="kjv"):
+        return "Be still."
+    monkeypatch.setattr(bot.verses, "words", a_verse)
+    asyncio.run(bot.morning_tick(first))
+    assert "letter about your September" in tg.last_text() and "A good September day" in tg.last_text()
+    assert c.get("/letters/", headers=H).json()[0]["month"] == "2026-09"

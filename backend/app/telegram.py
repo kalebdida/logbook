@@ -31,7 +31,7 @@ from app import ai, verses
 from app.config import settings
 from app.database import SessionLocal
 from app.models import (Activity, AppSetting, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
-                        Task, TelegramLink, User)
+                        SleepLog, Task, TelegramLink, User)
 
 log = logging.getLogger("logbook")
 API = "https://api.telegram.org"
@@ -72,6 +72,9 @@ COMMANDS = [
     ("verse", "Today's verse"),
     ("morning", "Morning message: /morning 7 or /morning off"),
     ("backup", "Your whole Logbook as a file (weekly: /backup off)"),
+    ("sleep", "Going to bed"),
+    ("wake", "I'm up: how long you slept"),
+    ("grateful", "Add to your gratitude jar"),
     ("help", "Everything the bot can do"),
 ]
 HELP = (
@@ -83,7 +86,9 @@ HELP = (
     "/habits  ·  /today  ·  /verse\n"
     "/pray for wisdom  ·  /prayers\n"
     "/due nov 1 Early decision  ·  /deadlines\n"
-    "/morning 7 (or off)  ·  /backup\n\n"
+    "/morning 7 (or off)  ·  /backup\n"
+    "/sleep  ·  /wake  ·  /grateful family dinner\n\n"
+    "Send a voice note and it becomes a journal entry. Send a photo and it's today's photo.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
     "(and friends like #study #gym #church).\n\n"
@@ -125,6 +130,10 @@ def new_link_code(user_id: int, tz_minutes: int) -> str:
     code = secrets.token_urlsafe(12).replace("-", "x").replace("_", "y")
     codes[code] = (user_id, tz_minutes, now + 15 * 60)
     return code
+
+
+def local_now(tz_minutes: int) -> datetime:
+    return datetime.now(timezone.utc) + timedelta(minutes=tz_minutes)
 
 
 def local_today(tz_minutes: int) -> date:
@@ -205,6 +214,78 @@ async def send_backup(db: Session, user: User, chat_id: int, tz: int) -> bool:
     name = f"logbook-{user.username}-{today.isoformat()}.json"
     return await send_file(chat_id, name, backup_bytes(db, user.id),
                            "🗄 Your whole Logbook, as of today. Keep it: Settings → Your data → Restore brings it back anywhere.")
+
+
+async def download(file_id: str, limit: int = 20_000_000) -> bytes | None:
+    """A file someone sent the bot (a voice note, a photo)."""
+    try:
+        info = await call(state["token"], "getFile", {"file_id": file_id})
+        if not info or info.get("file_size", 0) > limit:
+            return None
+        async with httpx.AsyncClient(timeout=60, transport=transport) as client:
+            res = await client.get(f"{API}/file/bot{state['token']}/{info['file_path']}")
+        return res.content if res.status_code == 200 else None
+    except (TelegramError, httpx.HTTPError):
+        return None
+
+
+async def handle_media(db: Session, user: User, link: TelegramLink, msg: dict) -> None:
+    chat = link.chat_id
+    today = local_today(link.tz_minutes)
+    if msg.get("photo"):
+        # Telegram sends several sizes, smallest first: a big one to keep, a small one for the thumbnail
+        sizes = sorted(msg["photo"], key=lambda p: p.get("width", 0))
+        big = ([p for p in sizes if p.get("width", 0) <= 1600] or sizes)[-1]
+        small = min(sizes, key=lambda p: abs(p.get("width", 0) - 320))
+        image, thumb = await download(big["file_id"]), await download(small["file_id"])
+        if not image or not thumb:
+            await send(chat, "Couldn't get that photo from Telegram. Try sending it again?")
+            return
+        from app.routers.photos import save_photo
+        save_photo(db, user.id, today, image, thumb, "image/jpeg", (msg.get("caption") or "")[:300])
+        await send(chat, "📸 Saved as today's photo" + (f": <i>{esc(msg['caption'][:100])}</i>" if msg.get("caption") else "") +
+                   ". It's on your Today page and the calendar.")
+        return
+
+    voice = msg.get("voice") or msg.get("audio") or {}
+    if not allowed_ai(user) or ai.provider_name() != "gemini":
+        await send(chat, "Voice notes need Gemini turned on for your account. Typing works: /j today felt...")
+        return
+    if voice.get("duration", 0) > 600:
+        await send(chat, "That's a long one. Voice notes up to 10 minutes, please.")
+        return
+    try:
+        await call(state["token"], "sendChatAction", {"chat_id": chat, "action": "typing"})
+    except TelegramError:
+        pass
+    audio = await download(voice["file_id"])
+    if not audio:
+        await send(chat, "Couldn't get that voice note from Telegram. Try again?")
+        return
+    try:
+        words = await ai.transcribe(audio, voice.get("mime_type") or "audio/ogg")
+    except ai.AIError as exc:
+        log.warning("logbook: transcription failed: %s", str(exc)[:200])
+        await send(chat, "I couldn't make out that voice note just now. Try again in a minute?")
+        return
+    if not words:
+        await send(chat, "I didn't hear any words in that one.")
+        return
+    entry = Entry(user_id=user.id, occurred_at=datetime.now(timezone.utc), mood="okay", text=words[:20000], source="voice")
+    db.add(entry)
+    db.commit()
+    await send(chat, f"🎙 Saved to your journal:\n<i>{esc(words[:1500])}</i>\n\nHow did today feel?",
+               [[{"text": label, "callback_data": f"m:{entry.id}:{mood}"} for mood, label in MOODS.items()]])
+
+
+async def send_letter(db: Session, user: User, chat_id: int, tz: int, today: date) -> None:
+    from app import letters
+    month = letters.previous_month(today)
+    stats = letters.month_stats(db, user.id, month, tz)
+    if not stats["entries"]:
+        return
+    row = await letters.letter_for(db, user, month, tz)
+    await send(chat_id, f"💌 <b>A letter about your {esc(stats['month_name'])}</b>\n\n{esc(row.text)}")
 
 
 def weekly_backup_on(db: Session, uid: int) -> bool:
@@ -773,6 +854,46 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         await send(chat, msg)
         return
 
+    if cmd == "sleep":
+        night = today + timedelta(days=1) if local_now(tz).hour >= 12 else today
+        rec = db.get(SleepLog, (uid, night)) or SleepLog(user_id=uid, date=night)
+        rec.bed_at, rec.wake_at = datetime.now(timezone.utc), None
+        db.merge(rec)
+        db.commit()
+        await send(chat, "🌙 Goodnight. Send /wake when you're up and I'll tell you how long you slept.")
+        return
+
+    if cmd == "wake":
+        rows = (db.query(SleepLog).filter(SleepLog.user_id == uid, SleepLog.date >= today - timedelta(days=1),
+                                          SleepLog.bed_at.is_not(None), SleepLog.wake_at.is_(None)).all())
+        if not rows:
+            await send(chat, "Good morning ☀️ I don't have a bedtime for last night. /sleep at night next time, or log it in the app.")
+            return
+        rec = rows[-1]
+        rec.wake_at = datetime.now(timezone.utc)
+        bed = rec.bed_at if rec.bed_at.tzinfo else rec.bed_at.replace(tzinfo=timezone.utc)
+        mins = round((rec.wake_at - bed).total_seconds() / 60)
+        if not 0 < mins <= 20 * 60:
+            rec.wake_at = None
+            db.commit()
+            await send(chat, "That doesn't look like one night's sleep. Log it in the app instead?")
+            return
+        db.commit()
+        await send(chat, f"☀️ Good morning. You slept <b>{minutes_label(mins)}</b>." + (" Nice." if mins >= 420 else " Go easy today."))
+        return
+
+    if cmd in ("grateful", "thanks", "gratitude"):
+        if not arg:
+            await send(chat, "What are you grateful for? <code>/grateful family dinner</code>")
+            return
+        rec = ensure_day(db, uid, today)
+        rec.reflection_gratitude = (rec.reflection_gratitude.rstrip() + "\n" if rec.reflection_gratitude.strip() else "") + arg.strip()
+        db.commit()
+        total = sum(len([l for l in (r.reflection_gratitude or "").splitlines() if l.strip()])
+                    for r in db.query(DayRecord).filter(DayRecord.user_id == uid))
+        await send(chat, f"✨ In the jar. That's {total} firefl{'y' if total == 1 else 'ies'}.")
+        return
+
     if cmd == "backup":
         a = arg.strip().lower()
         if a in ("off", "stop", "no"):
@@ -889,10 +1010,11 @@ async def process(update: dict) -> None:
 
             msg = update.get("message") or {}
             chat = msg.get("chat") or {}
-            if chat.get("type") != "private" or "text" not in msg:
+            media = msg.get("voice") or msg.get("audio") or msg.get("photo")
+            if chat.get("type") != "private" or ("text" not in msg and not media):
                 return
             chat_id = chat["id"]
-            text = msg["text"].strip()
+            text = (msg.get("text") or "").strip()
             link = db.query(TelegramLink).filter(TelegramLink.chat_id == chat_id).first()
 
             cmd, arg = "", text
@@ -920,6 +1042,9 @@ async def process(update: dict) -> None:
                 return
             user = db.get(User, link.user_id)
             if user is None:
+                return
+            if media:
+                await handle_media(db, user, link, msg)
                 return
             if cmd:
                 await handle_command(db, user, link, cmd, arg)
@@ -965,6 +1090,8 @@ async def morning_tick(now: datetime | None = None) -> int:
             await send(row.chat_id, await morning_message(db, user, row.tz_minutes))
             if local.weekday() == 6 and weekly_backup_on(db, uid):     # Sundays: a copy of everything
                 await send_backup(db, user, row.chat_id, row.tz_minutes)
+            if local.day == 1:                                          # the 1st: the letter about last month
+                await send_letter(db, user, row.chat_id, row.tz_minutes, local.date())
             sent += 1
     return sent
 
