@@ -28,6 +28,8 @@ export function isDemo() {
   try { return sessionStorage.getItem(DEMO_KEY) === "1"; } catch (e) { return false; }
 }
 
+var MOVED = { "https://logbook-lt30.onrender.com": "https://logbook-fra.onrender.com" };
+
 function load() {
   try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; }
 }
@@ -41,6 +43,11 @@ export function getConnection() {
   if (!state && isDemo()) state = { mode: "device", serverUrl: "", token: "", demo: true };
   if (!state) {
     state = Object.assign({ mode: null, serverUrl: "", token: "" }, load() || {});
+    // the server moved (Oregon -> Frankfurt, next to the database): follow it
+    if (MOVED[(state.serverUrl || "").replace(/\/+$/, "")]) {
+      state.serverUrl = MOVED[state.serverUrl.replace(/\/+$/, "")];
+      save();
+    }
     if (state.pendingToken) { // a login that reloaded the page (see lock.js)
       state.token = state.pendingToken;
       delete state.pendingToken;

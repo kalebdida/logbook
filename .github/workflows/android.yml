@@ -37,7 +37,7 @@ jobs:
       - run: npm ci
       - run: python scripts/build_web.py
         env:
-          LOGBOOK_API_URL: ${{ vars.LOGBOOK_API_URL || 'https://logbook-lt30.onrender.com' }}
+          LOGBOOK_API_URL: ${{ 'https://logbook-fra.onrender.com' }}
       - run: npx cap add android
       - name: home screen widget
         run: python scripts/android_widget.py

@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: ping /health
         env:
-          API_URL: ${{ vars.LOGBOOK_API_URL || 'https://logbook-lt30.onrender.com' }}
+          API_URL: ${{ 'https://logbook-fra.onrender.com' }}
         run: |
           if [ -z "$API_URL" ]; then
             echo "LOGBOOK_API_URL isn't set, nothing to ping."

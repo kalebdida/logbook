@@ -71,7 +71,7 @@ without a password, and documents which site is yours.
 ### 3. GitHub Pages (the front door)
 
 1. Point the build at your server. This repo's workflows already default to
-   `https://logbook-lt30.onrender.com`; for a different server, set a repo
+   `https://logbook-fra.onrender.com`; for a different server, set a repo
    variable **Settings → Secrets and variables → Actions → Variables**:
    `LOGBOOK_API_URL`, your Render address with no trailing slash.
 2. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
