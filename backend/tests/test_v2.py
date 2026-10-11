@@ -222,13 +222,13 @@ def test_ai_startup_check_reports_a_bad_key(client, monkeypatch):
     _fake_provider(monkeypatch, handler)
     settings.ai_provider, settings.ai_api_key = "gemini", "AQ.bad"
     result = asyncio.run(ai.check())
-    assert seen["path"] == "/v1beta/models/gemini-3.5-flash-lite:countTokens"  # counting tokens costs nothing
+    assert seen["path"] == "/v1beta/models/gemini-3.5-flash-lite:generateContent"  # the same path the companion uses
     assert result["ok"] is False and "API key not valid" in result["detail"] and "AQ.bad" not in result["detail"]
     assert client.get("/health").json()["ai_ok"] is False
     assert client.get("/ai/status").json()["check"]["ok"] is False
 
     monkeypatch.undo()  # back to the real client before faking a good answer
-    _fake_provider(monkeypatch, lambda req: httpx.Response(200, json={"totalTokens": 1}))
+    _fake_provider(monkeypatch, lambda req: httpx.Response(200, json=_gemini_reply("ok")))
     assert asyncio.run(ai.check())["ok"] is True
     assert client.get("/health").json()["ai_ok"] is True
 

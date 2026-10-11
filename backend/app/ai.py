@@ -153,10 +153,9 @@ def gemini_text(data: dict) -> str:
 
 
 async def check(transport: httpx.AsyncBaseTransport | None = None) -> dict:
-    """A cheap self-check of the key and model, run once at startup. For
-    Gemini it counts tokens (no reply is generated, so it costs nothing);
-    other providers are left alone. The result is logged and kept in
-    last_check; nothing secret goes into it."""
+    """A self-check of the key and model, run once at startup: one tiny real
+    reply (a few tokens), so it proves the same path the companion uses. The
+    result is logged and kept in last_check; nothing secret goes into it."""
     if not configured():
         last_check.update(ok=None, detail="")
         return last_check
@@ -164,15 +163,15 @@ async def check(transport: httpx.AsyncBaseTransport | None = None) -> dict:
         last_check.update(ok=None, detail="not checked for this provider")
         return last_check
     try:
-        async with httpx.AsyncClient(timeout=30, transport=transport) as client:
+        async with httpx.AsyncClient(timeout=60, transport=transport) as client:
             response = await client.post(
-                _gemini_base() + "/models/" + model_name() + ":countTokens",
+                _gemini_base() + "/models/" + model_name() + ":generateContent",
                 headers={"x-goog-api-key": api_key(), "content-type": "application/json"},
-                json={"contents": [{"role": "user", "parts": [{"text": "hello"}]}]},
+                json=gemini_body([{"role": "user", "content": "Reply with the single word: ok"}], "", 16),
             )
-            _json(response)
+            gemini_text(_json(response))
         last_check.update(ok=True, detail=f"{model_name()} answers")
-        log.info("logbook: AI check ok (gemini, %s)", model_name())
+        log.warning("logbook: AI check ok (gemini, %s)", model_name())
     except (AIError, httpx.HTTPError) as exc:
         reason = str(exc) if isinstance(exc, AIError) else f"couldn't reach Google ({exc.__class__.__name__})"
         last_check.update(ok=False, detail=reason[:300])

@@ -46,5 +46,6 @@ async def ai_chat(body: ChatRequest, user: User = Depends(current_user)):
     try:
         text = await ai.chat([m.model_dump() for m in body.messages], body.system, body.max_tokens)
     except ai.AIError as exc:
+        ai.log.warning("logbook: AI chat failed (%s, %s): %s", ai.provider_name(), ai.model_name(), str(exc)[:300])
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"text": text, "model": ai.model_name()}
