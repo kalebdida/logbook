@@ -8,7 +8,7 @@ var DEFAULT_TARGET = "dashboard";
 var current = null;
 
 function targetFromHash() {
-  var name = (location.hash || "").replace(/^#\/?/, "");
+  var name = (location.hash || "").replace(/^#\/?/, "").split("/")[0];
   return PAGES.indexOf(name) >= 0 ? name : DEFAULT_TARGET;
 }
 

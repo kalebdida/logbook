@@ -17,7 +17,7 @@ function hours(selected) {
 
 export async function renderTelegramCard(el) {
   if (!el) return;
-  var group = document.getElementById("set-telegram");
+  var group = null;
   if (isDevice()) {
     el.innerHTML = head() + '<p class="setting-hint">The Telegram bot lives on a Logbook server. It isn\'t available while your data is kept on this device.</p>';
     return;

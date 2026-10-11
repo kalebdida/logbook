@@ -446,3 +446,21 @@ def test_password_hashes(server):
     assert not auth.verify_password("correct horse batterY", stored)
     assert not auth.verify_password("x", "garbage")
     assert auth.hash_password("same") != auth.hash_password("same")  # salted
+
+
+def test_start_fresh_wipes_only_my_data(server):
+    c = server
+    admin = admin_token(c)
+    a = make_user(c, admin, "wipea")
+    b = make_user(c, admin, "wipeb")
+    for tok in (a, b):
+        c.post("/entries/", json={"text": "hi", "mood": "good"}, headers=h(tok))
+        hb = c.post("/habits/", json={"name": "read"}, headers=h(tok)).json()
+        c.put(f"/habits/{hb['id']}/days/{TODAY}", headers=h(tok))
+    assert c.post("/backup/wipe", json={"confirm": "nope"}, headers=h(a)).status_code == 400
+    r = c.post("/backup/wipe", json={"confirm": "Start fresh"}, headers=h(a))
+    assert r.status_code == 200 and r.json()["removed"] >= 3
+    assert c.get("/entries/", headers=h(a)).json() == []
+    assert c.get("/habits/", headers=h(a)).json() == []
+    assert len(c.get("/entries/", headers=h(b)).json()) == 1
+    assert c.get("/auth/me", headers=h(a)).status_code == 200

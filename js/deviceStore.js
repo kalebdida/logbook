@@ -412,6 +412,16 @@ route("POST", "/pomodoro/{date}/sessions", async function (p, q, body) {
   await commit([put("pomodoro_days", row)]);
   return copy(row);
 });
+route("POST", "/backup/wipe", async function (p, q, body) {
+  if (String((body || {}).confirm || "").trim().toLowerCase() !== "start fresh") fail(400, 'Type "start fresh" to confirm.');
+  var ops = [], n = 0;
+  Object.keys(TABLES).forEach(function (t) {
+    if (t === "meta") return;                      // the profile and app bookkeeping stay
+    mem[t].forEach(function (row) { ops.push(del(t, row[TABLES[t]])); n++; });
+  });
+  await commit(ops);
+  return { ok: true, removed: n };
+});
 route("GET", "/pomodoro", function () {
   return rows("pomodoro_days").sort(function (a, b) { return b.date.localeCompare(a.date); }).map(copy);
 });

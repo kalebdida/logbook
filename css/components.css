@@ -2689,3 +2689,15 @@ body.is-dimming::after {
 .goals-hint { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 13px; color: var(--muted); }
 .goals-hint svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--accent2); }
 .tomorrow-line textarea { min-height: 0; }
+
+/* settings: one section at a time */
+.settings-group.is-entering { animation: pageEnter 0.32s var(--ease-out, ease) both; }
+.settings-group-head { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.settings-grid { align-items: start; }
+.settings-card .setting-row + .setting-row { border-top: 1px solid rgb(var(--accent2-rgb) / 0.08); }
+.danger-card { border-color: rgb(var(--danger-rgb) / 0.22); }
+.danger-card .setting-row { gap: 14px; }
+.wipe-form { display: grid; gap: 10px; margin-top: 10px; padding: 14px; border: 1px solid rgb(var(--danger-rgb) / 0.35); border-radius: var(--r-md, 14px); background: rgb(var(--danger-rgb) / 0.07); animation: popIn 0.22s ease both; }
+.wipe-warn { display: flex; gap: 8px; margin: 0; color: var(--danger-text); font-size: 13.5px; }
+.wipe-warn svg { flex: none; width: 17px; height: 17px; margin-top: 1px; }
+@media (prefers-reduced-motion: reduce) { .settings-group.is-entering, .wipe-form { animation: none; } }

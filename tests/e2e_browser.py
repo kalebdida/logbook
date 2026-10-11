@@ -232,7 +232,7 @@ with sync_playwright() as p:
     check("escape closes the day viewer", page.evaluate("document.getElementById('dayViewer').hidden"))
 
     # ---------- focus timer ----------
-    page.goto(BASE + "/#settings")
+    page.goto(BASE + "/#settings/focus")
     page.wait_for_selector("#prefFocus")
     page.fill("#prefFocus", "1")
     page.dispatch_event("#prefFocus", "change")
@@ -266,7 +266,7 @@ with sync_playwright() as p:
     check("reflection question pre-fills the journal", "?" in page.input_value("#entryText"))
 
     # ---------- settings: backup + legacy import ----------
-    page.goto(BASE + "/#settings")
+    page.goto(BASE + "/#settings/data")
     page.keyboard.press("Space")
     page.wait_for_selector("#dbStatus.is-online")
     with page.expect_download() as dl:
@@ -307,7 +307,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     check("app survives malformed saved timer data", "online" in page.text_content("#statusLabel").lower() and page.text_content("#pomodoroTime") == "01:00",
           page.text_content("#pomodoroTime"))
-    page.goto(BASE + "/#settings")
+    page.goto(BASE + "/#settings/data")
     page.keyboard.press("Space")
     page.wait_for_selector("#legacyImport")
     page.click("#legacyImport")

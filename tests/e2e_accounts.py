@@ -62,7 +62,7 @@ def unlocked(page):
 
 
 def open_settings(page):
-    page.evaluate("location.hash = '#settings'")
+    page.evaluate("location.hash = '#settings/you'")
     page.wait_for_selector("#settingsAccount:not([hidden]) .storage-now", timeout=10000)
 
 

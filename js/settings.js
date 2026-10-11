@@ -1,9 +1,10 @@
 import { getPrefs, setPrefs, DEFAULT_PREFS } from './prefs.js';
 import { icon } from './icons.js';
-import { apiHealth, apiExportBackup, apiRestoreBackup } from './api.js';
+import { apiHealth, apiExportBackup, apiRestoreBackup, apiWipeMyData } from './api.js';
+import { cacheClear } from './cache.js';
 import { readImportFile } from './storage.js';
 import { toRestorePayload, readLegacyLocalStorage, markLegacyImported, summarizeRestore } from './backupFormats.js';
-import { applyPomodoroDurations } from './pomodoro.js';
+import { applyPomodoroDurations, POMODORO_STORAGE_KEY } from './pomodoro.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
 import { dateKey } from './dayRecord.js';
@@ -19,12 +20,6 @@ import { phoneNotifyAvailable, askPermission } from './phoneNotify.js';
 import { hasPin, setPin, clearPin, pinPad } from './pinLock.js';
 import { GIFTS, streakInfo } from './mascot.js';
 import { getProfile, saveProfile, onProfile } from './profile.js';
-
-/* Copy this into the browser console on the OLD copy of logbook (the
-   page where your old data lives) to download everything it stored. */
-var LEGACY_SNIPPET =
-  'var d={};["logbook-entries","logbook-days","logbook-goals","logbook-pomodoro"].forEach(function(k){var v=localStorage.getItem(k);if(v)d[k]=v});' +
-  'var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:"application/json"}));a.download="logbook-old-data.json";a.click();';
 
 function toggle(id, label, hint, checked) {
   return (
@@ -75,16 +70,18 @@ function download(obj, filename) {
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
+/* One section at a time: the list on the left (a row of tabs on a phone)
+   picks it, and #settings/<id> opens one directly. */
 var GROUPS = [
-  ["look", "palette", "Look"],
   ["you", "user", "You"],
+  ["look", "palette", "Look"],
   ["today", "house", "Today page"],
   ["focus", "timer", "Focus"],
-  ["account", "users", "Account"],
-  ["ai", "sparkles", "AI"],
-  ["telegram", "send", "Telegram"],
+  ["connect", "send", "Telegram & AI"],
   ["data", "archive", "Your data"]
 ];
+var activeGroup = "you";
+try { activeGroup = sessionStorage.getItem("logbook-settings-tab") || "you"; } catch (e) {}
 
 var DASH_CARDS = [
   ["deadlines", "Coming up", "Deadlines and exams, counting down"],
@@ -94,14 +91,14 @@ var DASH_CARDS = [
   ["gratitude", "Gratitude jar", "Every thank-you becomes a firefly"],
   ["habits", "Habits", "The daily check-ins"],
   ["prayers", "Prayers", "What you're praying for, and the answers"],
-  ["brainDump", "Brain dump", "A place to empty your head"],
+  ["brainDump", "Brain dump", "A scratchpad to empty your head"],
   ["log", "Time log", "What you did, by life area"],
-  ["night", "Tonight", "Win, lesson, gratitude, tomorrow's tasks"],
+  ["night", "Tonight", "Win, lesson, gratitude, tomorrow's one thing"],
   ["replay", "On this day", "An entry from a week or more ago"]
 ];
 
 function group(id, title, hint, body) {
-  return '<section class="settings-group" id="set-' + id + '" data-group="' + id + '" aria-labelledby="set-' + id + '-title">' +
+  return '<section class="settings-group" id="set-' + id + '" data-group="' + id + '" aria-labelledby="set-' + id + '-title"' + (id === activeGroup ? "" : " hidden") + ">" +
     '<header class="settings-group-head"><h2 class="settings-group-title" id="set-' + id + '-title">' + title + "</h2>" +
     (hint ? '<p class="settings-group-hint">' + hint + "</p>" : "") + "</header>" +
     '<div class="settings-grid">' + body + "</div></section>";
@@ -114,43 +111,34 @@ export function renderSettings() {
   var legacy = readLegacyLocalStorage();
   var dash = Object.assign({}, DEFAULT_PREFS.dash, p.dash || {});
   var kind = p.dailyLine || "verse";
+  var fromHash = (location.hash.split("/")[1] || "");
+  if (GROUPS.some(function (g) { return g[0] === fromHash; })) activeGroup = fromHash;
+  if (!GROUPS.some(function (g) { return g[0] === activeGroup; })) activeGroup = "you";
 
   el.innerHTML =
     '<div class="settings-layout">' +
     '<nav class="settings-nav" aria-label="Settings sections">' +
       GROUPS.map(function (g) {
-        return '<a class="settings-nav-item" href="#set-' + g[0] + '" data-jump="' + g[0] + '">' + icon(g[1]) + "<span>" + g[2] + "</span></a>";
+        var on = g[0] === activeGroup;
+        return '<a class="settings-nav-item' + (on ? " is-active" : "") + '" href="#settings/' + g[0] + '" data-jump="' + g[0] + '"' + (on ? ' aria-current="page"' : "") + ">" + icon(g[1]) + "<span>" + g[2] + "</span></a>";
       }).join("") +
     "</nav>" +
     '<div class="settings-groups">' +
 
-    group("look", "Look", "Themes, the moving sky, and how the app feels.",
-      '<section class="settings-card settings-card--wide" id="settingsTheme"></section>' +
+    group("you", "You", "Your name, your cat, your account.",
       '<section class="settings-card">' +
-        cardHead("sparkle", "Effects") +
-        toggle("prefRain", "Moving sky", "Stars, rain, snow, fog: whatever your theme has. Off saves battery.", p.rain) +
-        toggle("prefScanlines", "CRT scanlines", "Only on the retro themes that have them", p.scanlines) +
-        toggle("prefBoot", "Boot sequence", "The terminal theme types its way in when the app opens", p.boot) +
-      "</section>" +
-      '<section class="settings-card">' +
-        cardHead("clock", "Clock") +
-        toggle("prefClock24", "24-hour clock", "Off shows 2:30 PM instead of 14:30", p.clock24 !== false) +
-      "</section>") +
-
-    group("you", "You", "What the app calls you, and who keeps you company.",
-      '<section class="settings-card">' +
-        cardHead("user", "Your name") +
+        cardHead("user", "About you") +
         '<label class="setting-row setting-row--stack" for="prefName">' +
-          '<span class="setting-text"><span class="setting-label">Name</span><span class="setting-hint">Used in greetings. Empty uses your username.</span></span>' +
+          '<span class="setting-text"><span class="setting-label">Name</span><span class="setting-hint">Used in greetings</span></span>' +
           '<input class="text-input" id="prefName" maxlength="40" placeholder="Your name" value="' + escapeHtml(p.name) + '">' +
         "</label>" +
         '<label class="setting-row setting-row--stack" for="prefBirthday">' +
-          '<span class="setting-text"><span class="setting-label">Birthday</span><span class="setting-hint">For your clock on the Today page: your age to the second and the countdown to the next one. The same on every device.</span></span>' +
+          '<span class="setting-text"><span class="setting-label">Birthday</span><span class="setting-hint">Your age clock and birthday countdown on Today</span></span>' +
           '<input class="text-input" type="date" id="prefBirthday" value="' + escapeHtml(getProfile().birthday || "") + '" max="' + dateKey(new Date()) + '">' +
         "</label>" +
       "</section>" +
       '<section class="settings-card">' +
-        cardHead("heart", "Companion cat", "A small cat that naps, cheers when you finish things, and keeps you company in focus.") +
+        cardHead("heart", "Your cat") +
         toggle("prefMascot", "Show the cat", "", p.mascot !== false) +
         '<label class="setting-row setting-row--stack" for="prefMascotName">' +
           '<span class="setting-text"><span class="setting-label">Its name</span></span>' +
@@ -158,12 +146,25 @@ export function renderSettings() {
         "</label>" +
         giftsRow() +
       "</section>" +
+      '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>' +
       '<section class="settings-card">' +
-        cardHead("lock", "Lock this device", "A PIN when Logbook opens here, and again after a minute away. For a phone other people pick up.") +
+        cardHead("lock", "Lock this device", "Asks for a PIN when Logbook opens on this phone or computer.") +
         toggle("prefPin", "Ask for a PIN", "", hasPin()) +
-      "</section>" +
+      "</section>") +
+
+    group("look", "Look", "Your theme and how alive the app feels.",
+      '<section class="settings-card settings-card--wide" id="settingsTheme"></section>' +
+      '<section class="settings-card">' +
+        cardHead("sparkle", "Effects") +
+        toggle("prefRain", "Moving sky", "Stars, rain, snow, fog. Off saves battery.", p.rain) +
+        toggle("prefScanlines", "CRT scanlines", "Only on the retro themes", p.scanlines) +
+        toggle("prefBoot", "Boot sequence", "Only on the terminal theme", p.boot) +
+        toggle("prefClock24", "24-hour clock", "", p.clock24 !== false) +
+      "</section>") +
+
+    group("today", "Today page", "Show only what you use. Hidden cards keep their data.",
       '<section class="settings-card settings-card--wide" id="settingsLine">' +
-        cardHead("quote", "The line on your dashboard", "Pick what greets you each day. The refresh button on the card shows another one.") +
+        cardHead("quote", "Daily line") +
         '<div class="line-picker" role="radiogroup" aria-label="Daily line">' +
           Object.keys(LINE_KINDS).map(function (k) {
             var info = LINE_KINDS[k];
@@ -176,7 +177,7 @@ export function renderSettings() {
           }).join("") +
         "</div>" +
         '<label class="setting-row" for="prefVerseTranslation"' + (kind === "verse" ? "" : " hidden") + ">" +
-          '<span class="setting-text"><span class="setting-label">Bible translation</span><span class="setting-hint">A new verse every day, from bible-api.com.</span></span>' +
+          '<span class="setting-text"><span class="setting-label">Bible translation</span></span>' +
           '<select class="select-input" id="prefVerseTranslation">' + Object.keys(TRANSLATIONS).map(function (t) {
             return '<option value="' + t + '"' + ((p.verseTranslation || "kjv") === t ? " selected" : "") + ">" + TRANSLATIONS[t] + "</option>";
           }).join("") + "</select>" +
@@ -185,66 +186,65 @@ export function renderSettings() {
           '<span class="setting-text"><span class="setting-label">Your lines</span><span class="setting-hint">One per line. Add a source after a dash: <em>Keep going — Mom</em></span></span>' +
           '<textarea class="text-area" id="prefLineCustom" rows="4" placeholder="Discipline is remembering what you want.">' + escapeHtml(p.dailyLineCustom || "") + "</textarea>" +
         "</label>" +
-      "</section>") +
-
-    group("today", "Today page", "Show only what you use. Hidden cards keep their data.",
+      "</section>" +
       '<section class="settings-card settings-card--wide">' +
-        cardHead("layout-grid", "Cards on the Today page") +
+        cardHead("layout-grid", "Cards") +
         '<div class="toggle-grid">' +
           DASH_CARDS.map(function (c) { return toggle("dash-" + c[0], c[1], c[2], dash[c[0]] !== false); }).join("") +
         "</div>" +
       "</section>") +
 
-    group("focus", "Focus", "The timer, the focus space, and gentle nudges.",
+    group("focus", "Focus", "The timer and gentle nudges.",
       '<section class="settings-card">' +
-        cardHead("timer", "Focus timer") +
+        cardHead("timer", "Timer") +
         number("prefFocus", "Focus", p.focusMinutes, 1, 180) +
         number("prefShort", "Short break", p.shortBreakMinutes, 1, 60) +
         number("prefLong", "Long break", p.longBreakMinutes, 1, 90) +
-        toggle("prefAutoBreak", "Start breaks by themselves", "When a focus block ends, the break starts right away", p.autoBreak) +
+        toggle("prefAutoBreak", "Start breaks by themselves", "", p.autoBreak) +
+        toggle("prefFocusScene", "Full-screen focus", "Just the timer on your scene", p.focusScene !== false) +
       "</section>" +
       '<section class="settings-card">' +
-        cardHead("moon-star", "Focus space") +
-        toggle("prefFocusScene", "Fill the screen while focusing", "The timer sits on your theme's scene with nothing else around. Esc or the button leaves.", p.focusScene !== false) +
+        cardHead("bell", "Sounds and notifications") +
         toggle("prefSound", "Chime when a block ends", "", p.sound) +
-        toggle("prefNotify", "Desktop notification", "Only when the tab is in the background", p.notifications) +
-        (phoneNotifyAvailable() ? toggle("prefPhoneNotify", "Phone notifications", "Deadlines (a day and 2 hours before) and your streak at 21:00, even with the app closed", p.phoneNotify) : "") +
+        toggle("prefNotify", "Desktop notification", "When the tab is in the background", p.notifications) +
+        (phoneNotifyAvailable() ? toggle("prefPhoneNotify", "Phone notifications", "Deadlines and your evening streak, even with the app closed", p.phoneNotify) : "") +
       "</section>" +
-      '<section class="settings-card" id="settingsReminders">' + cardHead("bell", "Reminders") + renderReminderRows() + "</section>") +
+      '<section class="settings-card settings-card--wide" id="settingsReminders">' + cardHead("alarm-clock", "Reminders") + renderReminderRows() + "</section>") +
 
-    group("account", "Account", "",
-      '<section class="settings-card settings-card--wide" id="settingsAccount" hidden></section>') +
-
-    group("ai", "AI companion", "Optional. The companion works without it, using simple local rules.",
+    group("connect", "Telegram & AI", "Talk to Yuki from Telegram, and the AI behind the companion.",
+      '<section class="settings-card settings-card--wide" id="settingsTelegram"></section>' +
       '<section class="settings-card settings-card--wide" id="settingsAI"></section>') +
 
-    group("telegram", "Telegram", "Log time, tasks and prayers from a chat, ask your companion, and get a morning message.",
-      '<section class="settings-card settings-card--wide" id="settingsTelegram"></section>') +
-
-    group("data", "Your data", "Where it lives, backups, and the app itself.",
-      '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
+    group("data", "Your data", "Backups, where it lives, and starting over.",
       '<section class="settings-card settings-card--wide">' +
         cardHead("archive", "Backups") +
         '<div class="db-status" id="dbStatus"><span class="status-dot"></span> Checking…</div>' +
         '<div class="settings-actions">' +
-          '<button type="button" class="primary-btn" id="backupExport">' + icon("download") + "<span>Download full backup</span></button>" +
-          '<button type="button" class="tool-btn" id="backupImport">' + icon("upload") + "<span>Import a file</span></button>" +
+          '<button type="button" class="primary-btn" id="backupExport">' + icon("download") + "<span>Download a backup</span></button>" +
+          '<button type="button" class="link-btn" id="backupImport">Import a backup</button>' +
           '<input type="file" id="backupFile" accept="application/json,.json" hidden>' +
         "</div>" +
-        '<p class="setting-hint">A backup holds everything: entries, daily pages, tasks, activities, goals, habits, focus history. Importing never deletes or overwrites anything, so it\'s safe to import the same file twice. It accepts full backups, journal exports, and data from older versions.</p>' +
+        '<p class="setting-hint">Everything in one file. Importing never deletes or overwrites, so the same file twice is safe.</p>' +
         (legacy
           ? '<div class="legacy-box"><p><strong>Found data from the old version in this browser.</strong> Bring it in?</p><button type="button" class="primary-btn" id="legacyImport">Import old data</button></div>'
           : "") +
-        '<details class="legacy-help"><summary>Moving data from an old copy at a different address</summary>' +
-          "<p>Old versions saved everything inside the browser, at whatever address you opened them from. To move it here: open the old copy, open devtools (F12), go to Console, paste this, press Enter. It downloads <code>logbook-old-data.json</code>. Then use “Import a file” above.</p>" +
-          '<div class="snippet"><code id="legacySnippet">' + escapeHtml(LEGACY_SNIPPET) + '</code><button type="button" class="tool-btn" id="copySnippet">Copy</button></div>' +
-        "</details>" +
       "</section>" +
+      '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
       '<section class="settings-card" id="settingsApp"></section>' +
-      '<section class="settings-card">' +
+      '<section class="settings-card danger-card">' +
         cardHead("rotate-ccw", "Start over") +
-        '<p class="setting-hint">Puts this page\'s settings back to how they started. Your journal and themes stay.</p>' +
-        '<div class="settings-actions"><button type="button" class="tool-btn" id="prefReset">' + icon("rotate-ccw") + "<span>Reset settings</span></button></div>" +
+        '<div class="setting-row"><span class="setting-text"><span class="setting-label">Reset settings</span><span class="setting-hint">Settings on this device go back to how they started. Your logs stay.</span></span>' +
+          '<button type="button" class="tool-btn" id="prefReset">Reset</button></div>' +
+        '<div class="setting-row"><span class="setting-text"><span class="setting-label">Start fresh</span><span class="setting-hint">Erase every log, task, habit and photo on this account. Your login and Telegram stay.</span></span>' +
+          '<button type="button" class="tool-btn danger-btn" id="wipeOpen">Start fresh</button></div>' +
+        '<form class="wipe-form" id="wipeForm" hidden autocomplete="off">' +
+          '<p class="wipe-warn">' + icon("triangle-alert") + "<span>This can't be undone. Download a backup first if you might want any of it.</span></p>" +
+          '<label class="setting-row setting-row--stack" for="wipeType"><span class="setting-text"><span class="setting-label">Type <b>start fresh</b> to confirm</span></span>' +
+            '<input class="text-input" id="wipeType" spellcheck="false" autocapitalize="off"></label>' +
+          toggle("wipeKeepProfile", "Keep birthday and pet name", "", true) +
+          '<div class="settings-actions"><button type="submit" class="tool-btn danger-btn" id="wipeGo" disabled>' + icon("trash-2") + "<span>Erase everything</span></button>" +
+          '<button type="button" class="link-btn" id="wipeCancel">Cancel</button></div>' +
+        "</form>" +
       "</section>") +
 
     "</div></div>";
@@ -258,26 +258,39 @@ export function renderSettings() {
   wireNav(el);
 }
 
-/* the section list follows you down the page */
+export function showSettingsGroup(id) {
+  var root = document.getElementById("settingsSection");
+  if (!root || !GROUPS.some(function (g) { return g[0] === id; })) return;
+  activeGroup = id;
+  try { sessionStorage.setItem("logbook-settings-tab", id); } catch (e) {}
+  root.querySelectorAll(".settings-group").forEach(function (g) {
+    var on = g.getAttribute("data-group") === id;
+    if (on && g.hidden) { g.hidden = false; g.classList.remove("is-entering"); void g.offsetWidth; g.classList.add("is-entering"); }
+    else g.hidden = !on;
+  });
+  root.querySelectorAll("[data-jump]").forEach(function (a) {
+    var on = a.getAttribute("data-jump") === id;
+    a.classList.toggle("is-active", on);
+    if (on) { a.setAttribute("aria-current", "page"); if (a.scrollIntoView && window.innerWidth < 900) a.scrollIntoView({ block: "nearest", inline: "center" }); }
+    else a.removeAttribute("aria-current");
+  });
+}
+
+/* one section at a time; the address remembers which */
 function wireNav(el) {
-  var links = el.querySelectorAll("[data-jump]");
-  links.forEach(function (a) {
+  el.querySelectorAll("[data-jump]").forEach(function (a) {
     a.addEventListener("click", function (e) {
       e.preventDefault();
-      var target = document.getElementById("set-" + a.getAttribute("data-jump"));
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      var id = a.getAttribute("data-jump");
+      showSettingsGroup(id);
+      history.replaceState(null, "", "#settings/" + id);
     });
   });
-  if (!("IntersectionObserver" in window)) return;
-  var io = new IntersectionObserver(function (items) {
-    items.forEach(function (it) {
-      if (!it.isIntersecting) return;
-      var id = it.target.getAttribute("data-group");
-      links.forEach(function (a) { a.classList.toggle("is-active", a.getAttribute("data-jump") === id); });
-    });
-  }, { rootMargin: "-20% 0px -70% 0px" });
-  el.querySelectorAll(".settings-group").forEach(function (g) { io.observe(g); });
 }
+window.addEventListener("hashchange", function () {
+  var m = /^#settings\/(\w+)/.exec(location.hash);
+  if (m) showSettingsGroup(m[1]);
+});
 
 /* The cards that depend on who's logged in. Settings is first drawn while
    the app boots, before the lock screen, so these are drawn again each
@@ -291,14 +304,7 @@ export function refreshServerCards() {
   var warn = function (e) { console.warn(e); };
   renderStorageCard(document.getElementById("settingsStorage")).catch(warn);
   var acct = document.getElementById("settingsAccount");
-  renderAccountCard(acct).then(function () {
-    // no accounts on this server: the whole Account section goes away
-    var off = !acct || acct.hidden;
-    var grp = document.getElementById("set-account");
-    var nav = document.querySelector('[data-jump="account"]');
-    if (grp) grp.hidden = off;
-    if (nav) nav.hidden = off;
-  }).catch(warn);
+  renderAccountCard(acct).catch(warn);
   renderAICard(document.getElementById("settingsAI")).catch(warn);
   renderTelegramCard(document.getElementById("settingsTelegram")).catch(warn);
 }
@@ -318,7 +324,7 @@ async function refreshDbStatus() {
       "</div>";
   } catch (e) {
     box.className = "db-status is-offline";
-    box.innerHTML = '<span class="status-dot"></span> Server offline. If it runs on this computer, start it with <code>uvicorn app.main:app --reload</code> in the backend folder.';
+    box.innerHTML = '<span class="status-dot"></span> Can\'t reach the server right now. Your last copy still shows; it syncs again when it\'s back.';
   }
 }
 
@@ -492,17 +498,23 @@ function wire(el) {
     });
   }
 
-  el.querySelector("#copySnippet").addEventListener("click", async function () {
+  var wipeForm = el.querySelector("#wipeForm"), wipeType = el.querySelector("#wipeType"), wipeGo = el.querySelector("#wipeGo");
+  el.querySelector("#wipeOpen").addEventListener("click", function () { wipeForm.hidden = false; wipeType.focus(); });
+  el.querySelector("#wipeCancel").addEventListener("click", function () { wipeForm.hidden = true; wipeType.value = ""; wipeGo.disabled = true; });
+  wipeType.addEventListener("input", function () { wipeGo.disabled = wipeType.value.trim().toLowerCase() !== "start fresh"; });
+  wipeForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (wipeGo.disabled) return;
+    wipeGo.disabled = true;
     try {
-      await navigator.clipboard.writeText(LEGACY_SNIPPET);
-      toast("Copied");
-    } catch (e) {
-      var range = document.createRange();
-      range.selectNodeContents(el.querySelector("#legacySnippet"));
-      var sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-      toast("Selected. Press Ctrl+C to copy", "warn");
+      await apiWipeMyData(el.querySelector("#wipeKeepProfile").checked);
+      try { localStorage.removeItem(POMODORO_STORAGE_KEY); localStorage.removeItem("logbook-daily-draft"); } catch (err) {}
+      await cacheClear();
+      toast("Fresh start. Everything's cleared.");
+      setTimeout(function () { location.hash = "#dashboard"; location.reload(); }, 900);
+    } catch (err) {
+      wipeGo.disabled = false;
+      toast("Couldn't clear it: " + (err.detail || err.message), "error");
     }
   });
 

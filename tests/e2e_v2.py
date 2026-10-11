@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 """End-to-end test for the v2 features: device mode (no server), offline,
 themes, habits, music, password login, and moving data from a device to a
 server. Complements tests/e2e_browser.py (which covers the core app).
@@ -156,7 +157,7 @@ try:
 
         # deadlines and prayers, on the device
         page.fill("#deadlinesSection .due-add [name=title]", "Early decision")
-        page.fill("#deadlinesSection .due-add [name=date]", (date.today() + timedelta(days=5)).isoformat())
+        page.fill("#deadlinesSection .due-add [name=date]", (datetime.now(ZoneInfo("Africa/Addis_Ababa")).date() + timedelta(days=5)).isoformat())
         page.click("#deadlinesSection .due-add button[type=submit]")
         page.wait_for_selector("#deadlinesSection .due-row")
         check("a deadline counts down on Today", page.text_content("#deadlinesSection .due-count b").strip() == "5"
@@ -176,7 +177,7 @@ try:
               and len(dev(page, "/deadlines/")) == 1 and len(dev(page, "/prayers/?answered=true")) == 1)
 
         # ---------- themes ----------
-        page.evaluate("location.hash = '#settings'")
+        page.evaluate("location.hash = '#settings/look'")
         page.click('[data-theme-id="paper"]')
         page.wait_for_timeout(200)
         check("picking a theme applies it", page.evaluate("document.documentElement.dataset.theme") == "paper")
@@ -186,7 +187,7 @@ try:
         first_paint = page.evaluate("document.documentElement.getAttribute('style') || ''")
         check("saved theme is applied before the app starts (no flash)", "--bg-rgb" in first_paint)
 
-        page.evaluate("location.hash = '#settings'")
+        page.evaluate("location.hash = '#settings/look'")
         page.fill("#vibeText", "neon tokyo cyberpunk at night")
         page.click("#vibeForm button[type=submit]")
         page.wait_for_selector(".theme-preview-bar:not([hidden])")
@@ -265,7 +266,7 @@ try:
         page.click('[data-music="close"]')
 
         # ---------- backup ----------
-        page.evaluate("location.hash = '#settings'")
+        page.evaluate("location.hash = '#settings/data'")
         with page.expect_download() as dl:
             page.click("#backupExport")
         backup = json.loads(Path(dl.value.path()).read_text())
@@ -283,7 +284,7 @@ try:
         ctx.set_offline(False)
 
         # ---------- device → password-protected server ----------
-        page.evaluate("location.hash = '#settings'")
+        page.evaluate("location.hash = '#settings/data'")
         page.fill('#connectForm [name="url"]', SERVER)
         page.fill('#connectForm [name="password"]', PASSWORD)
         page.click('#connectForm button[type="submit"]')
@@ -314,7 +315,7 @@ try:
         page2.keyboard.press("Escape")
         page2.wait_for_timeout(800)
         check("right password unlocks and loads the data", "written with no server" in page2.evaluate("document.body.innerText") or page2.evaluate("window.__logbook.request('/entries/').then(e => e.length)") == 1)
-        page2.evaluate("location.hash = '#settings'")
+        page2.evaluate("location.hash = '#settings/you'")
         page2.click("#settingsAccount [data-logout]")
         page2.wait_for_selector("#lockScreen", timeout=10000)
         check("log out locks it again", page2.is_visible("#lockScreen"))

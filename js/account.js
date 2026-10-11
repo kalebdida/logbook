@@ -40,8 +40,8 @@ function codeBox(code, kind, who) {
   return '<div class="code-box" data-message="' + escapeHtml(message) + '">' +
     '<p class="code-box-label">' + icon("key-round") + "<span>" + (kind === "reset" ? "Reset code for " + escapeHtml(who) : "Invite code") + "</span><em>Shown once. Copy it now.</em></p>" +
     '<code class="code-box-code">' + escapeHtml(code) + "</code>" +
-    '<div class="settings-actions"><button type="button" class="primary-btn" data-copy-message>' + icon("send") + "<span>Copy invite message</span></button>" +
-    '<button type="button" class="tool-btn" data-copy-code>' + icon("copy") + "<span>Copy code</span></button></div>" +
+    '<div class="settings-actions"><button type="button" class="primary-btn" data-share-message>' + icon("send") + "<span>Send it</span></button>" +
+    '<button type="button" class="icon-btn" data-copy-code aria-label="Copy the code" title="Copy the code">' + icon("copy") + "</button></div>" +
   "</div>";
 }
 
@@ -218,7 +218,12 @@ export async function renderAccountCard(el) {
   people.addEventListener("click", async function (e) {
     var t = e.target;
     var box = t.closest(".code-box");
-    if (t.closest("[data-copy-message]") && box) return copy(box.getAttribute("data-message"));
+    if (t.closest("[data-share-message]") && box) {
+      // the phone's share sheet (Telegram, WhatsApp, SMS...), or copy where there isn't one
+      var msg = box.getAttribute("data-message");
+      if (navigator.share) return navigator.share({ text: msg }).catch(function (err) { if (err && err.name !== "AbortError") copy(msg); });
+      return copy(msg);
+    }
     if (t.closest("[data-copy-code]") && box) return copy(box.querySelector("code").textContent);
 
     var inviteRowEl = t.closest("[data-invite]");

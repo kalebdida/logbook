@@ -227,8 +227,8 @@ export async function renderChatCard(el) {
         "Gemini works with a free key; Claude, OpenAI, or a model on your own computer (Ollama) work too. It's off until you turn it on.</p>" +
       '<button type="button" class="tool-btn" data-chat-setup>' + icon("sparkles") + "<span>Set up AI</span></button>";
     el.querySelector("[data-chat-setup]").addEventListener("click", function () {
-      navigateTo("settings");
-      setTimeout(function () { var c = document.getElementById("set-ai") || document.getElementById("settingsAI"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
+      location.hash = "#settings/connect";
+      setTimeout(function () { var c = document.getElementById("settingsAI"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 120);
     });
     return;
   }

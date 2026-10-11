@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
-from app.database import get_db
+from app.database import Base, get_db
 from app.models import (Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, Letter, PomodoroDay, Prayer, Profile,
                         SleepLog, Task)
 from app.routers.profile import read_profile
@@ -235,3 +236,29 @@ def restore_backup(payload: RestorePayload, uid: int = Depends(current_user_id),
 
     db.commit()
     return RestoreResult(**result)
+
+
+class WipeRequest(BaseModel):
+    confirm: str
+    keep_profile: bool = True
+
+
+KEEP_TABLES = {"users", "invites", "app_settings", "telegram_links"}
+
+
+@router.post("/wipe")
+def wipe_my_data(body: WipeRequest, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    """Start fresh: delete every row this account owns. The login and the
+    Telegram link stay; the profile (birthday, pet name) stays unless asked."""
+    if body.confirm.strip().lower() != "start fresh":
+        raise HTTPException(status_code=400, detail='Type "start fresh" to confirm.')
+    keep = set(KEEP_TABLES)
+    if body.keep_profile:
+        keep.add("profiles")
+    removed = 0
+    for table in reversed(Base.metadata.sorted_tables):       # children before parents
+        if table.name in keep or "user_id" not in table.c:
+            continue
+        removed += db.execute(table.delete().where(table.c.user_id == uid)).rowcount or 0
+    db.commit()
+    return {"ok": True, "removed": removed}

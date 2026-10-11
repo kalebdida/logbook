@@ -329,6 +329,10 @@ export async function apiListPomodoroDays() {
 
 // ---------- backup & health ----------
 
+export async function apiWipeMyData(keepProfile) {
+  return request("/backup/wipe", Object.assign({ method: "POST" }, jsonBody({ confirm: "start fresh", keep_profile: keepProfile !== false })));
+}
+
 export async function apiExportBackup() {
   return request("/backup");
 }
