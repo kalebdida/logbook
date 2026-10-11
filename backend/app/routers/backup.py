@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.database import get_db
-from app.models import Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, PomodoroDay, Prayer, Profile, Task
+from app.models import (Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, Letter, PomodoroDay, Prayer, Profile,
+                        SleepLog, Task)
 from app.routers.profile import read_profile
 from app.schemas.backup import BackupExport, RestoreCount, RestorePayload, RestoreResult
 
@@ -35,6 +36,8 @@ def export_backup(uid: int = Depends(current_user_id), db: Session = Depends(get
         deadlines=db.query(Deadline).filter(Deadline.user_id == uid).order_by(Deadline.due_date, Deadline.id).all(),
         prayers=db.query(Prayer).filter(Prayer.user_id == uid).order_by(Prayer.created_at, Prayer.id).all(),
         profile=read_profile(db, uid),
+        sleep=db.query(SleepLog).filter(SleepLog.user_id == uid).order_by(SleepLog.date).all(),
+        letters=db.query(Letter).filter(Letter.user_id == uid).order_by(Letter.month).all(),
     )
 
 
@@ -80,7 +83,7 @@ def restore_backup(payload: RestorePayload, uid: int = Depends(current_user_id),
         if item.id and item.id in entry_ids:
             result["entries"].skipped += 1
             continue
-        entry = Entry(user_id=uid, mood=item.mood, text=item.text, occurred_at=item.occurred_at)
+        entry = Entry(user_id=uid, mood=item.mood, text=item.text, occurred_at=item.occurred_at, source=item.source)
         if item.id:
             entry.id = item.id
             entry_ids.add(item.id)
@@ -204,6 +207,20 @@ def restore_backup(payload: RestorePayload, uid: int = Depends(current_user_id),
                       answer=item.answer if item.answered_at else "", created_at=when, updated_at=when))
         have_prayers.add(key)
         result["prayers"].added += 1
+
+    have_nights = {s.date for s in db.query(SleepLog).filter(SleepLog.user_id == uid).all()}
+    for item in payload.sleep:
+        if item.date in have_nights:
+            result["sleep"].skipped += 1
+            continue
+        db.add(SleepLog(user_id=uid, date=item.date, bed_at=item.bed_at, wake_at=item.wake_at))
+        have_nights.add(item.date)
+        result["sleep"].added += 1
+    have_letters = {m for (m,) in db.query(Letter.month).filter(Letter.user_id == uid).all()}
+    for item in payload.letters:
+        if item.month not in have_letters and item.text:
+            db.add(Letter(user_id=uid, month=item.month, text=item.text, created_at=now, updated_at=now))
+            have_letters.add(item.month)
 
     # the profile only fills what's empty here
     if payload.profile is not None:

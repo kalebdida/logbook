@@ -25,6 +25,7 @@ def create_entry(entry: EntryCreate, uid: int = Depends(current_user_id), db: Se
         mood=entry.mood,
         text=entry.text,
         occurred_at=entry.occurred_at or datetime.now(timezone.utc),
+        source=entry.source,
     )
     if entry.id is not None:
         db_entry.id = entry.id

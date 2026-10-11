@@ -19,6 +19,7 @@ from app.schemas.habit import HabitLogResponse, HabitResponse
 from app.schemas.pomodoro_day import PomodoroDayResponse
 from app.schemas.prayer import PrayerResponse
 from app.schemas.profile import ProfileResponse, ProfileUpdate
+from app.schemas.extras import LetterResponse, SleepResponse
 from app.schemas.task import TaskResponse
 
 
@@ -37,6 +38,8 @@ class BackupExport(BaseModel):
     deadlines: list[DeadlineResponse] = []
     prayers: list[PrayerResponse] = []
     profile: ProfileResponse | None = None
+    sleep: list[SleepResponse] = []
+    letters: list[LetterResponse] = []
 
 
 class RestoreEntry(BaseModel):
@@ -44,6 +47,7 @@ class RestoreEntry(BaseModel):
     occurred_at: UTCDateTime
     mood: Mood
     text: str = Field(..., min_length=1)
+    source: str | None = Field(None, max_length=20)
 
 
 class RestoreDay(BaseModel):
@@ -124,6 +128,17 @@ class RestorePrayer(BaseModel):
     created_at: UTCDateTime | None = None
 
 
+class RestoreSleep(BaseModel):
+    date: date_type
+    bed_at: UTCDateTime | None = None
+    wake_at: UTCDateTime | None = None
+
+
+class RestoreLetter(BaseModel):
+    month: str = Field(..., pattern=r"^\d{4}-\d{2}$")
+    text: str = ""
+
+
 class RestorePayload(BaseModel):
     entries: list[RestoreEntry] = []
     day_records: list[RestoreDay] = []
@@ -136,6 +151,8 @@ class RestorePayload(BaseModel):
     deadlines: list[RestoreDeadline] = []
     prayers: list[RestorePrayer] = []
     profile: ProfileUpdate | None = None
+    sleep: list[RestoreSleep] = []
+    letters: list[RestoreLetter] = []
 
 
 class RestoreCount(BaseModel):
@@ -154,4 +171,5 @@ class RestoreResult(BaseModel):
     habits: RestoreCount
     habit_logs: RestoreCount
     deadlines: RestoreCount = RestoreCount()
+    sleep: RestoreCount = RestoreCount()
     prayers: RestoreCount = RestoreCount()

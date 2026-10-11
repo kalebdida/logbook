@@ -77,7 +77,7 @@ function jsonBody(obj) {
 // ---------- entries ----------
 
 function entryFromApi(e) {
-  return { id: e.id, date: e.occurred_at, mood: e.mood, text: e.text };
+  return { id: e.id, date: e.occurred_at, mood: e.mood, text: e.text, source: e.source || null };
 }
 
 export async function apiListEntries() {
@@ -85,8 +85,10 @@ export async function apiListEntries() {
   return rows.map(entryFromApi);
 }
 
-export async function apiCreateEntry(mood, text) {
-  var created = await request("/entries/", Object.assign({ method: "POST" }, jsonBody({ mood: mood, text: text })));
+export async function apiCreateEntry(mood, text, source) {
+  var body = { mood: mood, text: text };
+  if (source) body.source = source;
+  var created = await request("/entries/", Object.assign({ method: "POST" }, jsonBody(body)));
   return entryFromApi(created);
 }
 
@@ -537,4 +539,83 @@ export async function apiSaveProfile(values) {
   if (values.petName !== undefined) body.pet_name = values.petName;
   var p = await request("/profile", Object.assign({ method: "PUT" }, jsonBody(body)));
   return { birthday: p.birthday || null, petName: p.pet_name || "" };
+}
+
+// ---------- sleep ----------
+
+function sleepFromApi(r) {
+  var mins = r.bed_at && r.wake_at ? Math.round((Date.parse(r.wake_at) - Date.parse(r.bed_at)) / 60000) : null;
+  return { date: r.date, bedAt: r.bed_at || null, wakeAt: r.wake_at || null, minutes: mins };
+}
+
+export async function apiListSleep(start, end) {
+  var q = new URLSearchParams();
+  if (start) q.set("start", start);
+  if (end) q.set("end", end);
+  return (await request("/sleep/" + (q.toString() ? "?" + q : ""))).map(sleepFromApi);
+}
+
+export async function apiSaveSleep(date, values) {
+  var body = {};
+  if (values.bedAt !== undefined) body.bed_at = values.bedAt;
+  if (values.wakeAt !== undefined) body.wake_at = values.wakeAt;
+  return sleepFromApi(await request("/sleep/" + date, Object.assign({ method: "PUT" }, jsonBody(body))));
+}
+
+export async function apiDeleteSleep(date) {
+  await request("/sleep/" + date, { method: "DELETE" });
+}
+
+// ---------- photos ----------
+
+export async function apiListPhotos(start, end) {
+  var q = new URLSearchParams();
+  if (start) q.set("start", start);
+  if (end) q.set("end", end);
+  return (await request("/photos/" + (q.toString() ? "?" + q : ""))).map(function (p) { return { date: p.date, caption: p.caption || "" }; });
+}
+
+export async function apiSavePhoto(date, image, thumb, caption) {
+  return request("/photos/" + date, Object.assign({ method: "PUT" }, jsonBody({ image: image, thumb: thumb, mime: "image/jpeg", caption: caption || "" })));
+}
+
+export async function apiDeletePhoto(date) {
+  await request("/photos/" + date, { method: "DELETE" });
+}
+
+/* A URL an <img> can show: a data URL on this device, an object URL for the
+   server's bytes (fetched with the login, which an <img> tag can't send). */
+var photoUrls = {};
+export async function apiPhotoUrl(date, size) {
+  var key = date + "|" + (size || "full");
+  if (photoUrls[key]) return photoUrls[key];
+  if (isDevice()) {
+    var r = await request("/photos/" + date + (size ? "?size=" + size : ""));
+    return (photoUrls[key] = r.url);
+  }
+  var headers = {};
+  if (getConnection().token) headers.Authorization = "Bearer " + getConnection().token;
+  var res = await fetch(serverBase() + "/photos/" + date + (size ? "?size=" + size : ""), { headers: headers });
+  if (!res.ok) { var err = new Error("photo " + res.status); err.status = res.status; throw err; }
+  return (photoUrls[key] = URL.createObjectURL(await res.blob()));
+}
+
+export function forgetPhotoUrl(date) {
+  ["full", "thumb"].forEach(function (s) {
+    var k = date + "|" + s;
+    if (photoUrls[k] && photoUrls[k].indexOf("blob:") === 0) URL.revokeObjectURL(photoUrls[k]);
+    delete photoUrls[k];
+  });
+}
+
+// ---------- letters ----------
+
+export async function apiListLetters() {
+  return (await request("/letters/")).map(function (l) { return { month: l.month, text: l.text, createdAt: l.created_at }; });
+}
+
+export async function apiOpenLetter(month, text) {
+  var tz = -new Date().getTimezoneOffset();
+  var l = await request("/letters/" + month + "?tz_minutes=" + tz, Object.assign({ method: "POST" }, jsonBody(text ? { text: text } : {})));
+  return { month: l.month, text: l.text, createdAt: l.created_at };
 }

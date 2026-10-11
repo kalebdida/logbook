@@ -1,8 +1,12 @@
 """Pydantic schemas for journal entries."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.common import Mood, UTCDateTime
+
+EntrySource = Literal["voice", "lantern", "telegram"]
 
 
 class EntryCreate(BaseModel):
@@ -12,6 +16,7 @@ class EntryCreate(BaseModel):
     # Imports send the originals so restored entries keep their dates.
     id: str | None = Field(None, max_length=64)
     occurred_at: UTCDateTime | None = None
+    source: EntrySource | None = None
 
 
 class EntryUpdate(BaseModel):
@@ -26,3 +31,4 @@ class EntryResponse(BaseModel):
     occurred_at: UTCDateTime
     mood: Mood
     text: str
+    source: str | None = None

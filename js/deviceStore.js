@@ -15,7 +15,7 @@ var DB_NAME = (function () {
   // a guest's demo (js/demo.js) gets its own database, never the real one
   try { return sessionStorage.getItem("logbook-demo") === "1" ? "logbook-demo" : "logbook-device"; } catch (e) { return "logbook-device"; }
 })();
-var DB_VERSION = 2;
+var DB_VERSION = 3;
 var TABLES = {
   entries: "id",
   day_records: "date",
@@ -27,6 +27,9 @@ var TABLES = {
   habit_logs: "key",
   deadlines: "id",
   prayers: "id",
+  sleep: "date",
+  photos: "date",
+  letters: "month",
   meta: "key"
 };
 var VERSION = "2.2.0";
@@ -237,7 +240,8 @@ route("POST", "/entries", async function (p, q, body) {
   var txt = text(body.text, "text", 0);
   var id = body.id != null ? text(String(body.id), "id", 64) : hex(16);
   if (mem.entries.has(id)) fail(409, "An entry with that id already exists");
-  var row = { id: id, occurred_at: body.occurred_at ? iso(body.occurred_at, "occurred_at") : now(), mood: mood, text: txt };
+  var row = { id: id, occurred_at: body.occurred_at ? iso(body.occurred_at, "occurred_at") : now(), mood: mood, text: txt,
+    source: body.source == null ? null : oneOf(body.source, ["voice", "lantern", "telegram"], "source") };
   await commit([put("entries", row)]);
   return copy(row);
 });
@@ -567,6 +571,78 @@ route("DELETE", "/prayers/{id}", async function (p) {
   return null;
 });
 
+/* sleep: one night, under the morning you woke up */
+function sleepMinutes(r) { return r.bed_at && r.wake_at ? Math.round((Date.parse(r.wake_at) - Date.parse(r.bed_at)) / 60000) : null; }
+route("GET", "/sleep", function (p, q) {
+  var start = q.get("start"), end = q.get("end");
+  return rows("sleep").filter(function (r) { return (!start || r.date >= start) && (!end || r.date <= end); })
+    .sort(function (a, b) { return a.date.localeCompare(b.date); }).map(copy);
+});
+route("PUT", "/sleep/{date}", async function (p, q, body) {
+  var date = dateArg(p.date, "date");
+  var t = now();
+  var row = copy(mem.sleep.get(date) || { date: date, bed_at: null, wake_at: null, created_at: t });
+  if ("bed_at" in body) row.bed_at = body.bed_at == null ? null : iso(body.bed_at, "bed_at");
+  if ("wake_at" in body) row.wake_at = body.wake_at == null ? null : iso(body.wake_at, "wake_at");
+  var m = sleepMinutes(row);
+  if (m != null && !(m > 0 && m <= 1200)) fail(422, "Waking up has to come after going to bed, within 20 hours");
+  row.updated_at = t;
+  await commit([put("sleep", row)]);
+  return copy(row);
+});
+route("DELETE", "/sleep/{date}", async function (p) {
+  var date = dateArg(p.date, "date");
+  if (!mem.sleep.has(date)) fail(404, "Nothing logged that night");
+  await commit([del("sleep", date)]);
+  return null;
+});
+
+/* photo of the day (kept as data URLs) */
+route("GET", "/photos", function (p, q) {
+  var start = q.get("start"), end = q.get("end");
+  return rows("photos").filter(function (r) { return (!start || r.date >= start) && (!end || r.date <= end); })
+    .sort(function (a, b) { return a.date.localeCompare(b.date); })
+    .map(function (r) { return { date: r.date, caption: r.caption, created_at: r.created_at }; });
+});
+route("PUT", "/photos/{date}", async function (p, q, body) {
+  var date = dateArg(p.date, "date");
+  var image = String(body.image || ""), thumb = String(body.thumb || "");
+  var mime = /^image\/(jpeg|png|webp)$/.test(body.mime || "image/jpeg") ? (body.mime || "image/jpeg") : fail(422, "mime");
+  if (image.length > 4000000 || thumb.length > 300000 || image.length < 10 || thumb.length < 10) fail(422, "Photo too big or empty");
+  var asUrl = function (b64, type) { return b64.indexOf("data:") === 0 ? b64 : "data:" + type + ";base64," + b64; };
+  var t = now();
+  var row = { date: date, image: asUrl(image, mime), thumb: asUrl(thumb, "image/jpeg"), caption: text(String(body.caption || ""), "caption", 300).trim(),
+    created_at: (mem.photos.get(date) || {}).created_at || t, updated_at: t };
+  await commit([put("photos", row)]);
+  return { date: row.date, caption: row.caption, created_at: row.created_at };
+});
+route("GET", "/photos/{date}", function (p, q) {
+  var row = get("photos", dateArg(p.date, "date"), "Photo");
+  return { url: q.get("size") === "thumb" ? row.thumb : row.image };
+});
+route("DELETE", "/photos/{date}", async function (p) {
+  var date = dateArg(p.date, "date");
+  get("photos", date, "Photo");
+  await commit([del("photos", date)]);
+  return null;
+});
+
+/* the monthly letter: on this device the app writes it (js/letters.js) and keeps it here */
+route("GET", "/letters", function () {
+  return rows("letters").sort(function (a, b) { return b.month.localeCompare(a.month); }).map(copy);
+});
+route("POST", "/letters/{month}", async function (p, q, body) {
+  var month = String(p.month);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail(422, "Month looks like 2026-10");
+  var have = mem.letters.get(month);
+  if (have) return copy(have);
+  if (!body.text) fail(409, "Write the letter first");
+  var t = now();
+  var row = { month: month, text: text(String(body.text), "text", 20000), created_at: t, updated_at: t };
+  await commit([put("letters", row)]);
+  return copy(row);
+});
+
 /* backup */
 route("GET", "/backup", function () {
   function sorted(table, cmp) { return rows(table).sort(cmp).map(copy); }
@@ -584,13 +660,15 @@ route("GET", "/backup", function () {
     habit_logs: rows("habit_logs").sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (l) { return { habit_id: l.habit_id, date: l.date }; }),
     deadlines: sorted("deadlines", function (a, b) { return a.due_date.localeCompare(b.due_date) || a.id - b.id; }),
     prayers: sorted("prayers", function (a, b) { return a.created_at.localeCompare(b.created_at) || a.id - b.id; }),
-    profile: profile()
+    profile: profile(),
+    sleep: sorted("sleep", function (a, b) { return a.date.localeCompare(b.date); }),
+    letters: sorted("letters", function (a, b) { return a.month.localeCompare(b.month); })
   };
 });
 
 route("POST", "/backup/restore", async function (p, q, body) {
   var result = {};
-  ["entries", "day_records", "tasks", "activities", "goals", "pomodoro_days", "habits", "habit_logs", "deadlines", "prayers"].forEach(function (k) {
+  ["entries", "day_records", "tasks", "activities", "goals", "pomodoro_days", "habits", "habit_logs", "deadlines", "prayers", "sleep"].forEach(function (k) {
     result[k] = { added: 0, merged: 0, skipped: 0 };
   });
   var ops = [];
@@ -619,7 +697,7 @@ route("POST", "/backup/restore", async function (p, q, body) {
   list("entries").forEach(function (item) {
     if (item.id && mem.entries.has(String(item.id))) { result.entries.skipped++; return; }
     var row = { id: item.id ? text(String(item.id), "id", 64) : hex(16), occurred_at: iso(item.occurred_at, "occurred_at"),
-      mood: oneOf(item.mood, MOODS, "mood"), text: text(item.text, "text", 0) };
+      mood: oneOf(item.mood, MOODS, "mood"), text: text(item.text, "text", 0), source: typeof item.source === "string" ? item.source.slice(0, 20) : null };
     ops.push(put("entries", row));
     mem.entries.set(row.id, row);
     result.entries.added++;
@@ -741,6 +819,19 @@ route("POST", "/backup/restore", async function (p, q, body) {
       answer: r.answered_at && typeof r.answer === "string" ? r.answer : "", created_at: when, updated_at: when };
     row.id = nextId("prayers", ops);
     ops.push(put("prayers", row)); mem.prayers.set(row.id, row); havePrayers.add(words.toLowerCase()); result.prayers.added++;
+  });
+
+  list("sleep").forEach(function (n) {
+    if (!DATE_RE.test(n.date) || mem.sleep.has(n.date)) { result.sleep.skipped++; return; }
+    var t6 = now();
+    var row = { date: n.date, bed_at: n.bed_at ? iso(n.bed_at, "bed_at") : null, wake_at: n.wake_at ? iso(n.wake_at, "wake_at") : null, created_at: t6, updated_at: t6 };
+    ops.push(put("sleep", row)); mem.sleep.set(n.date, row); result.sleep.added++;
+  });
+  list("letters").forEach(function (l) {
+    if (!/^\d{4}-\d{2}$/.test(l.month) || mem.letters.has(l.month) || !l.text) return;
+    var t7 = now();
+    var row = { month: l.month, text: String(l.text), created_at: t7, updated_at: t7 };
+    ops.push(put("letters", row)); mem.letters.set(l.month, row);
   });
 
   if (body.profile && typeof body.profile === "object") {

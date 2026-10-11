@@ -49,6 +49,9 @@ def make_user(c, admin, name, pw="friend password 1"):
     return res.json()["token"]
 
 
+PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+
 def fill(c, token, tag):
     """One of everything, so every table has a row for this account."""
     H = h(token)
@@ -63,6 +66,8 @@ def fill(c, token, tag):
     deadline = c.post("/deadlines/", json={"title": f"{tag} deadline", "due_date": "2026-11-01"}, headers=H).json()
     prayer = c.post("/prayers/", json={"text": f"{tag} prayer"}, headers=H).json()
     c.put("/profile", json={"pet_name": f"{tag} cat", "birthday": "2008-03-04"}, headers=H)
+    c.put("/sleep/2026-10-01", json={"bed_at": "2026-09-30T20:00:00Z", "wake_at": "2026-10-01T04:00:00Z"}, headers=H)
+    c.put("/photos/2026-10-01", json={"image": PNG, "thumb": PNG, "mime": "image/png", "caption": f"{tag} photo"}, headers=H)
     return {"entry": entry, "task": task, "act": act, "goal": goal, "habit": habit, "deadline": deadline, "prayer": prayer}
 
 
@@ -78,7 +83,7 @@ def test_accounts_see_only_their_own_data(server):
         H = h(token)
         everything = str([c.get(p, headers=H).json() for p in
                           ("/entries/", "/days/", "/tasks/", "/activities/", "/goals/", "/pomodoro/", "/habits/", "/habits/logs",
-                           "/deadlines/", "/prayers/", "/profile", "/backup")])
+                           "/deadlines/", "/prayers/", "/profile", "/sleep/", "/photos/", "/letters/", "/backup")])
         for other in {"kal", "amen", "beti"} - {tag}:
             assert other not in everything, f"{tag} can see {other}'s data"
         assert f"{tag} secret entry" in everything and f"{tag} secret journal" in everything
@@ -116,6 +121,9 @@ def test_cannot_touch_another_accounts_rows_by_id(server):
         ("delete", f"/deadlines/{a['deadline']['id']}", None),
         ("patch", f"/prayers/{a['prayer']['id']}", {"answered": True}),
         ("delete", f"/prayers/{a['prayer']['id']}", None),
+        ("get", "/photos/2026-10-01", None),
+        ("delete", "/photos/2026-10-01", None),
+        ("delete", "/sleep/2026-10-01", None),
     ]:
         kwargs = {"headers": B}
         if body is not None:
@@ -140,6 +148,9 @@ def test_cannot_touch_another_accounts_rows_by_id(server):
     assert len(c.get("/habits/logs", headers=A).json()) == 1
     assert c.get("/deadlines/", headers=A).json()[0]["title"] == "amen deadline"
     assert c.get("/prayers/", headers=A).json()[0]["answered_at"] is None
+    assert c.get("/photos/", headers=A).json()[0]["caption"] == "amen photo"
+    assert c.get("/photos/2026-10-01", headers=A).content.startswith(b"\x89PNG")
+    assert len(c.get("/sleep/", headers=A).json()) == 1
 
 
 def test_restore_goes_into_your_own_account(server):

@@ -488,3 +488,42 @@ def test_profile_and_deadline_times(client):
     assert bday["kind"] == "birthday"
     dump = client.get("/backup").json()
     assert dump["profile"]["pet_name"] == "Yuki"
+
+
+PNG_1PX = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+
+def test_sleep_photos_and_entry_source(client):
+    ok = client.put("/sleep/2026-10-11", json={"bed_at": "2026-10-10T20:30:00Z", "wake_at": "2026-10-11T04:00:00Z"}).json()
+    assert ok["date"] == "2026-10-11" and ok["wake_at"].startswith("2026-10-11T04:00")
+    assert client.put("/sleep/2026-10-12", json={"bed_at": "2026-10-12T05:00:00Z", "wake_at": "2026-10-12T04:00:00Z"}).status_code == 422
+    client.put("/sleep/2026-10-12", json={"bed_at": "2026-10-11T21:00:00Z"})           # going to bed now, awake later
+    assert client.put("/sleep/2026-10-12", json={"wake_at": "2026-10-12T04:30:00Z"}).json()["bed_at"].startswith("2026-10-11T21")
+    assert [s["date"] for s in client.get("/sleep/?start=2026-10-12").json()] == ["2026-10-12"]
+
+    assert client.put("/photos/2026-10-11", json={"image": "bm90IGFuIGltYWdl", "thumb": PNG_1PX}).status_code == 422
+    client.put("/photos/2026-10-11", json={"image": "data:image/png;base64," + PNG_1PX, "thumb": PNG_1PX, "mime": "image/png", "caption": "sunset"})
+    assert client.get("/photos/").json()[0]["caption"] == "sunset"
+    res = client.get("/photos/2026-10-11?size=thumb")
+    assert res.status_code == 200 and res.headers["content-type"] == "image/jpeg" and res.content.startswith(b"\x89PNG")
+    assert client.delete("/photos/2026-10-11").status_code == 204
+
+    e = client.post("/entries/", json={"mood": "rough", "text": "let it go", "source": "lantern"}).json()
+    assert e["source"] == "lantern"
+    assert client.post("/entries/", json={"mood": "okay", "text": "x", "source": "fax"}).status_code == 422
+    dump = client.get("/backup").json()
+    assert dump["sleep"] and dump["entries"][-1]["source"] == "lantern"
+
+
+def test_monthly_letter_is_written_once_and_only_for_past_months(client):
+    client.post("/entries/", json={"mood": "good", "text": "Great run today", "occurred_at": "2026-09-10T08:00:00Z"})
+    client.post("/entries/", json={"mood": "good", "text": "Studied well", "occurred_at": "2026-09-11T08:00:00Z"})
+    client.put("/days/2026-09-11", json={"reflection_gratitude": "Family dinner"})
+    client.put("/profile", json={"pet_name": "Yuki"})
+    letter = client.post("/letters/2026-09").json()
+    assert letter["text"].startswith("Dear ") and "— Yuki" in letter["text"] and "2 days" in letter["text"]
+    assert "family dinner" in letter["text"]
+    assert client.post("/letters/2026-09").json()["created_at"] == letter["created_at"]      # written once
+    assert client.post("/letters/2999-01").status_code == 409
+    assert client.post("/letters/nope").status_code == 422
+    assert [x["month"] for x in client.get("/letters/").json()] == ["2026-09"]
