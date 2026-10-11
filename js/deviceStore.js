@@ -11,7 +11,10 @@
 
 import { CATEGORIES } from './categories.js';
 
-var DB_NAME = "logbook-device";
+var DB_NAME = (function () {
+  // a guest's demo (js/demo.js) gets its own database, never the real one
+  try { return sessionStorage.getItem("logbook-demo") === "1" ? "logbook-demo" : "logbook-device"; } catch (e) { return "logbook-device"; }
+})();
 var DB_VERSION = 2;
 var TABLES = {
   entries: "id",

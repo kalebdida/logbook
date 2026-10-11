@@ -8,6 +8,7 @@ import { sceneSvg } from './scene.js';
 import { mountMascot } from './mascot.js';
 import { getPrefs } from './prefs.js';
 import { cacheClear } from './cache.js';
+import { enterDemo } from './demo.js';
 
 var waiting = null;
 
@@ -86,7 +87,10 @@ export function showLock(reason) {
         '<button type="submit" class="primary-btn"></button>' +
         '<footer class="lock-foot">' +
           '<span class="lock-server" title="Where your logbook lives">' + icon("server") + "<span>" + escapeHtml(describeConnection()) + "</span></span>" +
-          '<button type="button" class="link-btn lock-switch" data-lock="device">Use this device instead</button>' +
+          '<span class="lock-foot-links">' +
+            '<button type="button" class="link-btn lock-switch" data-lock="demo">Look around first</button>' +
+            '<button type="button" class="link-btn lock-switch" data-lock="device">Use this device instead</button>' +
+          "</span>" +
         "</footer>" +
       "</form>";
     document.body.appendChild(el);
@@ -238,6 +242,10 @@ export function showLock(reason) {
       } finally {
         btn.disabled = false;
       }
+    });
+    form.querySelector('[data-lock="demo"]').addEventListener("click", function () {
+      catSay("Sure. Have a look around.");
+      setTimeout(enterDemo, reduceMotion() ? 0 : 500);
     });
     form.querySelector('[data-lock="device"]').addEventListener("click", function () {
       if (!confirm("Switch this copy of Logbook to keep data on this device? Your server data stays on the server.")) return;

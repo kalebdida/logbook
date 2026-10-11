@@ -1,5 +1,6 @@
 import { storageWorks } from './storage.js';
-import { resolveConnection, isDevice, getConnection } from './connection.js';
+import { resolveConnection, isDevice, getConnection, isDemo } from './connection.js';
+import { startDemo } from './demo.js';
 import { initDeviceStore, deviceStorageIsPersistent } from './deviceStore.js';
 import { apiAuthStatus, request, serverGet } from './api.js';
 import { setCacheUser, cacheLoad, setCacheBoot, cacheRevalidate } from './cache.js';
@@ -139,6 +140,7 @@ async function init() {
   document.body.dataset.mode = isDevice() ? "device" : "server";
   if (isDevice()) {
     await initDeviceStore();
+    if (isDemo()) await startDemo().catch(warn);
     // the Android app keeps its storage until the app is uninstalled; browsers may clear it
     if (!deviceStorageIsPersistent() && !window.Capacitor) showStorageWarning("device");
   } else {

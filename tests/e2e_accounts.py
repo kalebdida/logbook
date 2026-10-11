@@ -198,6 +198,33 @@ try:
         b.wait_for_selector("#lockScreen", timeout=15000)
         check("amen's phone is locked out after removal", b.is_visible("#lockScreen"))
 
+        # ---------- a guest looking around ----------
+        ctx_g = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        g = ctx_g.new_page()
+        for_errors(g, "guest")
+        g.route("https://bible-api.com/**", lambda r: r.abort())
+        g.goto(SERVER + "/")
+        g.wait_for_selector("#lockScreen [data-lock='demo']", timeout=15000)
+        before = urllib.request.urlopen(SERVER + "/ping").status
+        g.click("#lockScreen [data-lock='demo']")
+        g.wait_for_selector(".demo-bar", timeout=15000)
+        g.wait_for_selector("#deadlinesSection .due-row", timeout=10000)
+        check("a guest can look around without an account", g.locator("#lockScreen").count() == 0
+              and len(dev(g, "/entries/")) > 10 and dev(g, "/health")["database"] == "this device", before)
+        dev(g, "/entries/", "POST", {"mood": "good", "text": "guest was here"})
+        g.click(".demo-bar .demo-exit")
+        g.wait_for_selector("#lockScreen", timeout=15000)
+        check("leaving the demo goes back to the login, and the demo is gone",
+              g.evaluate("sessionStorage.getItem('logbook-demo')") is None)
+        g.goto(SERVER + "/")
+        g.wait_for_selector("#lockScreen", timeout=15000)
+        import sqlite3
+        con = sqlite3.connect(WORK / "server.db")
+        leaked = con.execute("select count(*) from entries where text like '%guest was here%'").fetchone()[0]
+        con.close()
+        check("the guest's demo never reached the server", leaked == 0, leaked)
+        ctx_g.close()
+
         check("no javascript errors", not errors, errors)
         browser.close()
 finally:

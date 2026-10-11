@@ -19,17 +19,26 @@
      gave up waiting; the app then shows its usual "can't reach" warning and
      keeps checking in the background. */
 var KEY = "logbook-connection";
+var DEMO_KEY = "logbook-demo";
 var state = null;
+
+/* A guest looking around (js/demo.js): this tab only, sample data in its own
+   in-browser database, and nothing of the real connection is read or kept. */
+export function isDemo() {
+  try { return sessionStorage.getItem(DEMO_KEY) === "1"; } catch (e) { return false; }
+}
 
 function load() {
   try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; }
 }
 
 function save() {
+  if (isDemo()) return;
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
 }
 
 export function getConnection() {
+  if (!state && isDemo()) state = { mode: "device", serverUrl: "", token: "", demo: true };
   if (!state) {
     state = Object.assign({ mode: null, serverUrl: "", token: "" }, load() || {});
     if (state.pendingToken) { // a login that reloaded the page (see lock.js)

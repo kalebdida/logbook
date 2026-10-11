@@ -135,6 +135,10 @@ html[data-theme-mode="light"] .mascot {
 /* lock and splash: the bubble sits to the cat's right, pointing back at it */
 :is(.mascot--lock, .mascot--splash) .mascot-bubble { right: auto; bottom: 46%; left: calc(100% - var(--m-w) * 0.08); max-width: min(210px, 52vw); transform-origin: 0 100%; }
 :is(.mascot--lock, .mascot--splash) .mascot-bubble::after { right: auto; bottom: 9px; left: -5px; transform: rotate(135deg); }
+/* never past the edge of a phone: the space right of the cat is half the screen less half the cat */
+@media (max-width: 560px) {
+  :is(.mascot--lock, .mascot--splash) .mascot-bubble { max-width: calc(50vw - var(--m-w) * 0.42 - 14px); font-size: 13px; }
+}
 .mascot--focus .mascot-bubble::after { top: -5px; right: 26px; bottom: auto; transform: rotate(-135deg); }
 .mascot--focus.is-sleeping .mascot-bubble { top: calc(100% + 6px); bottom: auto; }
 

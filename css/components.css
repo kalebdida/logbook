@@ -1960,6 +1960,7 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
 .lock-server { display: inline-flex; align-items: center; gap: 7px; min-width: 0; color: var(--faint); font-size: 12.5px; }
 .lock-server span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lock-switch { font-size: 13px; }
+.lock-foot-links { display: inline-flex; flex-wrap: wrap; gap: 6px 14px; }
 @media (max-width: 480px) {
   .lock-panel { padding: 28px 20px 22px; border-radius: var(--r-xl); }
   .lock-brand { font-size: 28px; }
@@ -2295,3 +2296,33 @@ html[data-theme-mode="light"] .due-add .due-time-input { color-scheme: light; }
 .age-seg b.is-tick { animation: ageTick 0.4s var(--ease-out); }
 .age-card.is-birthday { border-color: rgb(var(--accent-rgb) / 0.45); box-shadow: var(--shadow-card), 0 0 40px -12px rgb(var(--accent-rgb) / 0.55); }
 .age-card.is-birthday .daily-section-title .i { color: var(--accent); }
+
+/* =============== guest demo (js/demo.js) =============== */
+.demo-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + var(--safe-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 14px;
+  border: 1px solid rgb(var(--accent2-rgb) / 0.4);
+  border-radius: var(--r-pill);
+  background: rgb(var(--surface-rgb) / 0.92);
+  box-shadow: 0 16px 40px -16px rgb(var(--shade-rgb) / 0.8);
+  color: var(--text-2);
+  font-size: 13.5px;
+  translate: -50% 0;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  animation: toastIn 0.5s var(--ease-out) both;
+}
+.demo-bar > .i { flex: none; color: var(--accent2); font-size: 16px; }
+.demo-bar b { color: var(--text); }
+.demo-bar .tool-btn { flex: none; min-height: 34px; padding: 0 14px; }
+@media (max-width: 760px) {
+  .demo-bar { bottom: calc(var(--bar-h) + var(--safe-bottom) + 10px); border-radius: var(--r-lg); font-size: 12.5px; }
+}
