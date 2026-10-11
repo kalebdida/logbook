@@ -454,7 +454,7 @@ export async function apiAIChat(messages, system, maxTokens) {
 // ---------- deadlines ----------
 
 function deadlineFromApi(d) {
-  return { id: d.id, title: d.title, dueDate: d.due_date, kind: d.kind, note: d.note || "",
+  return { id: d.id, title: d.title, dueDate: d.due_date, dueTime: d.due_time || null, kind: d.kind, note: d.note || "",
     activityCategory: d.activity_category, done: Boolean(d.done), createdAt: d.created_at };
 }
 
@@ -462,6 +462,7 @@ function deadlineToApi(v) {
   var out = {};
   if (v.title !== undefined) out.title = v.title;
   if (v.dueDate !== undefined) out.due_date = v.dueDate;
+  if (v.dueTime !== undefined) out.due_time = v.dueTime || null;
   if (v.kind !== undefined) out.kind = v.kind;
   if (v.note !== undefined) out.note = v.note;
   if (v.activityCategory !== undefined) out.activity_category = v.activityCategory;
@@ -522,3 +523,18 @@ export function apiTelegramUpdate(patch) {
   return request("/telegram/link", Object.assign({ method: "PATCH" }, jsonBody(Object.assign({ tz_minutes: -new Date().getTimezoneOffset() }, patch))));
 }
 export function apiTelegramUnlink() { return request("/telegram/link", { method: "DELETE" }); }
+
+// ---------- profile ----------
+
+export async function apiGetProfile() {
+  var p = await request("/profile");
+  return { birthday: p.birthday || null, petName: p.pet_name || "" };
+}
+
+export async function apiSaveProfile(values) {
+  var body = {};
+  if (values.birthday !== undefined) body.birthday = values.birthday || null;
+  if (values.petName !== undefined) body.pet_name = values.petName;
+  var p = await request("/profile", Object.assign({ method: "PUT" }, jsonBody(body)));
+  return { birthday: p.birthday || null, petName: p.pet_name || "" };
+}

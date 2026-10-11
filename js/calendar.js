@@ -1,5 +1,5 @@
 import { apiListEntries, apiListDeadlines } from './api.js';
-import { KINDS } from './deadlines.js';
+import { KINDS, displayTitle } from './deadlines.js';
 import { STATUS, moodTag } from './entries.js';
 import { icon } from './icons.js';
 import { dateKey } from './dayRecord.js';
@@ -256,7 +256,18 @@ export async function renderCalendar() {
   var results = await Promise.all([apiListEntries(), apiListDeadlines().catch(function () { return []; })]);
   var entries = results[0];
   dueMap = {};
-  results[1].forEach(function (d) { (dueMap[d.dueDate] = dueMap[d.dueDate] || []).push(d); });
+  var yr = viewYear === null ? now.getFullYear() : viewYear;
+  results[1].forEach(function (d) {
+    if (d.kind === "birthday") {
+      // every year, from the year they were born
+      [yr - 1, yr, yr + 1].forEach(function (y) {
+        var key = y + d.dueDate.slice(4);
+        if (key >= d.dueDate) (dueMap[key] = dueMap[key] || []).push(Object.assign({}, d, { title: displayTitle(d, key) }));
+      });
+      return;
+    }
+    (dueMap[d.dueDate] = dueMap[d.dueDate] || []).push(d);
+  });
   var dayEntryMap = buildDayEntryMap(entries);
   lastDayEntryMap = dayEntryMap;
 

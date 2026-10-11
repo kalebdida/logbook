@@ -21,6 +21,8 @@ import { showStorageWarning, startBoot, initSplash } from './ui.js';
 import { startAlive } from './alive.js';
 import { renderDeadlines } from './deadlines.js';
 import { renderPrayers } from './prayers.js';
+import { loadProfile } from './profile.js';
+import { renderAgeClock } from './ageClock.js';
 import { startWidget, updateWidget } from './widget.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
@@ -72,6 +74,7 @@ async function renderEverything() {
     renderDailyPage(),
     renderHabits(),
     renderDeadlines(),
+    loadProfile().then(renderAgeClock),
     renderPrayers(),
     renderGoals(),
     renderCalendar()

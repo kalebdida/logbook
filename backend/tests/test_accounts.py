@@ -62,6 +62,7 @@ def fill(c, token, tag):
     c.put(f"/habits/{habit['id']}/days/2026-10-01", headers=H)
     deadline = c.post("/deadlines/", json={"title": f"{tag} deadline", "due_date": "2026-11-01"}, headers=H).json()
     prayer = c.post("/prayers/", json={"text": f"{tag} prayer"}, headers=H).json()
+    c.put("/profile", json={"pet_name": f"{tag} cat", "birthday": "2008-03-04"}, headers=H)
     return {"entry": entry, "task": task, "act": act, "goal": goal, "habit": habit, "deadline": deadline, "prayer": prayer}
 
 
@@ -77,7 +78,7 @@ def test_accounts_see_only_their_own_data(server):
         H = h(token)
         everything = str([c.get(p, headers=H).json() for p in
                           ("/entries/", "/days/", "/tasks/", "/activities/", "/goals/", "/pomodoro/", "/habits/", "/habits/logs",
-                           "/deadlines/", "/prayers/", "/backup")])
+                           "/deadlines/", "/prayers/", "/profile", "/backup")])
         for other in {"kal", "amen", "beti"} - {tag}:
             assert other not in everything, f"{tag} can see {other}'s data"
         assert f"{tag} secret entry" in everything and f"{tag} secret journal" in everything

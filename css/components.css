@@ -2126,6 +2126,7 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
 /* =============== Today page cards switched off in settings =============== */
 body[data-hide~="habits"] #habitsSection,
 body[data-hide~="deadlines"] #deadlinesSection,
+body[data-hide~="age"] #ageSection,
 body[data-hide~="prayers"] #prayersSection,
 body[data-hide~="brainDump"] #brainDumpSection,
 body[data-hide~="log"] #logCard,
@@ -2261,3 +2262,36 @@ html[data-theme-mode="light"] .due-add .due-date-input { color-scheme: light; }
 .gift-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .gift { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .gift.is-on { border-color: rgb(var(--accent-rgb) / 0.4); background: rgb(var(--accent-rgb) / 0.12); color: var(--accent); }
+
+/* live countdowns (js/ticker.js) */
+.due-live { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 12.5px; }
+.due-live .i { color: rgb(var(--due)); font-size: 13px; }
+.due-tick { color: rgb(var(--due)); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.due-spacer { width: 40px; }
+.due-add .due-time-input { min-width: 0; color-scheme: dark; }
+html[data-theme-mode="light"] .due-add .due-time-input { color-scheme: light; }
+.due-add { grid-template-columns: minmax(0, 1fr) 118px; }
+.due-add .select-input { grid-column: 1 / -1; }
+
+/* =============== your clock (js/ageClock.js) =============== */
+.age-card { overflow: hidden; }
+.age-now { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 12px; }
+.age-years { color: var(--text); font: 700 clamp(30px, 4.2vw, 38px)/1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.age-unit { color: var(--text-3); font-size: 13.5px; }
+.age-sub { margin-top: 4px; color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.age-next { margin: 14px 0 8px; color: var(--text-2); font-size: 13.5px; }
+.age-count { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.age-seg {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 9px 4px 7px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.22);
+  border-radius: var(--r-md);
+  background: rgb(var(--accent-rgb) / 0.07);
+}
+.age-seg b { color: var(--accent); font: 700 22px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.age-seg small { color: var(--text-3); font-size: 11px; }
+.age-seg b.is-tick { animation: ageTick 0.4s var(--ease-out); }
+.age-card.is-birthday { border-color: rgb(var(--accent-rgb) / 0.45); box-shadow: var(--shadow-card), 0 0 40px -12px rgb(var(--accent-rgb) / 0.55); }
+.age-card.is-birthday .daily-section-title .i { color: var(--accent); }

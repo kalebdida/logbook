@@ -19,7 +19,10 @@ class FakeTelegram:
 
     def __call__(self, request: httpx.Request):
         method = request.url.path.rsplit("/", 1)[-1]
-        body = json.loads(request.content or b"{}")
+        try:
+            body = json.loads(request.content or b"{}")
+        except ValueError:      # a file upload (multipart)
+            body = {"raw": request.content}
         self.calls.append((method, body))
         if method == "getMe":
             if TOKEN not in str(request.url):
@@ -226,3 +229,62 @@ def test_plain_words_go_to_the_companion(server, tg, monkeypatch):
         assert "SAT practice" in seen["system"] and seen["messages"][-1]["content"] == "should I study or rest?"
     finally:
         settings.ai_provider, settings.ai_api_key = "", ""
+
+
+def test_due_understands_times_and_birthdays():
+    today = date(2026, 10, 11)
+    assert bot.parse_time("nov 1 23:59 Early decision") == ("23:59", "nov 1 Early decision")
+    assert bot.parse_time("SAT dec 5 at 8am") == ("08:00", "SAT dec 5")
+    assert bot.parse_time("essay 11:30pm") == ("23:30", "essay")
+    assert bot.parse_time("no time") == (None, "no time")
+    sara = bot.Deadline(title="Sara", due_date=date(2009, 3, 4), kind="birthday")
+    assert bot.occurrence(sara, today) == date(2027, 3, 4)
+    sara.next_date = bot.occurrence(sara, today)
+    assert bot.title_for(sara) == "Sara turns 18"
+
+
+def test_yuki_backups_and_birthdays_on_telegram(server, tg, monkeypatch):
+    seen = {}
+
+    async def fake_chat(messages, system, max_tokens, transport=None):
+        seen["system"] = system
+        return "Here."
+
+    async def a_verse(ref, translation="kjv"):
+        return "Be still."
+    monkeypatch.setattr(bot.verses, "words", a_verse)
+    c = server
+    admin = admin_token(c)
+    H = h(admin)
+    c.put("/profile", json={"pet_name": "Yuki"}, headers=H)
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=H)
+    connect(c, H, chat=9)
+    assert "I'm Yuki" in [b for b in tg.sent() if "Connected" in b["text"]][0]["text"]
+
+    run(message(9, "/due nov 1 23:59 Early decision"))
+    d = c.get("/deadlines/", headers=H).json()[0]
+    assert d["title"] == "Early decision" and d["due_time"] == "23:59"
+    run(message(9, "/due mar 4 2009 Sara's birthday"))
+    b = [x for x in c.get("/deadlines/", headers=H).json() if x["kind"] == "birthday"][0]
+    assert b["title"] == "Sara" and b["due_date"] == "2009-03-04"
+    assert "turns" in tg.last_text()
+
+    settings.ai_provider, settings.ai_api_key = "anthropic", "test-key"
+    monkeypatch.setattr(bot.ai, "chat", fake_chat)
+    try:
+        run(message(9, "who are you?"))
+        assert "You are Yuki" in seen["system"]
+    finally:
+        settings.ai_provider, settings.ai_api_key = "", ""
+
+    run(message(9, "/backup"))
+    files = [b for m, b in tg.calls if m == "sendDocument"]
+    assert len(files) == 1 and b"Early decision" in files[0]["raw"]
+
+    # Sunday morning: the message, then the weekly backup
+    sunday = datetime(2026, 10, 18, 4, 0, tzinfo=timezone.utc)      # 07:00 at UTC+3
+    assert asyncio.run(bot.morning_tick(sunday)) == 1
+    assert len([1 for m, _ in tg.calls if m == "sendDocument"]) == 2
+    run(message(9, "/backup off"))
+    assert asyncio.run(bot.morning_tick(sunday + timedelta(days=7))) == 1
+    assert len([1 for m, _ in tg.calls if m == "sendDocument"]) == 2

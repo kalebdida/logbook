@@ -474,10 +474,30 @@ route("DELETE", "/habits/{id}/days/{date}", async function (p) {
 });
 
 /* deadlines */
-var DEADLINE_KINDS = ["deadline", "exam", "event"];
+var DEADLINE_KINDS = ["deadline", "exam", "event", "birthday"];
+var TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function timeArg(v) {
+  if (v == null || v === "") return null;
+  if (!TIME_RE.test(String(v))) fail(422, "due_time must look like 23:59");
+  return String(v);
+}
+
+/* profile: the birthday and the cat's name */
+function profile() {
+  var row = mem.meta.get("profile");
+  return { birthday: row ? row.birthday || null : null, pet_name: row ? row.pet_name || "" : "" };
+}
+route("GET", "/profile", function () { return profile(); });
+route("PUT", "/profile", async function (p, q, body) {
+  var next = profile();
+  if ("birthday" in body) next.birthday = body.birthday == null ? null : dateArg(body.birthday, "birthday");
+  if (body.pet_name != null) next.pet_name = text(String(body.pet_name), "pet_name", 24).trim();
+  await commit([put("meta", { key: "profile", birthday: next.birthday, pet_name: next.pet_name })]);
+  return profile();
+});
 route("POST", "/deadlines", async function (p, q, body) {
   var t = now(), ops = [];
-  var row = { title: text(body.title, "title", 300).trim(), due_date: dateArg(body.due_date, "due_date"),
+  var row = { title: text(body.title, "title", 300).trim(), due_date: dateArg(body.due_date, "due_date"), due_time: timeArg(body.due_time),
     kind: body.kind == null ? "deadline" : oneOf(body.kind, DEADLINE_KINDS, "kind"),
     note: body.note == null ? "" : text(body.note, "note", 4000), activity_category: area(body.activity_category),
     done: false, created_at: t, updated_at: t };
@@ -497,6 +517,7 @@ route("PATCH", "/deadlines/{id}", async function (p, q, body) {
   var row = copy(get("deadlines", Number(p.id), "Deadline"));
   if (body.title != null) row.title = text(body.title, "title", 300).trim() || row.title;
   if (body.due_date != null) row.due_date = dateArg(body.due_date, "due_date");
+  if ("due_time" in body) row.due_time = timeArg(body.due_time);
   if (body.kind != null) row.kind = oneOf(body.kind, DEADLINE_KINDS, "kind");
   if (body.note != null) row.note = text(body.note, "note", 4000);
   if ("activity_category" in body) row.activity_category = area(body.activity_category);
@@ -559,7 +580,8 @@ route("GET", "/backup", function () {
     habits: sorted("habits", function (a, b) { return a.sort - b.sort || a.id - b.id; }),
     habit_logs: rows("habit_logs").sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (l) { return { habit_id: l.habit_id, date: l.date }; }),
     deadlines: sorted("deadlines", function (a, b) { return a.due_date.localeCompare(b.due_date) || a.id - b.id; }),
-    prayers: sorted("prayers", function (a, b) { return a.created_at.localeCompare(b.created_at) || a.id - b.id; })
+    prayers: sorted("prayers", function (a, b) { return a.created_at.localeCompare(b.created_at) || a.id - b.id; }),
+    profile: profile()
   };
 });
 
@@ -701,7 +723,7 @@ route("POST", "/backup/restore", async function (p, q, body) {
     var key = title.toLowerCase() + "|" + due;
     if (!title || haveDeadlines.has(key)) { result.deadlines.skipped++; return; }
     var t5 = now();
-    var row = { title: title, due_date: due, kind: DEADLINE_KINDS.indexOf(d.kind) >= 0 ? d.kind : "deadline",
+    var row = { title: title, due_date: due, due_time: TIME_RE.test(String(d.due_time || "")) ? d.due_time : null, kind: DEADLINE_KINDS.indexOf(d.kind) >= 0 ? d.kind : "deadline",
       note: typeof d.note === "string" ? d.note : "", activity_category: area(d.activity_category), done: Boolean(d.done),
       created_at: t5, updated_at: t5 };
     row.id = nextId("deadlines", ops);
@@ -717,6 +739,13 @@ route("POST", "/backup/restore", async function (p, q, body) {
     row.id = nextId("prayers", ops);
     ops.push(put("prayers", row)); mem.prayers.set(row.id, row); havePrayers.add(words.toLowerCase()); result.prayers.added++;
   });
+
+  if (body.profile && typeof body.profile === "object") {
+    var prof = profile();
+    if (!prof.birthday && body.profile.birthday && DATE_RE.test(body.profile.birthday)) prof.birthday = body.profile.birthday;
+    if (!prof.pet_name && typeof body.profile.pet_name === "string") prof.pet_name = body.profile.pet_name.trim().slice(0, 24);
+    ops.push(put("meta", { key: "profile", birthday: prof.birthday, pet_name: prof.pet_name }));
+  }
 
   await commit(ops);
   return result;

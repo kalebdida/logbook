@@ -4,6 +4,7 @@ import { escapeHtml } from './utils.js';
 import { dateKey } from './dayRecord.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
+import { startTicking } from './ticker.js';
 
 /* Dates that matter: application deadlines, exams, events. The "Coming up"
    card on Today counts down to them, the nearest one shows in the hero, and
@@ -12,8 +13,34 @@ import { toast } from './toast.js';
 export var KINDS = {
   deadline: { label: "Deadline", icon: "flag" },
   exam: { label: "Exam", icon: "graduation-cap" },
-  event: { label: "Event", icon: "calendar-days" }
+  event: { label: "Event", icon: "calendar-days" },
+  birthday: { label: "Birthday", icon: "cake" }
 };
+
+/* A birthday comes round every year: its next date from today. Everything
+   else is just its date. */
+export function occurrence(d, todayKey) {
+  if (d.kind !== "birthday") return d.dueDate;
+  todayKey = todayKey || dateKey(new Date());
+  var year = Number(todayKey.slice(0, 4));
+  var md = d.dueDate.slice(4);
+  var key = year + md;
+  return key >= todayKey ? key : (year + 1) + md;
+}
+
+/* the moment it's due: its time, or the end of the day */
+export function dueAt(d, dateStr) {
+  var p = (dateStr || occurrence(d)).split("-").map(Number);
+  var t = (d.dueTime || "23:59").split(":").map(Number);
+  return new Date(p[0], p[1] - 1, p[2], t[0], t[1], d.dueTime ? 0 : 59);
+}
+
+export function displayTitle(d, dateStr) {
+  if (d.kind !== "birthday") return d.title;
+  var born = Number(d.dueDate.slice(0, 4));
+  var turns = Number((dateStr || occurrence(d)).slice(0, 4)) - born;
+  return born > 1900 && turns > 0 ? d.title + " turns " + turns : d.title + "'s birthday";
+}
 
 var SHOWN = 4;
 var items = [];
@@ -48,12 +75,17 @@ function urgency(days) {
    until they're checked off or deleted). */
 export function upcoming() {
   var today = dateKey(new Date());
-  return items.filter(function (d) { return !d.done && daysUntil(d.dueDate, today) >= -14; })
-    .sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.id - b.id; });
+  return items.map(function (d) { return Object.assign({}, d, { nextDate: occurrence(d, today) }); })
+    .filter(function (d) { return (d.kind === "birthday" || !d.done) && daysUntil(d.nextDate, today) >= -14; })
+    .sort(function (a, b) { return dueAt(a, a.nextDate) - dueAt(b, b.nextDate) || a.id - b.id; });
+}
+
+export function matchesDay(d, day) {
+  return d.kind === "birthday" ? d.dueDate.slice(4) === day.slice(4) && d.dueDate <= day : d.dueDate === day;
 }
 
 export function deadlinesOn(day) {
-  return items.filter(function (d) { return d.dueDate === day; });
+  return items.filter(function (d) { return d.kind === "birthday" ? d.dueDate.slice(4) === day.slice(4) && d.dueDate <= day : d.dueDate === day; });
 }
 
 export async function loadDeadlines() {
@@ -69,19 +101,26 @@ function niceDate(dateStr) {
 }
 
 function row(d) {
-  var days = daysUntil(d.dueDate);
+  var date = d.nextDate || occurrence(d);
+  var days = daysUntil(date);
   var k = KINDS[d.kind] || KINDS.deadline;
+  var at = dueAt(d, date);
+  var live = days >= 0 && at - Date.now() > 0 && at - Date.now() < 7 * 86400000;
   var big = days < 0 ? "!" : days > 99 ? Math.round(days / 7) + "w" : String(days);
   var small = days < 0 ? "missed" : days === 0 ? "today" : days > 99 ? "" : days === 1 ? "day" : "days";
   return '<li class="due-row due-row--' + urgency(days) + '" data-due-id="' + d.id + '">' +
     '<span class="due-count" aria-hidden="true"><b>' + big + "</b>" + (small ? "<small>" + small + "</small>" : "") + "</span>" +
     '<span class="due-text">' +
-      '<span class="due-title">' + escapeHtml(d.title) + "</span>" +
-      '<span class="due-meta">' + icon(k.icon) + "<span>" + k.label + " · " + niceDate(d.dueDate) + " · " + countdownLabel(days) + "</span></span>" +
+      '<span class="due-title">' + escapeHtml(displayTitle(d, date)) + "</span>" +
+      '<span class="due-meta">' + icon(k.icon) + "<span>" + k.label + " · " + niceDate(date) + (d.dueTime ? ", " + d.dueTime : "") +
+        (live ? "" : " · " + countdownLabel(days)) + "</span></span>" +
+      (live ? '<span class="due-live">' + icon("timer") + '<span class="due-tick" data-tick-to="' + at.getTime() + '"></span><span>left</span></span>' : "") +
     "</span>" +
     (managing
       ? '<button type="button" class="icon-btn icon-btn--quiet" data-due-delete aria-label="Delete ' + escapeHtml(d.title) + '">' + icon("trash-2") + "</button>"
-      : '<button type="button" class="icon-btn icon-btn--quiet due-done" data-due-done aria-label="Mark ' + escapeHtml(d.title) + ' done" title="Done">' + icon("check") + "</button>") +
+      : d.kind === "birthday"
+        ? '<span class="due-spacer" aria-hidden="true"></span>'   // birthdays come back every year: nothing to check off
+        : '<button type="button" class="icon-btn icon-btn--quiet due-done" data-due-done aria-label="Mark ' + escapeHtml(d.title) + ' done" title="Done">' + icon("check") + "</button>") +
   "</li>";
 }
 
@@ -104,12 +143,14 @@ function draw() {
       '<form class="due-add" autocomplete="off">' +
         '<input class="text-input" name="title" maxlength="300" placeholder="What\'s due" aria-label="What\'s due" required>' +
         '<input class="text-input due-date-input" type="date" name="date" aria-label="Date" value="' + dateKey(tomorrow) + '" required>' +
+        '<input class="text-input due-time-input" type="time" name="time" aria-label="Time (optional)" title="Time (optional)">' +
         '<select class="select-input" name="kind" aria-label="Kind">' +
           Object.keys(KINDS).map(function (k) { return '<option value="' + k + '">' + KINDS[k].label + "</option>"; }).join("") +
         "</select>" +
         '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>Add</span></button>" +
       "</form>" +
     "</div>";
+  startTicking();
 }
 
 async function onSubmit(e) {
@@ -120,11 +161,11 @@ async function onSubmit(e) {
   var date = form.elements.date.value;
   if (!title || !date) return;
   try {
-    var made = await apiCreateDeadline({ title: title, dueDate: date, kind: form.elements.kind.value });
+    var made = await apiCreateDeadline({ title: title, dueDate: date, dueTime: form.elements.time.value || null, kind: form.elements.kind.value });
     items.push(made);
     draw();
     emitChange("deadlines");
-    var days = daysUntil(made.dueDate);
+    var days = daysUntil(occurrence(made));
     toast(days >= 0 ? title + ": " + countdownLabel(days).toLowerCase() : "Added");
     var input = document.querySelector("#deadlinesSection .due-add [name=title]");
     if (input) input.focus();

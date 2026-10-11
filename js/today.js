@@ -9,7 +9,7 @@ import { onChange } from './bus.js';
 import { icon } from './icons.js';
 import { sceneSvg } from './scene.js';
 import { mountMascot } from './mascot.js';
-import { upcoming, daysUntil, countdownLabel, KINDS } from './deadlines.js';
+import { upcoming, daysUntil, countdownLabel, KINDS, displayTitle } from './deadlines.js';
 
 /* The top of the dashboard: a window onto the night, the time, and a few
    numbers that answer "how is today going" at a glance. */
@@ -49,10 +49,11 @@ function readout() {
   if (latest && STATUS[latest.mood]) cells.push({ k: "Today felt", i: STATUS[latest.mood].icon, v: cap(STATUS[latest.mood].label), mood: latest.mood, hint: "Open the journal", nav: "journal" });
   else cells.push({ k: "Entries", i: "feather", v: todays.length ? String(todays.length) : "None yet", hint: "Open the journal", nav: "journal" });
   // the nearest date that matters, if it's within a month
-  var next = upcoming().filter(function (d) { return daysUntil(d.dueDate) >= 0; })[0];
-  if (next && daysUntil(next.dueDate) <= 30) {
-    var dl = daysUntil(next.dueDate);
-    cells.push({ k: escapeText(next.title.length > 22 ? next.title.slice(0, 21) + "…" : next.title), i: (KINDS[next.kind] || KINDS.deadline).icon,
+  var next = upcoming().filter(function (d) { return daysUntil(d.nextDate) >= 0; })[0];
+  if (next && daysUntil(next.nextDate) <= 30) {
+    var dl = daysUntil(next.nextDate);
+    var nt = displayTitle(next, next.nextDate);
+    cells.push({ k: escapeText(nt.length > 22 ? nt.slice(0, 21) + "…" : nt), i: (KINDS[next.kind] || KINDS.deadline).icon,
       v: countdownLabel(dl), warn: false, soon: dl <= 3, due: true, hint: "See it on the calendar", nav: "calendar" });
   }
 

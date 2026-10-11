@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session
 from app import ai, verses
 from app.config import settings
 from app.database import SessionLocal
-from app.models import (Activity, AppSetting, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Task,
-                        TelegramLink, User)
+from app.models import (Activity, AppSetting, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
+                        Task, TelegramLink, User)
 
 log = logging.getLogger("logbook")
 API = "https://api.telegram.org"
@@ -55,7 +55,7 @@ ALIASES = {
     "journal": "reflection", "think": "reflection", "plan": "reflection",
 }
 MOODS = {"good": "☀️ Good", "okay": "⛅ Okay", "rough": "🌧 Rough"}
-KIND_ICON = {"deadline": "🚩", "exam": "🎓", "event": "📅"}
+KIND_ICON = {"deadline": "🚩", "exam": "🎓", "event": "📅", "birthday": "🎂"}
 COMMANDS = [
     ("log", "Log time: /log 45m #coding what you did"),
     ("task", "Add a task for today"),
@@ -71,6 +71,7 @@ COMMANDS = [
     ("today", "How today is going"),
     ("verse", "Today's verse"),
     ("morning", "Morning message: /morning 7 or /morning off"),
+    ("backup", "Your whole Logbook as a file (weekly: /backup off)"),
     ("help", "Everything the bot can do"),
 ]
 HELP = (
@@ -82,7 +83,8 @@ HELP = (
     "/habits  ·  /today  ·  /verse\n"
     "/pray for wisdom  ·  /prayers\n"
     "/due nov 1 Early decision  ·  /deadlines\n"
-    "/morning 7 (or off)\n\n"
+    "/morning 7 (or off)  ·  /backup\n\n"
+    "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
     "(and friends like #study #gym #church).\n\n"
     "Anything that isn't a command goes to your companion."
@@ -175,6 +177,38 @@ async def send(chat_id: int, text: str, buttons: list | None = None) -> dict | N
     except TelegramError as exc:
         log.warning("logbook: telegram send failed: %s", exc)
         return None
+
+
+async def send_file(chat_id: int, filename: str, data: bytes, caption: str = "") -> bool:
+    token = state["token"]
+    if not token:
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=60, transport=transport) as client:
+            res = await client.post(f"{API}/bot{token}/sendDocument",
+                                    data={"chat_id": str(chat_id), "caption": caption[:1000], "parse_mode": "HTML"},
+                                    files={"document": (filename, data, "application/json")})
+        ok = res.json().get("ok")
+    except (httpx.HTTPError, ValueError) as exc:
+        log.warning("logbook: telegram file failed: %s", exc)
+        return False
+    return bool(ok)
+
+
+def backup_bytes(db: Session, uid: int) -> bytes:
+    from app.routers.backup import export_backup   # the same file as Settings -> Download full backup
+    return export_backup(uid=uid, db=db).model_dump_json(indent=1).encode()
+
+
+async def send_backup(db: Session, user: User, chat_id: int, tz: int) -> bool:
+    today = local_today(tz)
+    name = f"logbook-{user.username}-{today.isoformat()}.json"
+    return await send_file(chat_id, name, backup_bytes(db, user.id),
+                           "🗄 Your whole Logbook, as of today. Keep it: Settings → Your data → Restore brings it back anywhere.")
+
+
+def weekly_backup_on(db: Session, uid: int) -> bool:
+    return get_setting(db, f"tg_backup_off:{uid}") != "1"
 
 
 async def edit(chat_id: int, message_id: int, text: str, buttons: list | None = None) -> None:
@@ -332,6 +366,21 @@ def parse_date(text: str, today: date) -> tuple[date | None, str]:
     return None, t
 
 
+def parse_time(text: str) -> tuple[str | None, str]:
+    """'nov 1 23:59 essay' -> ('23:59', 'nov 1 essay'); also 9am, 11:30pm."""
+    m = re.search(r"(?:\bat\s+)?\b(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b", text, re.I)
+    if m:
+        hour = int(m.group(1)) % 12 + (12 if m.group(3).lower() == "pm" else 0)
+        value = f"{hour:02d}:{m.group(2) or '00'}"
+    else:
+        m = re.search(r"(?:\bat\s+)?\b([01]?\d|2[0-3]):([0-5]\d)\b", text)
+        if not m:
+            return None, text
+        value = f"{int(m.group(1)):02d}:{m.group(2)}"
+    rest = re.sub(r"\s+", " ", text[:m.start()] + " " + text[m.end():]).strip()
+    return value, rest
+
+
 def countdown(days: int) -> str:
     if days == 0:
         return "today"
@@ -380,10 +429,37 @@ def streak(db: Session, uid: int, today: date, tz: int) -> int:
     return n
 
 
+def occurrence(d: Deadline, today: date) -> date:
+    """A birthday comes round every year; everything else is its date."""
+    if d.kind != "birthday":
+        return d.due_date
+    for year in (today.year, today.year + 1):
+        try:
+            when = d.due_date.replace(year=year)
+        except ValueError:          # 29 February in a normal year
+            when = date(year, 3, 1)
+        if when >= today:
+            return when
+    return d.due_date
+
+
+def title_for(d: Deadline) -> str:
+    if d.kind != "birthday":
+        return d.title
+    turns = getattr(d, "next_date", d.due_date).year - d.due_date.year
+    return f"{d.title} turns {turns}" if d.due_date.year > 1900 and turns > 0 else f"{d.title}'s birthday"
+
+
 def upcoming(db: Session, uid: int, today: date, within: int = 60) -> list[Deadline]:
-    return (db.query(Deadline).filter(Deadline.user_id == uid, Deadline.done.is_(False),
-                                      Deadline.due_date >= today, Deadline.due_date <= today + timedelta(days=within))
-            .order_by(Deadline.due_date, Deadline.id).all())
+    rows = db.query(Deadline).filter(Deadline.user_id == uid).all()
+    out = []
+    for d in rows:
+        if d.done and d.kind != "birthday":
+            continue
+        d.next_date = occurrence(d, today)       # not a column: just for showing it
+        if today <= d.next_date <= today + timedelta(days=within):
+            out.append(d)
+    return sorted(out, key=lambda d: (d.next_date, d.due_time or "23:59", d.id))
 
 
 def tasks_for(db: Session, uid: int, day: date) -> list[Task]:
@@ -421,7 +497,7 @@ def summary(db: Session, user: User, tz: int) -> str:
     if mins:
         lines.append(f"🕒 Logged: {minutes_label(mins)}")
     for d in upcoming(db, uid, today, 30)[:3]:
-        lines.append(f"{KIND_ICON.get(d.kind, '🚩')} {esc(d.title)}: {countdown((d.due_date - today).days)}")
+        lines.append(f"{KIND_ICON.get(d.kind, '🚩')} {esc(title_for(d))}: {countdown((d.next_date - today).days)}")
     return "\n".join(lines)
 
 
@@ -437,7 +513,7 @@ def brief_for_ai(db: Session, user: User, tz: int) -> str:
     if rec and rec.morning_main_focus:
         parts.append("Main focus today: " + rec.morning_main_focus[:300])
     for d in upcoming(db, uid, today, 45)[:4]:
-        parts.append(f"{d.kind.capitalize()} '{d.title}' {countdown((d.due_date - today).days)}.")
+        parts.append(f"{d.kind.capitalize()} '{title_for(d)}' {countdown((d.next_date - today).days)}.")
     if recent:
         parts.append("Recent journal entries (newest first): " + " | ".join(f"({e.mood}) {e.text[:240]}" for e in recent))
     open_prayers = db.query(Prayer).filter(Prayer.user_id == uid, Prayer.answered_at.is_(None)).count()
@@ -451,11 +527,27 @@ async def morning_message(db: Session, user: User, tz: int) -> str:
     ref = verses.ref_for(today)
     words = await verses.words(ref)
     lines = [f"Good morning ☀️ <b>{today.strftime('%A, %B')} {today.day}</b>"]
+    prof = db.get(Profile, user.id)
+    if prof and prof.birthday:
+        try:
+            bday = prof.birthday.replace(year=today.year)
+        except ValueError:
+            bday = date(today.year, 3, 1)
+        if bday == today:
+            lines.append(f"🎂 Happy birthday! {today.year - prof.birthday.year} today. — {esc(pet_name(db, user.id))}")
+        else:
+            if bday < today:
+                try:
+                    bday = prof.birthday.replace(year=today.year + 1)
+                except ValueError:
+                    bday = date(today.year + 1, 3, 1)
+            if (bday - today).days <= 7:
+                lines.append(f"🎂 Your birthday is {countdown((bday - today).days)}.")
     if words:
         lines += ["", f"📖 <i>{esc(words)}</i>\n— {esc(ref)}"]
     dues = upcoming(db, user.id, today, 14)
     if dues:
-        lines += ["", "<b>Coming up</b>"] + [f"{KIND_ICON.get(d.kind, '🚩')} {esc(d.title)}: {countdown((d.due_date - today).days)}" for d in dues[:4]]
+        lines += ["", "<b>Coming up</b>"] + [f"{KIND_ICON.get(d.kind, '🚩')} {esc(title_for(d))}: {countdown((d.next_date - today).days)}" for d in dues[:4]]
     tasks = tasks_for(db, user.id, today)
     lines += [""]
     if tasks:
@@ -466,6 +558,11 @@ async def morning_message(db: Session, user: User, tz: int) -> str:
 
 
 # ---------- handling messages ----------
+
+def pet_name(db: Session, uid: int) -> str:
+    prof = db.get(Profile, uid)
+    return (prof.pet_name if prof and prof.pet_name else "") or "Mochi"
+
 
 def allowed_ai(user: User) -> bool:
     return ai.configured() and (user.is_admin or settings.ai_for_everyone)
@@ -483,9 +580,11 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
     recent.append(now)
     turns = history.setdefault(link.chat_id, deque(maxlen=12))
     turns.append({"role": "user", "content": text[:4000]})
+    name = pet_name(db, user.id)
     system = (
-        f"You are the companion inside Logbook, {user.username}'s private journal app, talking on Telegram. "
-        "Reply like a warm, honest friend: short (under 120 words unless asked for more), plain words, no lists "
+        f"You are {name}, the small tabby cat who keeps {user.username} company inside Logbook, their private journal app. "
+        f"You're talking on Telegram. If asked, your name is {name}. You don't meow or roleplay much; "
+        "reply like a warm, honest friend: short (under 120 words unless asked for more), plain words, no lists "
         "unless they help, no markdown headings. Use what you know about their day below; never invent facts about them. "
         "If they want to record something, you can point them to a command: /log, /task, /j, /pray, /due.\n\n"
         + brief_for_ai(db, user, link.tz_minutes)
@@ -592,15 +691,27 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         return
 
     if cmd in ("due", "deadline"):
-        when, rest = parse_date(arg, today)
+        at, arg2 = parse_time(arg)
+        when, rest = parse_date(arg2, today)
         if not arg or when is None or not rest:
-            await send(chat, "Add a date and what's due:\n<code>/due nov 1 Early decision</code>\n<code>/due in 3 weeks SAT</code>\n<code>/due 2026-12-05 SAT #exam</code>")
+            await send(chat, "Add a date and what's due:\n<code>/due nov 1 23:59 Early decision</code>\n<code>/due in 3 weeks SAT</code>\n"
+                             "<code>/due 2026-12-05 9am SAT #exam</code>\n<code>/due mar 4 2009 Sara #birthday</code>")
             return
-        kind = "exam" if re.search(r"#exam\b|\bexam\b|\btest\b|\bsat\b", rest, re.I) else "event" if re.search(r"#event\b", rest, re.I) else "deadline"
-        title = re.sub(r"#(exam|event|deadline)\b", "", rest, flags=re.I).strip() or rest
-        db.add(Deadline(user_id=uid, title=title[:300], due_date=when, kind=kind))
+        if re.search(r"#?birthday\b|\bbday\b", rest, re.I):
+            kind = "birthday"
+        elif re.search(r"#exam\b|\bexam\b|\btest\b|\bsat\b", rest, re.I):
+            kind = "exam"
+        elif re.search(r"#event\b", rest, re.I):
+            kind = "event"
+        else:
+            kind = "deadline"
+        title = re.sub(r"#(exam|event|deadline)\b|(?:'s)?\s*#?(?:birthday|bday)\b", "", rest, flags=re.I).strip(" ,-") or rest
+        row = Deadline(user_id=uid, title=title[:300], due_date=when, due_time=at, kind=kind)
+        db.add(row)
         db.commit()
-        await send(chat, f"{KIND_ICON[kind]} <b>{esc(title)}</b> on {when.strftime('%a, %b')} {when.day}: {countdown((when - today).days)}.")
+        row.next_date = occurrence(row, today)
+        await send(chat, f"{KIND_ICON[kind]} <b>{esc(title_for(row))}</b> on {row.next_date.strftime('%a, %b')} {row.next_date.day}"
+                         f"{' at ' + at if at else ''}: {countdown((row.next_date - today).days)}.")
         return
 
     if cmd == "deadlines":
@@ -609,7 +720,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
             await send(chat, "Nothing coming up. Add one: /due nov 1 Early decision")
             return
         await send(chat, "<b>Coming up</b>\n" + "\n".join(
-            f"{KIND_ICON.get(d.kind, '🚩')} {esc(d.title)} · {d.due_date.strftime('%b')} {d.due_date.day} · {countdown((d.due_date - today).days)}" for d in rows[:15]))
+            f"{KIND_ICON.get(d.kind, '🚩')} {esc(title_for(d))} · {d.next_date.strftime('%b')} {d.next_date.day}{' ' + d.due_time if d.due_time else ''} · {countdown((d.next_date - today).days)}" for d in rows[:15]))
         return
 
     if cmd == "habits":
@@ -648,6 +759,22 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         db.commit()
         refresh_links(db)
         await send(chat, msg)
+        return
+
+    if cmd == "backup":
+        a = arg.strip().lower()
+        if a in ("off", "stop", "no"):
+            set_setting(db, f"tg_backup_off:{uid}", "1")
+            db.commit()
+            await send(chat, "Weekly backups are off. /backup on turns them back on; /backup sends one now.")
+            return
+        if a in ("on", "yes"):
+            set_setting(db, f"tg_backup_off:{uid}", "")
+            db.commit()
+            await send(chat, "🗄 I'll send a backup every Sunday morning.")
+            return
+        if not await send_backup(db, user, chat, tz):
+            await send(chat, "Couldn't send the backup just now. Try again in a minute.")
         return
 
     if cmd == "unlink":
@@ -772,7 +899,7 @@ async def process(update: dict) -> None:
                 db.commit()
                 refresh_links(db)
                 user = db.get(User, user_id)
-                await send(chat_id, f"Connected to <b>{esc(user.username if user else 'your')}</b>'s Logbook ✨\n\n" + HELP +
+                await send(chat_id, f"Connected to <b>{esc(user.username if user else 'your')}</b>'s Logbook ✨ I'm {esc(pet_name(db, user_id))}.\n\n" + HELP +
                            "\n\nI'll send a short morning message at 7:00. /morning off to stop it.")
                 return
 
@@ -824,6 +951,8 @@ async def morning_tick(now: datetime | None = None) -> int:
             row.last_morning = local.date()
             db.commit()
             await send(row.chat_id, await morning_message(db, user, row.tz_minutes))
+            if local.weekday() == 6 and weekly_backup_on(db, uid):     # Sundays: a copy of everything
+                await send_backup(db, user, row.chat_id, row.tz_minutes)
             sent += 1
     return sent
 

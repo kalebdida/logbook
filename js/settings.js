@@ -6,6 +6,7 @@ import { toRestorePayload, readLegacyLocalStorage, markLegacyImported, summarize
 import { applyPomodoroDurations } from './pomodoro.js';
 import { emitChange } from './bus.js';
 import { toast } from './toast.js';
+import { dateKey } from './dayRecord.js';
 import { escapeHtml } from './utils.js';
 import { renderStorageCard, renderAICard, renderAppCard } from './settingsMore.js';
 import { renderAccountCard } from './account.js';
@@ -15,6 +16,7 @@ import { isDevice } from './connection.js';
 import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
 import { renderTelegramCard } from './telegramCard.js';
 import { GIFTS, streakInfo } from './mascot.js';
+import { getProfile, saveProfile, onProfile } from './profile.js';
 
 /* Copy this into the browser console on the OLD copy of logbook (the
    page where your old data lives) to download everything it stored. */
@@ -84,6 +86,7 @@ var GROUPS = [
 
 var DASH_CARDS = [
   ["deadlines", "Coming up", "Deadlines and exams, counting down"],
+  ["age", "Your clock", "Your age to the second, and the birthday countdown"],
   ["habits", "Habits", "The daily check-ins"],
   ["prayers", "Prayers", "What you're praying for, and the answers"],
   ["brainDump", "Brain dump", "A place to empty your head"],
@@ -135,6 +138,10 @@ export function renderSettings() {
         '<label class="setting-row setting-row--stack" for="prefName">' +
           '<span class="setting-text"><span class="setting-label">Name</span><span class="setting-hint">Used in greetings. Empty uses your username.</span></span>' +
           '<input class="text-input" id="prefName" maxlength="40" placeholder="Your name" value="' + escapeHtml(p.name) + '">' +
+        "</label>" +
+        '<label class="setting-row setting-row--stack" for="prefBirthday">' +
+          '<span class="setting-text"><span class="setting-label">Birthday</span><span class="setting-hint">For your clock on the Today page: your age to the second and the countdown to the next one. The same on every device.</span></span>' +
+          '<input class="text-input" type="date" id="prefBirthday" value="' + escapeHtml(getProfile().birthday || "") + '" max="' + dateKey(new Date()) + '">' +
         "</label>" +
       "</section>" +
       '<section class="settings-card">' +
@@ -336,7 +343,22 @@ function wire(el) {
   el.querySelector("#prefMascotName").addEventListener("input", function (e) {
     clearTimeout(catTimer);
     var v = e.target.value.trim();
-    catTimer = setTimeout(function () { setPrefs({ mascotName: v || "Mochi" }); }, 300);
+    catTimer = setTimeout(function () {
+      setPrefs({ mascotName: v || "Mochi" });
+      saveProfile({ petName: v }).catch(function () {});   // the same name on every device
+    }, 500);
+  });
+
+  el.querySelector("#prefBirthday").addEventListener("change", function (e) {
+    saveProfile({ birthday: e.target.value || null }).then(function () {
+      toast(e.target.value ? "Your clock is on the Today page" : "Birthday removed");
+    }).catch(function () { toast("Couldn't save that", "error"); });
+  });
+  onProfile(function (prof) {
+    var b = el.querySelector("#prefBirthday");
+    if (b && document.activeElement !== b) b.value = prof.birthday || "";
+    var n = el.querySelector("#prefMascotName");
+    if (n && document.activeElement !== n && prof.petName) n.value = prof.petName;
   });
 
   el.querySelectorAll('input[name="dailyLine"]').forEach(function (r) {

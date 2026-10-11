@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.database import get_db
-from app.models import Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, PomodoroDay, Prayer, Task
+from app.models import Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, PomodoroDay, Prayer, Profile, Task
+from app.routers.profile import read_profile
 from app.schemas.backup import BackupExport, RestoreCount, RestorePayload, RestoreResult
 
 router = APIRouter(prefix="/backup", tags=["Backup"])
@@ -33,6 +34,7 @@ def export_backup(uid: int = Depends(current_user_id), db: Session = Depends(get
         habit_logs=db.query(HabitLog).filter(HabitLog.user_id == uid).order_by(HabitLog.date).all(),
         deadlines=db.query(Deadline).filter(Deadline.user_id == uid).order_by(Deadline.due_date, Deadline.id).all(),
         prayers=db.query(Prayer).filter(Prayer.user_id == uid).order_by(Prayer.created_at, Prayer.id).all(),
+        profile=read_profile(db, uid),
     )
 
 
@@ -202,6 +204,17 @@ def restore_backup(payload: RestorePayload, uid: int = Depends(current_user_id),
                       answer=item.answer if item.answered_at else "", created_at=when, updated_at=when))
         have_prayers.add(key)
         result["prayers"].added += 1
+
+    # the profile only fills what's empty here
+    if payload.profile is not None:
+        prof = db.get(Profile, uid)
+        if prof is None:
+            prof = Profile(user_id=uid)
+            db.add(prof)
+        if prof.birthday is None and payload.profile.birthday is not None:
+            prof.birthday = payload.profile.birthday
+        if not prof.pet_name and payload.profile.pet_name:
+            prof.pet_name = payload.profile.pet_name.strip()[:24]
 
     db.commit()
     return RestoreResult(**result)

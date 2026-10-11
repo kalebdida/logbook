@@ -1,7 +1,7 @@
 import { getEntries } from './journal.js';
 import { getTodayTasks } from './tasks.js';
 import { calcStreak } from './stats.js';
-import { upcoming, daysUntil } from './deadlines.js';
+import { upcoming, daysUntil, displayTitle } from './deadlines.js';
 import { dateKey } from './dayRecord.js';
 import { onChange } from './bus.js';
 
@@ -25,7 +25,7 @@ export function widgetData() {
   var done = tasks.filter(function (t) { return t.completed; }).length;
   var open = tasks.filter(function (t) { return !t.completed; });
   var next = null;
-  try { next = upcoming().filter(function (d) { return daysUntil(d.dueDate) >= 0; })[0] || null; } catch (e) {}
+  try { next = upcoming().filter(function (d) { return daysUntil(d.nextDate) >= 0; })[0] || null; } catch (e) {}
   var entries = [];
   try { entries = getEntries(); } catch (e) {}
   return {
@@ -33,8 +33,8 @@ export function widgetData() {
     streak: calcStreak(entries),
     tasksHead: tasks.length ? done + " of " + tasks.length + " tasks done" : "Today",
     tasks: tasks.length && !open.length ? "All done. Good work." : open.slice(0, 4).map(function (t) { return "• " + t.title; }).join("\n"),
-    nextTitle: next ? next.title : "",
-    nextDate: next ? next.dueDate : ""
+    nextTitle: next ? displayTitle(next, next.nextDate) : "",
+    nextDate: next ? next.nextDate : ""
   };
 }
 

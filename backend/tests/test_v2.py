@@ -471,3 +471,20 @@ def test_backup_carries_deadlines_and_prayers(client):
     res = client.post("/backup/restore", json=dump).json()
     assert res["deadlines"] == {"added": 0, "merged": 0, "skipped": 1}
     assert res["prayers"]["skipped"] == 1
+
+
+def test_profile_and_deadline_times(client):
+    assert client.get("/profile").json() == {"birthday": None, "pet_name": ""}
+    got = client.put("/profile", json={"birthday": "2008-03-04", "pet_name": "  Yuki "}).json()
+    assert got == {"birthday": "2008-03-04", "pet_name": "Yuki"}
+    assert client.put("/profile", json={"pet_name": "x" * 25}).status_code == 422
+    assert client.put("/profile", json={"birthday": None}).json() == {"birthday": None, "pet_name": "Yuki"}
+
+    d = client.post("/deadlines/", json={"title": "Essay", "due_date": "2026-11-01", "due_time": "23:59"}).json()
+    assert d["due_time"] == "23:59"
+    assert client.post("/deadlines/", json={"title": "x", "due_date": "2026-11-01", "due_time": "25:00"}).status_code == 422
+    assert client.patch(f"/deadlines/{d['id']}", json={"due_time": None}).json()["due_time"] is None
+    bday = client.post("/deadlines/", json={"title": "Sara", "due_date": "2009-06-02", "kind": "birthday"}).json()
+    assert bday["kind"] == "birthday"
+    dump = client.get("/backup").json()
+    assert dump["profile"]["pet_name"] == "Yuki"

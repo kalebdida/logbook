@@ -18,6 +18,7 @@ from app.schemas.goal import GoalCategory, GoalPriority, GoalResponse
 from app.schemas.habit import HabitLogResponse, HabitResponse
 from app.schemas.pomodoro_day import PomodoroDayResponse
 from app.schemas.prayer import PrayerResponse
+from app.schemas.profile import ProfileResponse, ProfileUpdate
 from app.schemas.task import TaskResponse
 
 
@@ -35,6 +36,7 @@ class BackupExport(BaseModel):
     habit_logs: list[HabitLogResponse] = []
     deadlines: list[DeadlineResponse] = []
     prayers: list[PrayerResponse] = []
+    profile: ProfileResponse | None = None
 
 
 class RestoreEntry(BaseModel):
@@ -108,6 +110,7 @@ class RestoreHabitLog(BaseModel):
 class RestoreDeadline(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     due_date: date_type
+    due_time: str | None = Field(None, pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     kind: DeadlineKind = "deadline"
     note: str = ""
     activity_category: ActivityCategory | None = None
@@ -132,6 +135,7 @@ class RestorePayload(BaseModel):
     habit_logs: list[RestoreHabitLog] = []
     deadlines: list[RestoreDeadline] = []
     prayers: list[RestorePrayer] = []
+    profile: ProfileUpdate | None = None
 
 
 class RestoreCount(BaseModel):

@@ -8,7 +8,7 @@
 
 var DB_NAME = "logbook-cache";
 var STORE = "get";
-var CACHEABLE = /^\/(entries|days|tasks|activities|goals|pomodoro|habits|deadlines|prayers|verse)(\/|\?|$)/;
+var CACHEABLE = /^\/(entries|days|tasks|activities|goals|pomodoro|habits|deadlines|prayers|verse|profile)(\/|\?|$)/;
 
 var user = "";
 var memory = new Map();     // path -> JSON text, this account only
