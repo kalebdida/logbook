@@ -183,6 +183,35 @@ html[data-theme-mode="light"] .mascot {
 .mascot .m-heart { fill: var(--danger); }
 .mascot .m-spark { fill: var(--accent); }
 
+/* gifts from the streak (js/mascot.js GIFTS): hidden until earned */
+.mascot .m-acc { opacity: 0; transition: opacity 0.6s ease; }
+.mascot[data-gifts~="scarf"] .m-acc-scarf,
+.mascot[data-gifts~="bell"] .m-acc-bell,
+.mascot[data-gifts~="lantern"] .m-acc-lantern,
+.mascot[data-gifts~="sprout"] .m-acc-sprout,
+.mascot[data-gifts~="star"] .m-acc-star,
+.mascot[data-gifts~="crown"] .m-acc-crown { opacity: 1; }
+/* worn things belong to the sitting cat; the lantern and sprout stay put */
+.mascot.is-sleeping :is(.m-acc-scarf, .m-acc-bell, .m-acc-star, .m-acc-crown) { opacity: 0 !important; }
+.mascot .m-scarf { fill: var(--warm); }
+.mascot .m-scarf-line { fill: none; stroke: color-mix(in srgb, var(--warm) 62%, rgb(var(--shade-rgb))); stroke-width: 1.1; stroke-linecap: round; opacity: 0.55; }
+.mascot .m-bell { fill: var(--accent); stroke: color-mix(in srgb, var(--accent) 60%, rgb(var(--shade-rgb))); stroke-width: 0.7; }
+.mascot .m-bell-line { fill: none; stroke: color-mix(in srgb, var(--accent) 50%, rgb(var(--shade-rgb))); stroke-width: 0.8; stroke-linecap: round; }
+.mascot .m-star { fill: var(--accent); }
+.mascot .m-crown { fill: var(--accent); stroke: color-mix(in srgb, var(--accent) 55%, rgb(var(--shade-rgb))); stroke-width: 0.6; stroke-linejoin: round; }
+.mascot .m-crown-gem { fill: var(--danger); }
+.mascot .m-lantern { fill: var(--warm); }
+.mascot .m-lantern-cap { fill: var(--m-ink); }
+.mascot .m-lantern-line { stroke: var(--m-ink); stroke-width: 1; }
+.mascot .m-lantern-rib { fill: none; stroke: color-mix(in srgb, var(--warm) 60%, rgb(var(--shade-rgb))); stroke-width: 0.7; opacity: 0.6; }
+.mascot .m-lantern-glow { fill: rgb(var(--warm-rgb) / 0.3); filter: blur(5px); transform-box: fill-box; transform-origin: center; }
+.mascot .m-pot { fill: color-mix(in srgb, var(--warm) 55%, var(--m-ink)); }
+.mascot .m-stem { fill: none; stroke: color-mix(in srgb, var(--accent2) 45%, var(--accent)); stroke-width: 1.4; stroke-linecap: round; }
+.mascot .m-leaf { fill: color-mix(in srgb, var(--accent2) 45%, var(--accent)); }
+.mascot[data-gifts~="lantern"] .m-lantern-glow { animation: mascotLantern 3.4s ease-in-out infinite; }
+.mascot[data-gifts~="bell"].is-happy .m-acc-bell,
+.mascot[data-gifts~="bell"].is-pet .m-acc-bell { animation: mascotBell 0.6s ease-in-out 2; transform-box: fill-box; transform-origin: 50% 0; }
+
 /* every moving part turns around a point in the drawing */
 .mascot .m-cat,
 .mascot .m-body,
@@ -416,6 +445,16 @@ html[data-theme-mode="light"] .mascot {
   0%, 100% { transform: none; }
   35%, 60% { transform: scale(1.04, 0.94); }
   80% { transform: scale(0.99, 1.02); }
+}
+@keyframes mascotLantern {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.06); }
+  70% { opacity: 0.75; transform: scale(0.97); }
+}
+@keyframes mascotBell {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(16deg); }
+  70% { transform: rotate(-14deg); }
 }
 @keyframes mascotArrive {
   0% { opacity: 0; transform: translateY(18px) scale(0.9); }

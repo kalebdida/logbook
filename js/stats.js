@@ -13,6 +13,20 @@ export function calcStreak(entries) {
   return streak;
 }
 
+/* The longest run of days in a row with an entry, ever. */
+export function bestStreak(entries) {
+  var days = Array.from(new Set(entries.map(function (e) {
+    var d = new Date(e.date);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
+  }))).sort(function (a, b) { return a - b; });
+  var best = 0, run = 0;
+  days.forEach(function (day, i) {
+    run = i && day - days[i - 1] === 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  });
+  return best;
+}
+
 /* a small horizontal meter (pct 0-100); styled by .meter in components.css */
 export function bar(pct) {
   var p = Math.max(0, Math.min(100, Math.round(pct || 0)));

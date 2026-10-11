@@ -14,6 +14,7 @@ import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
 import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
 import { renderTelegramCard } from './telegramCard.js';
+import { GIFTS, streakInfo } from './mascot.js';
 
 /* Copy this into the browser console on the OLD copy of logbook (the
    page where your old data lives) to download everything it stored. */
@@ -42,6 +43,20 @@ function number(id, label, value, min, max) {
 function cardHead(iconName, title, hint) {
   return '<header class="settings-card-head"><h3 class="card-title">' + icon(iconName) + "<span>" + title + "</span></h3>" +
     (hint ? '<p class="setting-hint">' + hint + "</p>" : "") + "</header>";
+}
+
+function giftsRow() {
+  var info = streakInfo();
+  var name = escapeHtml(getPrefs().mascotName || "Mochi");
+  return '<div class="gift-row">' +
+    '<div class="gift-list">' + GIFTS.map(function (g) {
+      var has = info.best >= g.days;
+      return '<span class="gift' + (has ? " is-on" : "") + '" title="' + g.days + ' days in a row: ' + g.name + '">' + icon(has ? "check" : "lock") + "<span>" + g.days + "</span></span>";
+    }).join("") + "</div>" +
+    '<p class="setting-hint">' + (info.next
+      ? "Write " + info.next.days + " days in a row and " + name + " gets " + info.next.name + ". Best so far: " + info.best + (info.best === 1 ? " day." : " days.")
+      : name + " has everything. " + info.best + " days in a row, at best. Honored.") + " Earned things stay, even after a missed day.</p>" +
+  "</div>";
 }
 
 function download(obj, filename) {
@@ -129,6 +144,7 @@ export function renderSettings() {
           '<span class="setting-text"><span class="setting-label">Its name</span></span>' +
           '<input class="text-input" id="prefMascotName" maxlength="24" value="' + escapeHtml(p.mascotName || "Mochi") + '">' +
         "</label>" +
+        giftsRow() +
       "</section>" +
       '<section class="settings-card settings-card--wide" id="settingsLine">' +
         cardHead("quote", "The line on your dashboard", "Pick what greets you each day. The refresh button on the card shows another one.") +
@@ -249,6 +265,11 @@ function wireNav(el) {
 /* The cards that depend on who's logged in. Settings is first drawn while
    the app boots, before the lock screen, so these are drawn again each
    time settings opens. */
+export function refreshGifts() {
+  var row = document.querySelector("#settingsSection .gift-row");
+  if (row) row.outerHTML = giftsRow();
+}
+
 export function refreshServerCards() {
   var warn = function (e) { console.warn(e); };
   renderStorageCard(document.getElementById("settingsStorage")).catch(warn);

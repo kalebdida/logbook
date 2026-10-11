@@ -2255,3 +2255,9 @@ html[data-theme-mode="light"] .due-add .due-date-input { color-scheme: light; }
 .tg-admin { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 @media (max-width: 560px) { .tg-setup { grid-template-columns: 1fr; } }
 .settings-actions a.tool-btn { text-decoration: none; }
+
+/* the cat's streak gifts (settings) */
+.gift-row { display: grid; gap: 8px; margin-top: 12px; }
+.gift-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.gift { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-pill); color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.gift.is-on { border-color: rgb(var(--accent-rgb) / 0.4); background: rgb(var(--accent-rgb) / 0.12); color: var(--accent); }

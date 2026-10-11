@@ -30,7 +30,7 @@ import { renderGoals, invalidateGoals } from './goals.js';
 import { renderDensityMap } from './densityMap.js';
 import { renderAnalytics } from './analytics.js';
 import { renderCompanion } from './companion.js';
-import { renderSettings, refreshDbStatus, refreshServerCards } from './settings.js';
+import { renderSettings, refreshDbStatus, refreshServerCards, refreshGifts } from './settings.js';
 import { initPalette } from './palette.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
 
@@ -213,7 +213,7 @@ async function init() {
 
   document.addEventListener("logbook:navigated", function (e) {
     if (e.detail.page === "companion") renderCompanion().catch(warn);
-    if (e.detail.page === "settings") { refreshDbStatus(); refreshServerCards(); }
+    if (e.detail.page === "settings") { refreshDbStatus(); refreshServerCards(); safe("cat gifts", refreshGifts); }
   });
   if (currentPage() === "companion") renderCompanion(true).catch(warn);
 

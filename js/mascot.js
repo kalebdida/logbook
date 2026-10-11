@@ -2,6 +2,7 @@ import { getPrefs } from './prefs.js';
 import { onChange } from './bus.js';
 import { dateKey } from './dayRecord.js';
 import { getEntries } from './journal.js';
+import { calcStreak, bestStreak } from './stats.js';
 import { getTodayTasks } from './tasks.js';
 import { habitSummary } from './habits.js';
 import { getTodayFocus } from './pomodoro.js';
@@ -22,6 +23,31 @@ var LINE_GAP_MS = 20 * 1000;      // automatic lines: at most one per 20s
 var WAKE_MS = 7000;               // a pet or a good moment wakes it this long
 var TYPE_PAUSE_MS = 2200;         // attentive until typing pauses this long
 var SEEN_KEY = "logbook-mascot-seen";
+var GIFTS_KEY = "logbook-mascot-gifts";
+
+/* Things the cat picks up as your best streak grows. They stay once
+   earned: a missed day never takes them away. */
+export var GIFTS = [
+  { id: "scarf", days: 3, name: "a scarf", line: "Three days in a row. I got a scarf!" },
+  { id: "bell", days: 7, name: "a little bell", line: "A whole week. Listen: a bell." },
+  { id: "lantern", days: 14, name: "a lantern", line: "Two weeks. I brought a lantern to keep us company." },
+  { id: "sprout", days: 30, name: "a sprout", line: "Thirty days. Something's growing here." },
+  { id: "star", days: 60, name: "a star clip", line: "Sixty days. I'm wearing a star for you." },
+  { id: "crown", days: 100, name: "a crown", line: "A hundred days. Honored. Truly." }
+];
+
+export function giftsFor(best) {
+  return GIFTS.filter(function (g) { return best >= g.days; });
+}
+
+export function streakInfo() {
+  var entries = [];
+  try { entries = getEntries(); } catch (e) {}
+  var best = bestStreak(entries);
+  var now = calcStreak(entries);
+  var next = GIFTS.filter(function (g) { return best < g.days; })[0] || null;
+  return { best: best, current: now, gifts: giftsFor(best), next: next };
+}
 
 /* ---------- what it says ---------- */
 
@@ -119,7 +145,15 @@ function catSvg() {
           '<ellipse class="m-paw" cx="69.5" cy="98.6" rx="7.4" ry="4.4"/>' +
           '<path class="m-toes" d="M48.4 97.4 v2.6 M52.6 97.4 v2.6 M67.4 97.4 v2.6 M71.6 97.4 v2.6"/>' +
         '</g>' +
-        '<g class="m-head-bob"><g class="m-head">' +
+        '<g class="m-head-bob">' +
+          // a scarf (and later a bell) under the chin
+          '<g class="m-acc m-acc-scarf">' +
+            '<path class="m-scarf" d="M39 58.5 Q 60 70 81 58.5 L 81.5 65 Q 60 77 38.5 65 Z"/>' +
+            '<path class="m-scarf" d="M66 68.5 L 70.5 86 L 76.5 84.4 L 73 66.6 Z"/>' +
+            '<path class="m-scarf-line" d="M45 63.6 l1.6 5 M52 66.4 l1 5 M68 66.2 l-1 5 M75 63.4 l-1.6 5 M68.6 74 l6.2 -1.6 M69.8 79 l6.2 -1.6"/>' +
+          '</g>' +
+          '<g class="m-acc m-acc-bell"><circle class="m-bell" cx="60" cy="72.6" r="3.4"/><path class="m-bell-line" d="M57.6 72.4 h4.8 M60 74.2 v1.2"/></g>' +
+        '<g class="m-head">' +
           '<g class="m-ear m-ear-l"><path class="m-fur m-ear-shape" d="M37 38 L 36 15.5 Q 36.4 11.5 40 13.2 L 55 26 Z"/><path class="m-ear-in" d="M40.2 31 L 39.8 19.5 L 48.6 27 Z"/></g>' +
           '<g class="m-ear m-ear-r"><path class="m-fur m-ear-shape" d="M83 38 L 84 15.5 Q 83.6 11.5 80 13.2 L 65 26 Z"/><path class="m-ear-in" d="M79.8 31 L 80.2 19.5 L 71.4 27 Z"/></g>' +
           '<path class="m-fur" d="M60 22 C 77 22, 89 31, 89 45 C 89 57.5, 77 64, 60 64 C 43 64, 31 57.5, 31 45 C 31 31, 43 22, 60 22 Z"/>' +
@@ -137,6 +171,8 @@ function catSvg() {
           '<path class="m-line m-mouth-sad" d="M56.4 59.4 q3.6 -2.4 7.2 0"/>' +
           '<ellipse class="m-yawn" cx="60" cy="59" rx="3" ry="3.4"/>' +
           '<path class="m-whisker" d="M33.5 53.2 l-10 -1.6 M34 56.6 l-9.4 2 M86.5 53.2 l10 -1.6 M86 56.6 l9.4 2"/>' +
+          '<g class="m-acc m-acc-star" transform="translate(41 25) rotate(-14) scale(0.9)"><path class="m-star" d="' + SPARK + '"/></g>' +
+          '<g class="m-acc m-acc-crown"><path class="m-crown" d="M50.5 24 L 52.4 14.6 L 56.6 19.6 L 60 11.8 L 63.4 19.6 L 67.6 14.6 L 69.5 24 Q 60 21.6 50.5 24 Z"/><circle class="m-crown-gem" cx="60" cy="20.4" r="1.3"/></g>' +
         '</g></g>' +
         // paws up over the eyes (the login screen, while you type a password)
         '<g class="m-cover">' +
@@ -170,6 +206,21 @@ function catSvg() {
       '</g>' +
       '<g transform="translate(60 44)"><path class="m-z m-z1" d="M0 0 h6.4 l-6.4 7.4 h6.4"/></g>' +
       '<g transform="translate(70 34)"><path class="m-z m-z2" d="M0 0 h4.8 l-4.8 5.6 h4.8"/></g>' +
+    '</g>' +
+    // things beside the cat: a lantern on the left, a sprout on the right
+    '<g class="m-acc m-acc-lantern">' +
+      '<circle class="m-lantern-glow" cx="13" cy="88" r="14"/>' +
+      '<path class="m-lantern-line" d="M13 72 v4"/>' +
+      '<rect class="m-lantern-cap" x="9.4" y="75.6" width="7.2" height="2.4" rx="1"/>' +
+      '<rect class="m-lantern" x="7.6" y="78" width="10.8" height="15" rx="4.6"/>' +
+      '<path class="m-lantern-rib" d="M8.4 83 h9.2 M8.4 88 h9.2"/>' +
+      '<rect class="m-lantern-cap" x="9.4" y="93" width="7.2" height="2.2" rx="1"/>' +
+    '</g>' +
+    '<g class="m-acc m-acc-sprout">' +
+      '<path class="m-pot" d="M100.5 92 h13 l-1.8 9.4 h-9.4 Z"/>' +
+      '<path class="m-stem" d="M107 92 C 107 87, 106 84, 104.5 81"/>' +
+      '<path class="m-leaf" d="M104.6 81.4 C 99.6 79.6, 98 82.6, 99 85 C 101.6 85.6, 104 84.2, 104.6 81.4 Z"/>' +
+      '<path class="m-leaf" d="M106.6 86.2 C 110.6 82.6, 113.6 84.2, 113.4 86.8 C 111 88.4, 108 88, 106.6 86.2 Z"/>' +
     '</g>' +
     // little hearts and sparkles for good moments
     '<g class="m-fx">' +
@@ -252,6 +303,11 @@ function onData(detail) {
       return before.indexOf(e.id) < 0 && Date.now() - new Date(e.date).getTime() < 10 * 60 * 1000;
     });
     G.entryIds = entries.map(function (e) { return e.id; });
+    var newGift = checkGifts();
+    if (newGift) {
+      each(function (m) { m.dress(); m.react("cheer"); m.api.say(newGift.line); });
+      return;
+    }
     if (fresh.length) {
       var mood = fresh[0].mood;
       if (mood === "rough") G.gentleDay = dateKey(new Date());
@@ -273,6 +329,7 @@ function onData(detail) {
     if (now > was) reactAll("habit");
   } else if (kind === "import") {
     takeSnapshots();
+    each(function (m) { m.dress(); });
   }
 }
 
@@ -393,6 +450,22 @@ function wire() {
   });
 }
 
+function seenGifts() {
+  try { return JSON.parse(localStorage.getItem(GIFTS_KEY) || "null"); } catch (e) { return null; }
+}
+
+/* The newest gift not celebrated yet in this browser (the first time a
+   browser sees the cat, everything already earned counts as seen). */
+function checkGifts() {
+  var info = streakInfo();
+  var seen = seenGifts();
+  var ids = info.gifts.map(function (g) { return g.id; });
+  try { localStorage.setItem(GIFTS_KEY, JSON.stringify(ids)); } catch (e) {}
+  if (!seen) return null;
+  var fresh = info.gifts.filter(function (g) { return seen.indexOf(g.id) < 0; });
+  return fresh.length ? fresh[fresh.length - 1] : null;
+}
+
 function reactAll(kind) {
   each(function (m) { m.react(kind); });
 }
@@ -498,6 +571,14 @@ export function mountMascot(container, opts) {
     parts.btn.title = name;
   }
 
+  function dress() {
+    var info = streakInfo();
+    // the first time this browser sees real data, what's already earned isn't news
+    if (info.best > 0 && !seenGifts()) checkGifts();
+    el.setAttribute("data-gifts", info.gifts.map(function (g) { return g.id; }).join(" "));
+    return info;
+  }
+
   function sync() {
     var on = getPrefs().mascot !== false;
     if (!on) {
@@ -510,6 +591,7 @@ export function mountMascot(container, opts) {
     if (!parts) build();
     el.hidden = false;
     label();
+    dress();
   }
 
   function wantsSleep() {
@@ -691,7 +773,7 @@ export function mountMascot(container, opts) {
 
   instances.push({
     el: el, container: container, api: api,
-    update: update, sync: sync, react: react, attend: attend, gaze: gaze,
+    update: update, sync: sync, react: react, attend: attend, gaze: gaze, dress: dress,
     pause: pause, resume: resume, teardown: teardown
   });
 
