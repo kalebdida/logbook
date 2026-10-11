@@ -219,7 +219,7 @@ export function renderAppCard(el) {
     '<h3 class="daily-section-title">' + icon("smartphone") + "<span>The app</span></h3>" +
     '<p class="storage-now">' + line + "</p>" +
     (canInstall() && !native ? '<div class="settings-actions"><button type="button" class="primary-btn" id="installApp">Install Logbook</button></div>' : "") +
-    '<p class="setting-hint">Android app (APK): built from the same code by the "android apk" GitHub action, or with <code>npm run apk</code>. See docs/ANDROID.md.</p>';
+    '<p class="setting-hint">On Android, the Logbook app does the same, with a home-screen widget and reminders.</p>';
   var btn = el.querySelector("#installApp");
   if (btn) btn.addEventListener("click", async function () {
     var ok = await promptInstall();

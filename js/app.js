@@ -44,6 +44,7 @@ import { renderAnalytics } from './analytics.js';
 import { renderCompanion } from './companion.js';
 import { renderSettings, refreshDbStatus, refreshServerCards, refreshGifts } from './settings.js';
 import { initPalette } from './palette.js';
+import { startPickers } from './picker.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
 
 function applyLook() {
@@ -143,6 +144,7 @@ async function init() {
   safe("focus timer", renderPomodoro);
   Promise.resolve(safe("music", startMusic)).catch(warn);
   safe("settings", renderSettings);
+  safe("pickers", startPickers);
   safe("journal", wireJournal);
 
   // open at once from the last copy of this account's data, if there is one,

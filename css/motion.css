@@ -357,3 +357,8 @@ body:not(.is-booted) #app { opacity: 0; }
 @keyframes yrLine {
   to { stroke-dashoffset: 0; }
 }
+
+/* pickers */
+@keyframes pickerIn { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes pickerOut { to { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+@keyframes pickerSheetOut { to { opacity: 0; transform: translateY(40px); } }

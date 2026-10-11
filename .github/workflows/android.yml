@@ -63,3 +63,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" --title "Logbook $TAG" \
             --notes "Android app. Download the .apk on your phone, open it, and allow installing from your browser or file manager. It connects to your Logbook server and asks you to log in. The web version is at https://kalebdida.github.io/logbook/"
 # build 1791750028
+# build 1791758358

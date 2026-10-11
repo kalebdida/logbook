@@ -8,6 +8,7 @@
     "allowMixedContent": false
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "url": "https://kalebdida.github.io/logbook/"
   }
 }

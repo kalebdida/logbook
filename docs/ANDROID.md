@@ -62,3 +62,7 @@ the first release, because it can't change afterwards.
 it's always current and uses the same account. `.github/workflows/desktop.yml`
 builds an installer and a portable .exe on every change to `desktop/` and
 publishes them as a `desktop-v…` release. Locally: `cd desktop && npm install && npm start`.
+
+## Updates
+
+The app loads the live site (`server.url` in `capacitor.config.json`), so new features reach phones the moment the site deploys. A new APK is only needed for native changes (widget, notifications, icons).

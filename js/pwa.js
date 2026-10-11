@@ -39,7 +39,9 @@ export function startPWA() {
     document.dispatchEvent(new CustomEvent("logbook:installable", { detail: { available: false } }));
   });
 
-  if (!("serviceWorker" in navigator) || window.Capacitor || !/^https?:$/.test(location.protocol)) return;
+  // the Android app loads the live site, so it keeps an offline copy like a browser does;
+  // only a copy bundled inside the app (served from localhost) skips this
+  if (!("serviceWorker" in navigator) || (window.Capacitor && location.hostname === "localhost") || !/^https?:$/.test(location.protocol)) return;
   if (location.protocol === "http:" && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return; // needs https
   navigator.serviceWorker.register("sw.js").then(function (reg) {
     reg.addEventListener("updatefound", function () {
