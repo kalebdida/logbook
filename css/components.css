@@ -2125,6 +2125,8 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
 
 /* =============== Today page cards switched off in settings =============== */
 body[data-hide~="habits"] #habitsSection,
+body[data-hide~="deadlines"] #deadlinesSection,
+body[data-hide~="prayers"] #prayersSection,
 body[data-hide~="brainDump"] #brainDumpSection,
 body[data-hide~="log"] #logCard,
 body[data-hide~="night"] #nightCard,
@@ -2139,3 +2141,107 @@ body[data-hide~="replay"] #weekAgoSection { display: none !important; }
 .sw-preview--art .sw-dots { display: none; }
 .theme-gallery { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .sw-preview { height: 84px; }
+
+/* =============== coming up (js/deadlines.js) =============== */
+.due-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.due-row {
+  --due: var(--accent2-rgb);
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 6px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgb(var(--bg-rgb) / 0.25);
+  transition: opacity 0.25s ease, transform 0.25s var(--ease-out);
+}
+.due-row--soon { --due: var(--warm-rgb); border-color: rgb(var(--warm-rgb) / 0.35); }
+.due-row--near { --due: var(--accent-rgb); }
+.due-row--past { --due: var(--danger-rgb); border-color: rgb(var(--danger-rgb) / 0.35); }
+.due-row.is-leaving { opacity: 0; transform: translateX(10px); }
+.due-count {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  height: 48px;
+  border-radius: var(--r-sm);
+  background: rgb(var(--due) / 0.14);
+  color: rgb(var(--due));
+  line-height: 1;
+}
+.due-count b { font: 700 21px/1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.due-count small { margin-top: 3px; font-size: 10.5px; font-weight: 500; opacity: 0.85; }
+.due-row--soon .due-count { animation: breathe 3.2s ease-in-out infinite; }
+.due-text { display: grid; gap: 3px; min-width: 0; }
+.due-title { overflow: hidden; color: var(--text); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.due-meta { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--text-3); font-size: 12.5px; }
+.due-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.due-meta .i { flex: none; font-size: 13px; color: rgb(var(--due)); }
+.due-done:hover { color: var(--mood-good); }
+.due-more { margin-top: 8px; font-size: 13px; }
+.due-add { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; margin-top: 12px; }
+.due-add .text-input[name="title"] { grid-column: 1 / -1; border-style: dashed; background: transparent; }
+.due-add .text-input[name="title"]:focus { border-style: solid; }
+.due-add .due-date-input { min-width: 0; color-scheme: dark; }
+html[data-theme-mode="light"] .due-add .due-date-input { color-scheme: light; }
+.due-add .tool-btn { grid-column: 1 / -1; justify-content: center; min-height: 42px; }
+.due-add .select-input { min-width: 0; }
+.due-add:not(:focus-within):not(:has(.text-input[name="title"]:not(:placeholder-shown))) > :not(.text-input[name="title"]) { display: none; }
+
+/* the nearest one, in the hero */
+.readout-cell.is-soon { border-color: rgb(var(--warm-rgb) / 0.45); }
+.readout-cell.is-soon .readout-icon { background: rgb(var(--warm-rgb) / 0.16); color: var(--warm); }
+@media (max-width: 760px) { .readout-cell.is-due { grid-column: 1 / -1; } }
+.cal-cell-future.cal-cell--due { opacity: 1; }
+
+/* on the calendar */
+.cal-due {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: rgb(var(--accent-rgb) / 0.14);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.cal-due span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-due .i { flex: none; font-size: 11px; }
+.cal-due.is-done { background: rgb(var(--ink-rgb) / 0.06); color: var(--faint); text-decoration: line-through; }
+.cal-cell--due { box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 0.3); }
+@media (max-width: 760px) {
+  .cal-due span { display: none; }
+  .cal-due { justify-content: center; padding: 2px; }
+}
+
+/* =============== prayers (js/prayers.js) =============== */
+.prayer-tabs { margin-top: 12px; }
+.prayer-tabs .seg-btn { flex: 1; }
+.seg-count { margin-left: 4px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.seg-btn.active .seg-count { color: inherit; opacity: 0.75; }
+.prayer-list { display: grid; gap: 2px; margin: 10px 0 0; padding: 0; list-style: none; }
+.prayer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.prayer-row:last-child { border-bottom: 0; }
+.prayer-text { display: grid; gap: 3px; color: var(--text); font-size: 14.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.prayer-text small { color: var(--faint); font-size: 12px; }
+.prayer-answer { padding-left: 10px; border-left: 2px solid rgb(var(--accent-rgb) / 0.5); color: var(--text-2); }
+.prayer-row.is-answered .prayer-text { color: var(--text-2); }
+.prayer-answered { min-height: 32px; padding: 0 10px; font-size: 12.5px; }
+.prayer-answer-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-column: 1 / -1; gap: 6px; animation: foldIn 0.25s var(--ease-out) both; }
+.prayer-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 12px; }
+.prayer-add .text-input { border-style: dashed; background: transparent; }
+.prayer-add .text-input:focus { border-style: solid; }
+.prayer-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) .tool-btn { display: none; }
+.prayer-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) { grid-template-columns: 1fr; }

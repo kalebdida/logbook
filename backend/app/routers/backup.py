@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import current_user_id
 from app.database import get_db
-from app.models import Activity, DayRecord, Entry, Goal, Habit, HabitLog, PomodoroDay, Task
+from app.models import Activity, DayRecord, Deadline, Entry, Goal, Habit, HabitLog, PomodoroDay, Prayer, Task
 from app.schemas.backup import BackupExport, RestoreCount, RestorePayload, RestoreResult
 
 router = APIRouter(prefix="/backup", tags=["Backup"])
@@ -31,6 +31,8 @@ def export_backup(uid: int = Depends(current_user_id), db: Session = Depends(get
         pomodoro_days=db.query(PomodoroDay).filter(PomodoroDay.user_id == uid).order_by(PomodoroDay.date).all(),
         habits=db.query(Habit).filter(Habit.user_id == uid).order_by(Habit.sort, Habit.id).all(),
         habit_logs=db.query(HabitLog).filter(HabitLog.user_id == uid).order_by(HabitLog.date).all(),
+        deadlines=db.query(Deadline).filter(Deadline.user_id == uid).order_by(Deadline.due_date, Deadline.id).all(),
+        prayers=db.query(Prayer).filter(Prayer.user_id == uid).order_by(Prayer.created_at, Prayer.id).all(),
     )
 
 
@@ -176,6 +178,30 @@ def restore_backup(payload: RestorePayload, uid: int = Depends(current_user_id),
         db.add(HabitLog(user_id=uid, habit_id=habit_id, date=item.date))
         existing_logs.add((habit_id, item.date))
         result["habit_logs"].added += 1
+
+    db.commit()
+    # deadlines match by title + date, prayers by their words
+    have_deadlines = {(d.title.strip().lower(), d.due_date) for d in db.query(Deadline).filter(Deadline.user_id == uid).all()}
+    for item in payload.deadlines:
+        key = (item.title.strip().lower(), item.due_date)
+        if key in have_deadlines:
+            result["deadlines"].skipped += 1
+            continue
+        db.add(Deadline(user_id=uid, **item.model_dump()))
+        have_deadlines.add(key)
+        result["deadlines"].added += 1
+
+    have_prayers = {p.text.strip().lower() for p in db.query(Prayer).filter(Prayer.user_id == uid).all()}
+    for item in payload.prayers:
+        key = item.text.strip().lower()
+        if key in have_prayers:
+            result["prayers"].skipped += 1
+            continue
+        when = item.created_at or now
+        db.add(Prayer(user_id=uid, text=item.text.strip(), answered_at=item.answered_at,
+                      answer=item.answer if item.answered_at else "", created_at=when, updated_at=when))
+        have_prayers.add(key)
+        result["prayers"].added += 1
 
     db.commit()
     return RestoreResult(**result)

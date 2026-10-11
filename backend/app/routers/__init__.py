@@ -5,8 +5,8 @@ with the login dependency; /auth and /health stay public.
 
 from fastapi import APIRouter
 
-from app.routers import activities, ai, backup, day_records, entries, goals, habits, pomodoro, tasks
+from app.routers import activities, ai, backup, day_records, deadlines, entries, goals, habits, pomodoro, prayers, tasks
 
 api_router = APIRouter()
-for module in (entries, day_records, tasks, activities, goals, pomodoro, habits, backup, ai):
+for module in (entries, day_records, tasks, activities, goals, pomodoro, habits, deadlines, prayers, backup, ai):
     api_router.include_router(module.router)

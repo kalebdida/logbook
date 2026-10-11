@@ -19,6 +19,8 @@ import { renderHabits } from './habits.js';
 import { startPWA } from './pwa.js';
 import { showStorageWarning, startBoot, initSplash } from './ui.js';
 import { startAlive } from './alive.js';
+import { renderDeadlines } from './deadlines.js';
+import { renderPrayers } from './prayers.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
@@ -68,6 +70,8 @@ async function renderEverything() {
   await Promise.all([
     renderDailyPage(),
     renderHabits(),
+    renderDeadlines(),
+    renderPrayers(),
     renderGoals(),
     renderCalendar()
   ].map(function (p) { return Promise.resolve(p).catch(warn); }));
@@ -195,6 +199,7 @@ async function init() {
       refreshDbStatus();
     }
     if (change.kind === "entries") renderEntryViews();
+    if (change.kind === "deadlines") safe("today console", refreshReadout);
     refreshHeavy();
   });
 

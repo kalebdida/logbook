@@ -9,11 +9,13 @@ Add each new model's import to this file as you create it.
 
 from app.models.activity import Activity
 from app.models.day_record import DayRecord
+from app.models.deadline import Deadline
 from app.models.entry import Entry
 from app.models.goal import Goal
 from app.models.habit import Habit, HabitLog
 from app.models.pomodoro_day import PomodoroDay
+from app.models.prayer import Prayer
 from app.models.task import Task
 from app.models.user import Invite, User
 
-__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite"]
+__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer"]

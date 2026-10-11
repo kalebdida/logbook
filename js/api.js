@@ -450,3 +450,62 @@ export async function apiAIStatus() {
 export async function apiAIChat(messages, system, maxTokens) {
   return request("/ai/chat", Object.assign({ method: "POST" }, jsonBody({ messages: messages, system: system, max_tokens: maxTokens || 900 })));
 }
+
+// ---------- deadlines ----------
+
+function deadlineFromApi(d) {
+  return { id: d.id, title: d.title, dueDate: d.due_date, kind: d.kind, note: d.note || "",
+    activityCategory: d.activity_category, done: Boolean(d.done), createdAt: d.created_at };
+}
+
+function deadlineToApi(v) {
+  var out = {};
+  if (v.title !== undefined) out.title = v.title;
+  if (v.dueDate !== undefined) out.due_date = v.dueDate;
+  if (v.kind !== undefined) out.kind = v.kind;
+  if (v.note !== undefined) out.note = v.note;
+  if (v.activityCategory !== undefined) out.activity_category = v.activityCategory;
+  if (v.done !== undefined) out.done = v.done;
+  return out;
+}
+
+export async function apiListDeadlines(params) {
+  var q = new URLSearchParams();
+  Object.keys(params || {}).forEach(function (k) { if (params[k] != null) q.set(k, params[k]); });
+  var rows = await request("/deadlines/" + (q.toString() ? "?" + q : ""));
+  return rows.map(deadlineFromApi);
+}
+
+export async function apiCreateDeadline(values) {
+  return deadlineFromApi(await request("/deadlines/", Object.assign({ method: "POST" }, jsonBody(deadlineToApi(values)))));
+}
+
+export async function apiUpdateDeadline(id, values) {
+  return deadlineFromApi(await request("/deadlines/" + id, Object.assign({ method: "PATCH" }, jsonBody(deadlineToApi(values)))));
+}
+
+export async function apiDeleteDeadline(id) {
+  await request("/deadlines/" + id, { method: "DELETE" });
+}
+
+// ---------- prayers ----------
+
+function prayerFromApi(p) {
+  return { id: p.id, text: p.text, answeredAt: p.answered_at, answer: p.answer || "", createdAt: p.created_at };
+}
+
+export async function apiListPrayers() {
+  return (await request("/prayers/")).map(prayerFromApi);
+}
+
+export async function apiCreatePrayer(text) {
+  return prayerFromApi(await request("/prayers/", Object.assign({ method: "POST" }, jsonBody({ text: text }))));
+}
+
+export async function apiUpdatePrayer(id, values) {
+  return prayerFromApi(await request("/prayers/" + id, Object.assign({ method: "PATCH" }, jsonBody(values))));
+}
+
+export async function apiDeletePrayer(id) {
+  await request("/prayers/" + id, { method: "DELETE" });
+}

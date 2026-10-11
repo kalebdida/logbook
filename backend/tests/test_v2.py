@@ -438,3 +438,36 @@ def test_verse_list_covers_a_year_without_repeats():
     year = [verses.ref_for(start + timedelta(days=i)) for i in range(366)]
     assert len(set(year)) == 366
     assert verses.clean("In the\n beginning ,  God") == "In the beginning, God"
+
+
+def test_deadlines_count_down_and_filter(client):
+    a = client.post("/deadlines/", json={"title": "Early decision", "due_date": "2026-11-01", "kind": "deadline"}).json()
+    client.post("/deadlines/", json={"title": "SAT", "due_date": "2026-12-05", "kind": "exam"})
+    assert [d["title"] for d in client.get("/deadlines/").json()] == ["Early decision", "SAT"]
+    assert [d["title"] for d in client.get("/deadlines/?start=2026-12-01").json()] == ["SAT"]
+    done = client.patch(f"/deadlines/{a['id']}", json={"done": True, "title": None}).json()
+    assert done["done"] is True and done["title"] == "Early decision"
+    assert len(client.get("/deadlines/?done=false").json()) == 1
+    assert client.post("/deadlines/", json={"title": "x", "due_date": "2026-11-01", "kind": "party"}).status_code == 422
+    assert client.delete(f"/deadlines/{a['id']}").status_code == 204
+
+
+def test_prayers_answered_and_back(client):
+    p = client.post("/prayers/", json={"text": "  Wisdom for the applications  "}).json()
+    assert p["text"] == "Wisdom for the applications" and p["answered_at"] is None
+    assert client.patch(f"/prayers/{p['id']}", json={"answer": "too early"}).json()["answer"] == ""
+    got = client.patch(f"/prayers/{p['id']}", json={"answered": True, "answer": "Got in."}).json()
+    assert got["answered_at"] and got["answer"] == "Got in."
+    assert len(client.get("/prayers/?answered=true").json()) == 1
+    back = client.patch(f"/prayers/{p['id']}", json={"answered": False}).json()
+    assert back["answered_at"] is None and back["answer"] == ""
+
+
+def test_backup_carries_deadlines_and_prayers(client):
+    client.post("/deadlines/", json={"title": "Essay", "due_date": "2026-11-15"})
+    client.post("/prayers/", json={"text": "Peace"})
+    dump = client.get("/backup").json()
+    assert dump["deadlines"][0]["title"] == "Essay" and dump["prayers"][0]["text"] == "Peace"
+    res = client.post("/backup/restore", json=dump).json()
+    assert res["deadlines"] == {"added": 0, "merged": 0, "skipped": 1}
+    assert res["prayers"]["skipped"] == 1

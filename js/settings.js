@@ -66,7 +66,9 @@ var GROUPS = [
 ];
 
 var DASH_CARDS = [
+  ["deadlines", "Coming up", "Deadlines and exams, counting down"],
   ["habits", "Habits", "The daily check-ins"],
+  ["prayers", "Prayers", "What you're praying for, and the answers"],
   ["brainDump", "Brain dump", "A place to empty your head"],
   ["log", "Time log", "What you did, by life area"],
   ["night", "Tonight", "Win, lesson, gratitude, tomorrow's tasks"],

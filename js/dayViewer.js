@@ -1,4 +1,5 @@
-import { apiListEntries, apiGetDay, apiListTasks, apiListActivities, apiGetPomodoroDay, apiListHabits, apiHabitLogs } from './api.js';
+import { apiListEntries, apiGetDay, apiListTasks, apiListActivities, apiGetPomodoroDay, apiListHabits, apiHabitLogs, apiListDeadlines } from './api.js';
+import { KINDS, daysUntil, countdownLabel } from './deadlines.js';
 import { dateKey, deriveTimelineFromEntries, deriveMoodFromEntries } from './dayRecord.js';
 import { categoryById, habitIcon } from './categories.js';
 import { escapeHtml } from './utils.js';
@@ -55,7 +56,8 @@ export async function openDayViewer(dateStr) {
       apiListTasks({ day_date: dateStr }),
       apiListActivities({ day_date: dateStr }),
       apiGetPomodoroDay(dateStr),
-      Promise.all([apiListHabits(true), apiHabitLogs(dateStr, dateStr)]).catch(function () { return [[], []]; })
+      Promise.all([apiListHabits(true), apiHabitLogs(dateStr, dateStr)]).catch(function () { return [[], []]; }),
+      apiListDeadlines({ start: dateStr, end: dateStr }).catch(function () { return []; })
     ]);
   } catch (e) {
     overlay.querySelector(".viewer-panel").innerHTML = '<p class="viewer-empty">Couldn\'t load this day. Is the backend running?</p>';
@@ -105,8 +107,18 @@ export async function openDayViewer(dateStr) {
       }).join("") + "</ul>"
     : "";
 
+  var dues = data[6] || [];
+  var duesHtml = dues.length
+    ? '<ul class="viewer-list">' + dues.map(function (d) {
+        var k = KINDS[d.kind] || KINDS.deadline;
+        return '<li class="' + (d.done ? "is-done" : "") + '">' + icon(k.icon) + "<span>" + escapeHtml(d.title) + '</span> <span class="viewer-dim">' +
+          k.label + (d.done ? ", done" : ", " + countdownLabel(daysUntil(d.dueDate)).toLowerCase()) + "</span></li>";
+      }).join("") + "</ul>"
+    : "";
+
   var n = day.nightReflection;
   var body =
+    block("Due", duesHtml) +
     block("Intention", text(day.morning.intention)) +
     block("Main focus", text(day.morning.mainFocus)) +
     block("Entries", timelineHtml) +

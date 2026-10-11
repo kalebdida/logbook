@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 """End-to-end test for the v2 features: device mode (no server), offline,
 themes, habits, music, password login, and moving data from a device to a
 server. Complements tests/e2e_browser.py (which covers the core app).
@@ -153,9 +154,26 @@ try:
         page.wait_for_timeout(300)
         check("habit added and checked today", page.text_content(".habits-count").strip().startswith("1/1"), page.text_content(".habits-count"))
 
+        # deadlines and prayers, on the device
+        page.fill("#deadlinesSection .due-add [name=title]", "Early decision")
+        page.fill("#deadlinesSection .due-add [name=date]", (date.today() + timedelta(days=5)).isoformat())
+        page.click("#deadlinesSection .due-add button[type=submit]")
+        page.wait_for_selector("#deadlinesSection .due-row")
+        check("a deadline counts down on Today", page.text_content("#deadlinesSection .due-count b").strip() == "5"
+              and "Early decision" in page.text_content("#consoleReadout"), page.text_content("#deadlinesSection"))
+        page.fill("#prayersSection .prayer-add [name=text]", "Wisdom")
+        page.press("#prayersSection .prayer-add [name=text]", "Enter")
+        page.wait_for_selector("#prayersSection [data-prayer-answer]")
+        page.click("#prayersSection [data-prayer-answer]")
+        page.fill("#prayersSection .prayer-answer-form [name=answer]", "Clear head")
+        page.press("#prayersSection .prayer-answer-form [name=answer]", "Enter")
+        page.wait_for_timeout(300)
+        check("a prayer is marked answered", dev(page, "/prayers/")[0]["answer"] == "Clear head")
+
         reload(page)
         page.wait_for_selector(".habit", timeout=15000)
-        check("entries and habits survive a reload", len(dev(page, "/entries/")) == 1 and page.locator(".habit.is-done").count() == 1)
+        check("entries and habits survive a reload", len(dev(page, "/entries/")) == 1 and page.locator(".habit.is-done").count() == 1
+              and len(dev(page, "/deadlines/")) == 1 and len(dev(page, "/prayers/?answered=true")) == 1)
 
         # ---------- themes ----------
         page.evaluate("location.hash = '#settings'")
@@ -184,7 +202,10 @@ try:
         page.click('[data-preview="undo"]')
         page.click("#themeEditor summary")
         page.fill('.theme-editor-form [name="color-accent"]', "#ff3366")
-        page.wait_for_timeout(250)
+        try:
+            page.wait_for_function("getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim() === '255 51 102'", timeout=3000)
+        except Exception:
+            pass
         check("fine-tuning a color changes the app live", page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim()") == "255 51 102")
         page.click('[data-te="save"]')
         page.click("#themeDefault")

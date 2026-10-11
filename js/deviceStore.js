@@ -12,7 +12,7 @@
 import { CATEGORIES } from './categories.js';
 
 var DB_NAME = "logbook-device";
-var DB_VERSION = 1;
+var DB_VERSION = 2;
 var TABLES = {
   entries: "id",
   day_records: "date",
@@ -22,6 +22,8 @@ var TABLES = {
   pomodoro_days: "date",
   habits: "id",
   habit_logs: "key",
+  deadlines: "id",
+  prayers: "id",
   meta: "key"
 };
 var VERSION = "2.2.0";
@@ -471,6 +473,76 @@ route("DELETE", "/habits/{id}/days/{date}", async function (p) {
   return null;
 });
 
+/* deadlines */
+var DEADLINE_KINDS = ["deadline", "exam", "event"];
+route("POST", "/deadlines", async function (p, q, body) {
+  var t = now(), ops = [];
+  var row = { title: text(body.title, "title", 300).trim(), due_date: dateArg(body.due_date, "due_date"),
+    kind: body.kind == null ? "deadline" : oneOf(body.kind, DEADLINE_KINDS, "kind"),
+    note: body.note == null ? "" : text(body.note, "note", 4000), activity_category: area(body.activity_category),
+    done: false, created_at: t, updated_at: t };
+  if (!row.title) fail(422, "title is required");
+  row.id = nextId("deadlines", ops);
+  ops.push(put("deadlines", row));
+  await commit(ops);
+  return copy(row);
+});
+route("GET", "/deadlines", function (p, q) {
+  var start = q.get("start"), end = q.get("end"), done = q.get("done");
+  return rows("deadlines").filter(function (d) {
+    return (!start || d.due_date >= start) && (!end || d.due_date <= end) && (done == null || String(d.done) === done);
+  }).sort(function (a, b) { return a.due_date.localeCompare(b.due_date) || a.id - b.id; }).map(copy);
+});
+route("PATCH", "/deadlines/{id}", async function (p, q, body) {
+  var row = copy(get("deadlines", Number(p.id), "Deadline"));
+  if (body.title != null) row.title = text(body.title, "title", 300).trim() || row.title;
+  if (body.due_date != null) row.due_date = dateArg(body.due_date, "due_date");
+  if (body.kind != null) row.kind = oneOf(body.kind, DEADLINE_KINDS, "kind");
+  if (body.note != null) row.note = text(body.note, "note", 4000);
+  if ("activity_category" in body) row.activity_category = area(body.activity_category);
+  if (body.done != null) row.done = Boolean(body.done);
+  row.updated_at = now();
+  await commit([put("deadlines", row)]);
+  return copy(row);
+});
+route("DELETE", "/deadlines/{id}", async function (p) {
+  get("deadlines", Number(p.id), "Deadline");
+  await commit([del("deadlines", Number(p.id))]);
+  return null;
+});
+
+/* prayers */
+route("POST", "/prayers", async function (p, q, body) {
+  var t = now(), ops = [];
+  var row = { text: text(body.text, "text", 4000).trim(), answered_at: null, answer: "", created_at: t, updated_at: t };
+  if (!row.text) fail(422, "text is required");
+  row.id = nextId("prayers", ops);
+  ops.push(put("prayers", row));
+  await commit(ops);
+  return copy(row);
+});
+route("GET", "/prayers", function (p, q) {
+  var answered = q.get("answered");
+  return rows("prayers").filter(function (r) {
+    return answered == null || (answered === "true") === Boolean(r.answered_at);
+  }).sort(function (a, b) { return b.created_at.localeCompare(a.created_at) || b.id - a.id; }).map(copy);
+});
+route("PATCH", "/prayers/{id}", async function (p, q, body) {
+  var row = copy(get("prayers", Number(p.id), "Prayer"));
+  if (body.text) row.text = text(body.text, "text", 4000).trim() || row.text;
+  if (body.answered === true && !row.answered_at) row.answered_at = now();
+  if (body.answered === false) { row.answered_at = null; row.answer = ""; }
+  if (body.answer != null && row.answered_at) row.answer = text(body.answer, "answer", 4000).trim();
+  row.updated_at = now();
+  await commit([put("prayers", row)]);
+  return copy(row);
+});
+route("DELETE", "/prayers/{id}", async function (p) {
+  get("prayers", Number(p.id), "Prayer");
+  await commit([del("prayers", Number(p.id))]);
+  return null;
+});
+
 /* backup */
 route("GET", "/backup", function () {
   function sorted(table, cmp) { return rows(table).sort(cmp).map(copy); }
@@ -485,13 +557,15 @@ route("GET", "/backup", function () {
     goals: sorted("goals", function (a, b) { return a.created_at.localeCompare(b.created_at); }),
     pomodoro_days: sorted("pomodoro_days", function (a, b) { return a.date.localeCompare(b.date); }),
     habits: sorted("habits", function (a, b) { return a.sort - b.sort || a.id - b.id; }),
-    habit_logs: rows("habit_logs").sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (l) { return { habit_id: l.habit_id, date: l.date }; })
+    habit_logs: rows("habit_logs").sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (l) { return { habit_id: l.habit_id, date: l.date }; }),
+    deadlines: sorted("deadlines", function (a, b) { return a.due_date.localeCompare(b.due_date) || a.id - b.id; }),
+    prayers: sorted("prayers", function (a, b) { return a.created_at.localeCompare(b.created_at) || a.id - b.id; })
   };
 });
 
 route("POST", "/backup/restore", async function (p, q, body) {
   var result = {};
-  ["entries", "day_records", "tasks", "activities", "goals", "pomodoro_days", "habits", "habit_logs"].forEach(function (k) {
+  ["entries", "day_records", "tasks", "activities", "goals", "pomodoro_days", "habits", "habit_logs", "deadlines", "prayers"].forEach(function (k) {
     result[k] = { added: 0, merged: 0, skipped: 0 };
   });
   var ops = [];
@@ -618,6 +692,30 @@ route("POST", "/backup/restore", async function (p, q, body) {
     if (hid == null || !DATE_RE.test(l.date) || mem.habit_logs.has(key)) { result.habit_logs.skipped++; return; }
     var row = { key: key, habit_id: hid, date: l.date };
     ops.push(put("habit_logs", row)); mem.habit_logs.set(key, row); result.habit_logs.added++;
+  });
+
+  var haveDeadlines = new Set(rows("deadlines").map(function (d) { return d.title.trim().toLowerCase() + "|" + d.due_date; }));
+  list("deadlines").forEach(function (d) {
+    var title = text(String(d.title || ""), "title", 300).trim();
+    var due = dateArg(d.due_date, "due_date");
+    var key = title.toLowerCase() + "|" + due;
+    if (!title || haveDeadlines.has(key)) { result.deadlines.skipped++; return; }
+    var t5 = now();
+    var row = { title: title, due_date: due, kind: DEADLINE_KINDS.indexOf(d.kind) >= 0 ? d.kind : "deadline",
+      note: typeof d.note === "string" ? d.note : "", activity_category: area(d.activity_category), done: Boolean(d.done),
+      created_at: t5, updated_at: t5 };
+    row.id = nextId("deadlines", ops);
+    ops.push(put("deadlines", row)); mem.deadlines.set(row.id, row); haveDeadlines.add(key); result.deadlines.added++;
+  });
+  var havePrayers = new Set(rows("prayers").map(function (r) { return r.text.trim().toLowerCase(); }));
+  list("prayers").forEach(function (r) {
+    var words = text(String(r.text || ""), "text", 4000).trim();
+    if (!words || havePrayers.has(words.toLowerCase())) { result.prayers.skipped++; return; }
+    var when = r.created_at ? iso(r.created_at, "created_at") : now();
+    var row = { text: words, answered_at: r.answered_at ? iso(r.answered_at, "answered_at") : null,
+      answer: r.answered_at && typeof r.answer === "string" ? r.answer : "", created_at: when, updated_at: when };
+    row.id = nextId("prayers", ops);
+    ops.push(put("prayers", row)); mem.prayers.set(row.id, row); havePrayers.add(words.toLowerCase()); result.prayers.added++;
   });
 
   await commit(ops);

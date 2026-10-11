@@ -60,7 +60,9 @@ def fill(c, token, tag):
     c.post("/pomodoro/2026-10-01/sessions", json={"focus_ms": 60000}, headers=H)
     habit = c.post("/habits/", json={"name": f"{tag} habit"}, headers=H).json()
     c.put(f"/habits/{habit['id']}/days/2026-10-01", headers=H)
-    return {"entry": entry, "task": task, "act": act, "goal": goal, "habit": habit}
+    deadline = c.post("/deadlines/", json={"title": f"{tag} deadline", "due_date": "2026-11-01"}, headers=H).json()
+    prayer = c.post("/prayers/", json={"text": f"{tag} prayer"}, headers=H).json()
+    return {"entry": entry, "task": task, "act": act, "goal": goal, "habit": habit, "deadline": deadline, "prayer": prayer}
 
 
 # ---------- isolation ----------
@@ -74,7 +76,8 @@ def test_accounts_see_only_their_own_data(server):
     for token, tag in ((admin, "kal"), (amen, "amen"), (beti, "beti")):
         H = h(token)
         everything = str([c.get(p, headers=H).json() for p in
-                          ("/entries/", "/days/", "/tasks/", "/activities/", "/goals/", "/pomodoro/", "/habits/", "/habits/logs", "/backup")])
+                          ("/entries/", "/days/", "/tasks/", "/activities/", "/goals/", "/pomodoro/", "/habits/", "/habits/logs",
+                           "/deadlines/", "/prayers/", "/backup")])
         for other in {"kal", "amen", "beti"} - {tag}:
             assert other not in everything, f"{tag} can see {other}'s data"
         assert f"{tag} secret entry" in everything and f"{tag} secret journal" in everything
@@ -108,6 +111,10 @@ def test_cannot_touch_another_accounts_rows_by_id(server):
         ("delete", f"/habits/{a['habit']['id']}", None),
         ("put", f"/habits/{a['habit']['id']}/days/2026-10-02", None),
         ("delete", f"/habits/{a['habit']['id']}/days/2026-10-01", None),
+        ("patch", f"/deadlines/{a['deadline']['id']}", {"title": "hacked"}),
+        ("delete", f"/deadlines/{a['deadline']['id']}", None),
+        ("patch", f"/prayers/{a['prayer']['id']}", {"answered": True}),
+        ("delete", f"/prayers/{a['prayer']['id']}", None),
     ]:
         kwargs = {"headers": B}
         if body is not None:
@@ -130,6 +137,8 @@ def test_cannot_touch_another_accounts_rows_by_id(server):
     assert c.get("/goals/", headers=A).json()[0]["title"] == "amen goal"
     assert c.get("/habits/", headers=A).json()[0]["name"] == "amen habit"
     assert len(c.get("/habits/logs", headers=A).json()) == 1
+    assert c.get("/deadlines/", headers=A).json()[0]["title"] == "amen deadline"
+    assert c.get("/prayers/", headers=A).json()[0]["answered_at"] is None
 
 
 def test_restore_goes_into_your_own_account(server):

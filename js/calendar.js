@@ -1,4 +1,5 @@
-import { apiListEntries } from './api.js';
+import { apiListEntries, apiListDeadlines } from './api.js';
+import { KINDS } from './deadlines.js';
 import { STATUS, moodTag } from './entries.js';
 import { icon } from './icons.js';
 import { dateKey } from './dayRecord.js';
@@ -14,6 +15,7 @@ var tooltipEl = null;
 // filled in on every renderCalendar() call, the mouseover handler reads
 // from this instead of re-fetching on every pixel of mouse movement
 var lastDayEntryMap = {};
+var dueMap = {};   // date -> deadlines on that day
 
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -136,10 +138,15 @@ function renderMonthView(container, entries, dayEntryMap, now) {
     var more = dayCounts[key] > 1 ? '<span class="cal-more">+' + (dayCounts[key] - 1) + " more</span>" : "";
     var spoken = new Date(year, month, day).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) +
       (s ? ", " + s.label + ", " + dayCounts[key] + (dayCounts[key] === 1 ? " entry" : " entries") : "") + (isToday ? ", today" : "");
+    var dues = dueMap[key] || [];
+    if (dues.length) spoken += ", " + dues.map(function (d) { return (KINDS[d.kind] || KINDS.deadline).label + ": " + d.title; }).join(", ");
     cells +=
-      '<button type="button" class="' + classes + '" data-date="' + key + '" aria-label="' + spoken + '"' + (isToday ? ' aria-current="date"' : "") + ">" +
+      '<button type="button" class="' + classes + (dues.length ? " cal-cell--due" : "") + '" data-date="' + key + '" aria-label="' + escapeHtml(spoken) + '"' + (isToday ? ' aria-current="date"' : "") + ">" +
         '<span class="cal-cell-top"><span class="cal-daynum">' + day + "</span>" + (s ? '<span class="cal-mood">' + icon(s.icon) + "</span>" : "") + "</span>" +
-        (snippet ? '<span class="cal-snippet">' + snippet + "</span>" : "") +
+        dues.slice(0, 2).map(function (d) {
+          return '<span class="cal-due' + (d.done ? " is-done" : "") + '">' + icon((KINDS[d.kind] || KINDS.deadline).icon) + "<span>" + escapeHtml(d.title) + "</span></span>";
+        }).join("") +
+        (snippet && !dues.length ? '<span class="cal-snippet">' + snippet + "</span>" : "") +
         more +
       "</button>";
   }
@@ -246,7 +253,10 @@ export async function renderCalendar() {
   if (!container) return;
 
   var now = new Date();
-  var entries = await apiListEntries();
+  var results = await Promise.all([apiListEntries(), apiListDeadlines().catch(function () { return []; })]);
+  var entries = results[0];
+  dueMap = {};
+  results[1].forEach(function (d) { (dueMap[d.dueDate] = dueMap[d.dueDate] || []).push(d); });
   var dayEntryMap = buildDayEntryMap(entries);
   lastDayEntryMap = dayEntryMap;
 

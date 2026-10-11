@@ -12,10 +12,12 @@ from pydantic import BaseModel, Field
 from app.schemas.activity import ActivityResponse
 from app.schemas.common import ActivityCategory, Mood, UTCDateTime
 from app.schemas.day_record import DayRecordResponse
+from app.schemas.deadline import DeadlineKind, DeadlineResponse
 from app.schemas.entry import EntryResponse
 from app.schemas.goal import GoalCategory, GoalPriority, GoalResponse
 from app.schemas.habit import HabitLogResponse, HabitResponse
 from app.schemas.pomodoro_day import PomodoroDayResponse
+from app.schemas.prayer import PrayerResponse
 from app.schemas.task import TaskResponse
 
 
@@ -31,6 +33,8 @@ class BackupExport(BaseModel):
     pomodoro_days: list[PomodoroDayResponse]
     habits: list[HabitResponse] = []
     habit_logs: list[HabitLogResponse] = []
+    deadlines: list[DeadlineResponse] = []
+    prayers: list[PrayerResponse] = []
 
 
 class RestoreEntry(BaseModel):
@@ -101,6 +105,22 @@ class RestoreHabitLog(BaseModel):
     date: date_type
 
 
+class RestoreDeadline(BaseModel):
+    title: str = Field(..., min_length=1, max_length=300)
+    due_date: date_type
+    kind: DeadlineKind = "deadline"
+    note: str = ""
+    activity_category: ActivityCategory | None = None
+    done: bool = False
+
+
+class RestorePrayer(BaseModel):
+    text: str = Field(..., min_length=1)
+    answered_at: UTCDateTime | None = None
+    answer: str = ""
+    created_at: UTCDateTime | None = None
+
+
 class RestorePayload(BaseModel):
     entries: list[RestoreEntry] = []
     day_records: list[RestoreDay] = []
@@ -110,6 +130,8 @@ class RestorePayload(BaseModel):
     pomodoro_days: list[RestorePomodoroDay] = []
     habits: list[RestoreHabit] = []
     habit_logs: list[RestoreHabitLog] = []
+    deadlines: list[RestoreDeadline] = []
+    prayers: list[RestorePrayer] = []
 
 
 class RestoreCount(BaseModel):
@@ -127,3 +149,5 @@ class RestoreResult(BaseModel):
     pomodoro_days: RestoreCount
     habits: RestoreCount
     habit_logs: RestoreCount
+    deadlines: RestoreCount = RestoreCount()
+    prayers: RestoreCount = RestoreCount()

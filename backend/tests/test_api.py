@@ -94,7 +94,7 @@ def test_backup_round_trip_is_additive_and_idempotent(client):
     reset_database()
     run_migrations()
     restored = client.post("/backup/restore", json=backup).json()
-    assert all(restored[k]["added"] == 1 for k in restored if not k.startswith("habit")), restored
+    assert all(restored[k]["added"] == 1 for k in restored if not k.startswith("habit") and k not in ("deadlines", "prayers")), restored
     assert client.get("/entries/e-1").json()["occurred_at"] == "2026-10-01T10:00:00Z"
     assert client.get("/goals/").json()[0]["completed"] is True
 
