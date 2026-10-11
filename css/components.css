@@ -2245,3 +2245,13 @@ html[data-theme-mode="light"] .due-add .due-date-input { color-scheme: light; }
 .prayer-add .text-input:focus { border-style: solid; }
 .prayer-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) .tool-btn { display: none; }
 .prayer-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) { grid-template-columns: 1fr; }
+
+/* =============== telegram (js/telegramCard.js) =============== */
+.tg-steps { display: grid; gap: 6px; margin: 4px 0 14px; padding-left: 20px; color: var(--text-2); font-size: 14px; line-height: 1.55; }
+.tg-steps code, .tg-cheats code { padding: 1px 6px; border-radius: 6px; background: rgb(var(--ink-rgb) / 0.08); font-family: var(--mono); font-size: 12.5px; }
+.tg-setup { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.tg-cheats { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
+.tg-cheats code { padding: 4px 8px; color: var(--text-2); }
+.tg-admin { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+@media (max-width: 560px) { .tg-setup { grid-template-columns: 1fr; } }
+.settings-actions a.tool-btn { text-decoration: none; }

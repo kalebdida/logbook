@@ -16,6 +16,7 @@ from app.models.habit import Habit, HabitLog
 from app.models.pomodoro_day import PomodoroDay
 from app.models.prayer import Prayer
 from app.models.task import Task
+from app.models.telegram import AppSetting, TelegramLink
 from app.models.user import Invite, User
 
-__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer"]
+__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer", "AppSetting", "TelegramLink"]

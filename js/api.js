@@ -509,3 +509,16 @@ export async function apiUpdatePrayer(id, values) {
 export async function apiDeletePrayer(id) {
   await request("/prayers/" + id, { method: "DELETE" });
 }
+
+// ---------- telegram (server only) ----------
+
+export function apiTelegramStatus() { return request("/telegram/status"); }
+export function apiTelegramSetup(token) { return request("/telegram/setup", Object.assign({ method: "POST" }, jsonBody({ token: token }))); }
+export function apiTelegramRemove() { return request("/telegram/setup", { method: "DELETE" }); }
+export function apiTelegramLink() {
+  return request("/telegram/link", Object.assign({ method: "POST" }, jsonBody({ tz_minutes: -new Date().getTimezoneOffset() })));
+}
+export function apiTelegramUpdate(patch) {
+  return request("/telegram/link", Object.assign({ method: "PATCH" }, jsonBody(Object.assign({ tz_minutes: -new Date().getTimezoneOffset() }, patch))));
+}
+export function apiTelegramUnlink() { return request("/telegram/link", { method: "DELETE" }); }

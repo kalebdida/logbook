@@ -35,6 +35,8 @@ or `<span data-icon="name">` in static HTML.
   `deviceStore.js` route, `api.js` wrapper.
 - `js/bus.js`: `emitChange(kind)` after any write; views listen with `onChange`.
 - `js/prefs.js`: per-browser settings. Journal data never goes in localStorage.
+- `js/cache.js`: server mode keeps the last answer to every read (per account, IndexedDB) so the app opens
+  at once, then revalidates. Add new data paths to its `CACHEABLE` list. Logging out wipes it.
 - Pages are `<section class="nav-page" data-nav-page="...">`; routing is the URL hash.
 - Commands live in `js/palette.js` (`COMMANDS`). Any element with `data-command="id"` runs one.
 - Life areas: `js/categories.js` and `ActivityCategory` in `backend/app/schemas/common.py`. Keep them identical.
@@ -77,6 +79,13 @@ small enough that a cut-off session can pick up from `git log`.
   **Every data query filters on `user_id`**: new routes take `uid = Depends(current_user_id)`, and
   `tests/test_accounts.py` must cover them. The admin never gets an endpoint that reads others' data.
 - AI keys on the server never reach the browser; invited accounts use it only with `LOGBOOK_AI_FOR_EVERYONE`.
+- `app/keepawake.py`: on Render the server pings its own `/ping` every 8 minutes (free plan sleeps after 15).
+- `app/telegram.py`: the Telegram bot. The admin pastes a BotFather token in Settings → Telegram (stored in
+  `app_settings`, never sent to a browser); webhook on a public https server, polling otherwise. Chats link to
+  accounts with one-time codes (`telegram_links`); every handler works only on the linked account's rows.
+  Tests use a fake Telegram (`tests/test_telegram.py`).
+- Daily verse: references in `assets/verse-refs.json` (shared by `js/verse.js` and `app/verses.py`), words
+  from bible-api.com.
 - The static mount serves an allowlist only. Never serve the project root wholesale.
 
 ## Hosting and Android

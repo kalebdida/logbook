@@ -9,7 +9,7 @@ import pytest
 # whole suite against PostgreSQL. Never your real logbook.db.
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{Path(_tmp, 'test.db').as_posix()}"
-for var in ("LOGBOOK_PASSWORD", "LOGBOOK_AI_PROVIDER", "LOGBOOK_AI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
+for var in ("LOGBOOK_SELF_URL", "RENDER_EXTERNAL_URL", "LOGBOOK_PASSWORD", "LOGBOOK_AI_PROVIDER", "LOGBOOK_AI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
             "LOGBOOK_AI_BASE_URL", "LOGBOOK_AI_MODEL", "LOGBOOK_CORS_ORIGINS"):
     os.environ.pop(var, None)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -38,7 +38,12 @@ def client():
     settings.ai_base_url = ""
     settings.ai_model = ""
     from app import ai
+    from app import telegram as bot
     ai.last_check.update(ok=None, detail="")
+    bot.forget_state()
+    bot.codes.clear()
+    bot.history.clear()
+    bot.links_cache = None
     with TestClient(app) as c:  # runs the lifespan: migrations
         yield c
     settings.password = ""

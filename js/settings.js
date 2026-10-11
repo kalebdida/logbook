@@ -13,6 +13,7 @@ import { renderThemeCard } from './themeSettings.js';
 import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
 import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
+import { renderTelegramCard } from './telegramCard.js';
 
 /* Copy this into the browser console on the OLD copy of logbook (the
    page where your old data lives) to download everything it stored. */
@@ -62,6 +63,7 @@ var GROUPS = [
   ["focus", "timer", "Focus"],
   ["account", "users", "Account"],
   ["ai", "sparkles", "AI"],
+  ["telegram", "send", "Telegram"],
   ["data", "archive", "Your data"]
 ];
 
@@ -183,6 +185,9 @@ export function renderSettings() {
     group("ai", "AI companion", "Optional. The companion works without it, using simple local rules.",
       '<section class="settings-card settings-card--wide" id="settingsAI"></section>') +
 
+    group("telegram", "Telegram", "Log time, tasks and prayers from a chat, ask your companion, and get a morning message.",
+      '<section class="settings-card settings-card--wide" id="settingsTelegram"></section>') +
+
     group("data", "Your data", "Where it lives, backups, and the app itself.",
       '<section class="settings-card settings-card--wide" id="settingsStorage"></section>' +
       '<section class="settings-card settings-card--wide">' +
@@ -257,6 +262,7 @@ export function refreshServerCards() {
     if (nav) nav.hidden = off;
   }).catch(warn);
   renderAICard(document.getElementById("settingsAI")).catch(warn);
+  renderTelegramCard(document.getElementById("settingsTelegram")).catch(warn);
 }
 
 async function refreshDbStatus() {

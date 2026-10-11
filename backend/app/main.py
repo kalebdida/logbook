@@ -15,12 +15,14 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  registers every model with Base.metadata
 from app import ai, keepawake
+from app import telegram as telegram_bot
 from app.auth import auth_required, current_user, optional_user, sync_admin
 from app.config import settings
 from app.database import SessionLocal, get_db, run_migrations
 from app.models import Activity, DayRecord, Entry, Goal, Habit, PomodoroDay, Task
 from app.routers import api_router
 from app.routers import auth as auth_router
+from app.routers import telegram as telegram_router
 
 log = logging.getLogger("logbook")
 
@@ -41,8 +43,9 @@ async def lifespan(app: FastAPI):
     # check the AI key once, in the background, so startup isn't held up
     checking = asyncio.create_task(ai.check()) if ai.configured() else None
     awake = keepawake.start()
+    bot = asyncio.create_task(telegram_bot.run())
     yield
-    for task in (checking, awake):
+    for task in (checking, awake, bot):
         if task and not task.done():
             task.cancel()
 
@@ -72,6 +75,7 @@ def cors_options(config=settings) -> dict:
 app.add_middleware(CORSMiddleware, **cors_options())
 
 app.include_router(auth_router.router)
+app.include_router(telegram_router.webhook_router)   # Telegram proves itself with a secret, not a login
 app.include_router(api_router, dependencies=[Depends(current_user)])
 
 
