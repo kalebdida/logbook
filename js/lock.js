@@ -7,6 +7,7 @@ import { icon } from './icons.js';
 import { sceneSvg } from './scene.js';
 import { mountMascot } from './mascot.js';
 import { getPrefs } from './prefs.js';
+import { cacheClear } from './cache.js';
 
 var waiting = null;
 
@@ -44,6 +45,7 @@ function field(label, name, type, autocomplete, iconName, extra) {
    offered for import into whoever logs in next. */
 export function clearLocalTraces() {
   try { sessionStorage.clear(); } catch (e) {}
+  cacheClear();
   try {
     localStorage.removeItem("logbook-ai");
     localStorage.removeItem("logbook-pomodoro");

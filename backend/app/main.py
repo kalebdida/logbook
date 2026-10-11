@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401  registers every model with Base.metadata
-from app import ai
+from app import ai, keepawake
 from app.auth import auth_required, current_user, optional_user, sync_admin
 from app.config import settings
 from app.database import SessionLocal, get_db, run_migrations
@@ -40,9 +40,11 @@ async def lifespan(app: FastAPI):
         log.warning("logbook: using SQLite on Render. Render's disk is wiped on every restart, so set DATABASE_URL to a Postgres database (e.g. Neon) or your data will be lost.")
     # check the AI key once, in the background, so startup isn't held up
     checking = asyncio.create_task(ai.check()) if ai.configured() else None
+    awake = keepawake.start()
     yield
-    if checking and not checking.done():
-        checking.cancel()
+    for task in (checking, awake):
+        if task and not task.done():
+            task.cancel()
 
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
@@ -71,6 +73,12 @@ app.add_middleware(CORSMiddleware, **cors_options())
 
 app.include_router(auth_router.router)
 app.include_router(api_router, dependencies=[Depends(current_user)])
+
+
+@app.get("/ping", tags=["Health"])
+def ping():
+    """Cheap and public: proves the server is up without touching the database."""
+    return {"ok": True}
 
 
 @app.get("/health", tags=["Health"])

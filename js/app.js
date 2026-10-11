@@ -1,7 +1,8 @@
 import { storageWorks } from './storage.js';
-import { resolveConnection, isDevice } from './connection.js';
+import { resolveConnection, isDevice, getConnection } from './connection.js';
 import { initDeviceStore, deviceStorageIsPersistent } from './deviceStore.js';
-import { apiAuthStatus, request } from './api.js';
+import { apiAuthStatus, request, serverGet } from './api.js';
+import { setCacheUser, cacheLoad, setCacheBoot, cacheRevalidate } from './cache.js';
 import { showLock } from './lock.js';
 import { getPrefs } from './prefs.js';
 import { onChange } from './bus.js';
@@ -84,6 +85,23 @@ function safe(label, fn) {
   }
 }
 
+async function openFromCache() {
+  var c = getConnection();
+  if (c.mode !== "server" || !c.token || !c.username) return false;
+  setCacheUser(c.username);
+  if (!(await cacheLoad())) return false;
+  document.body.dataset.mode = "server";
+  setCacheBoot(true);
+  try {
+    await loadEntries();
+    startBoot(getEntries().length);
+    await renderEverything();
+  } finally {
+    setCacheBoot(false);
+  }
+  return true;
+}
+
 async function init() {
   safe("theme", initThemes);
   safe("icons", paintIcons);
@@ -101,6 +119,11 @@ async function init() {
   Promise.resolve(safe("music", startMusic)).catch(warn);
   safe("settings", renderSettings);
   safe("journal", wireJournal);
+
+  // open at once from the last copy of this account's data, if there is one,
+  // then check with the server in the background
+  var fromCache = false;
+  try { fromCache = await openFromCache(); } catch (e) { warn(e); setCacheBoot(false); }
 
   // where does the data live? (server, or this device)
   await resolveConnection();
@@ -123,16 +146,30 @@ async function init() {
   // handy for debugging in the browser console, and used by the tests
   window.__logbook = { request: request, mode: isDevice() ? "device" : "server" };
 
+  // remember what the server says for next time (accounts only)
+  if (!isDevice() && getConnection().token) setCacheUser(getConnection().username || "");
   var online = await checkBackend();
-  if (online) {
-    try {
-      await loadEntries();
-    } catch (e) {
-      warn(e);
+  if (fromCache) {
+    // the server answered: draw again only if something changed meanwhile
+    if (online) {
+      var changed = await cacheRevalidate(serverGet).catch(function (e) { warn(e); return true; });
+      if (changed) {
+        await loadEntries().catch(warn);
+        invalidateGoals();
+        await renderEverything();
+      }
     }
+  } else {
+    if (online) {
+      try {
+        await loadEntries();
+      } catch (e) {
+        warn(e);
+      }
+    }
+    startBoot(getEntries().length);
+    if (online) await renderEverything();
   }
-  startBoot(getEntries().length);
-  if (online) await renderEverything();
   startStatusWatch();
   safe("reminders", startReminders);
 

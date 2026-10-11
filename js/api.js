@@ -11,13 +11,28 @@
 
 import { getConnection, serverBase, isDevice } from './connection.js';
 import { deviceRequest } from './deviceStore.js';
+import { cacheable, cacheRead, cacheWrite } from './cache.js';
 
 /* Every request goes through here: to the backend over HTTP in server
    mode, or to the in-browser copy of the API in device mode
    (deviceStore.js). Nothing else in the app needs to know which. */
 export async function request(path, options) {
   if (isDevice()) return deviceRequest(path, options);
+  var read = !options || !options.method || options.method === "GET";
+  if (read && cacheable(path)) {
+    // opening: the last copy answers at once (cache.js), the server is asked after
+    var copy = cacheRead(path);
+    if (copy !== undefined) return copy;
+    var data = await serverRequest(serverBase(), getConnection().token, path, options);
+    cacheWrite(path, data);
+    return data;
+  }
   return serverRequest(serverBase(), getConnection().token, path, options);
+}
+
+/* A fresh read straight from the server, for checking the copy. */
+export function serverGet(path) {
+  return serverRequest(serverBase(), getConnection().token, path);
 }
 
 export async function serverRequest(base, token, path, options) {

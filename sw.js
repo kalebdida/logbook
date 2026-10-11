@@ -11,7 +11,7 @@ var VERSION = "dev";
 var CACHE = "logbook-" + VERSION;
 var CORE = ["./", "index.html", "manifest.webmanifest", "assets/icon-192.png", "assets/favicon.svg"];
 var STATIC = /\.(?:html|css|js|mjs|svg|png|jpg|jpeg|webp|ico|woff2?|webmanifest|json)$/;
-var API_PREFIXES = ["/entries", "/days", "/tasks", "/activities", "/goals", "/pomodoro", "/habits", "/backup", "/auth", "/ai", "/health", "/docs", "/openapi.json"];
+var API_PREFIXES = ["/entries", "/days", "/tasks", "/activities", "/goals", "/pomodoro", "/habits", "/deadlines", "/prayers", "/verse", "/telegram", "/backup", "/auth", "/ai", "/health", "/ping", "/docs", "/openapi.json"];
 
 self.addEventListener("install", function (event) {
   event.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).catch(function () {}));

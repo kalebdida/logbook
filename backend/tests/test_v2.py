@@ -384,3 +384,45 @@ def test_concurrent_check_ins_dont_fail(client):
         codes = list(pool.map(lambda _: client.put(f"/habits/{habit['id']}/days/2026-10-01").status_code, range(8)))
     assert set(codes) == {200}
     assert len(client.get("/habits/logs").json()) == 1
+
+
+def test_ping_is_public_and_cheap(client, monkeypatch):
+    settings.password = "pw-for-ping-test-1"
+    try:
+        assert client.get("/ping").json() == {"ok": True}
+    finally:
+        settings.password = ""
+
+
+def test_keep_awake_pings_its_own_address(monkeypatch):
+    import asyncio
+    from app import keepawake
+
+    monkeypatch.delenv("LOGBOOK_SELF_URL", raising=False)
+    monkeypatch.delenv("RENDER_EXTERNAL_URL", raising=False)
+    assert keepawake.self_url() == ""
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://example.onrender.com/")
+    assert keepawake.self_url() == "https://example.onrender.com"
+
+    seen = []
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def get(self, url):
+            seen.append(url)
+            if len(seen) == 1:
+                raise httpx.ConnectError("asleep")     # a failure never stops it
+            return httpx.Response(200, json={"ok": True})
+
+    monkeypatch.setattr(keepawake.httpx, "AsyncClient", FakeClient)
+
+    async def go():
+        task = asyncio.create_task(keepawake.run("https://example.onrender.com", every=0.01))
+        while len(seen) < 3:
+            await asyncio.sleep(0.01)
+        task.cancel()
+
+    asyncio.run(go())
+    assert seen[:3] == ["https://example.onrender.com/ping"] * 3
