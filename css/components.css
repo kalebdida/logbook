@@ -2445,3 +2445,140 @@ body.is-dimming::after {
 .jar-add .text-input:focus { border-style: solid; }
 .jar-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) { grid-template-columns: 1fr; }
 .jar-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) .tool-btn { display: none; }
+
+/* =============== photo of the day (js/photo.js) =============== */
+.polaroid {
+  display: block;
+  width: min(100%, 260px);
+  margin: 14px auto 4px;
+  padding: 10px 10px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 92%, var(--warm));
+  box-shadow: 0 18px 30px -18px rgb(var(--shade-rgb) / 0.9), 0 2px 0 rgb(var(--shade-rgb) / 0.25);
+  rotate: -2deg;
+  transition: rotate 0.4s var(--ease-spring), translate 0.4s var(--ease-spring);
+}
+.polaroid:hover { rotate: 0deg; translate: 0 -2px; }
+.polaroid-img { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; background: color-mix(in srgb, var(--bg) 85%, var(--text)); }
+.polaroid-img img { width: 100%; height: 100%; object-fit: cover; }
+.polaroid figcaption { padding: 8px 2px 6px; }
+.polaroid-caption {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: color-mix(in srgb, var(--bg) 85%, var(--text));
+  font: 500 14px/1.3 var(--font-ui);
+  text-align: center;
+}
+.polaroid-caption::placeholder { color: color-mix(in srgb, var(--bg) 45%, var(--text)); }
+.polaroid.is-empty { cursor: pointer; background: none; border: 1.5px dashed rgb(var(--ink-rgb) / 0.2); box-shadow: none; }
+.polaroid.is-empty .polaroid-img { gap: 8px; align-content: center; background: rgb(var(--ink-rgb) / 0.03); color: var(--text-3); font-size: 13.5px; }
+.polaroid.is-empty .polaroid-img .i { font-size: 26px; color: var(--accent); }
+.polaroid.is-empty figcaption { color: var(--faint); font-size: 12.5px; text-align: center; }
+.polaroid.is-empty:hover { border-color: rgb(var(--accent-rgb) / 0.5); }
+.polaroid.is-empty:focus-within { outline: 2px solid var(--accent2); outline-offset: 3px; }
+/* a new photo develops like instant film */
+.polaroid.is-developing img { animation: develop 3.2s ease-out both; }
+.photo-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 12px; }
+.pw-day { aspect-ratio: 1; border-radius: 6px; background: rgb(var(--ink-rgb) / 0.05) center / cover no-repeat; }
+.pw-day.is-today { box-shadow: 0 0 0 1.5px rgb(var(--accent-rgb) / 0.6); }
+.pw-day.has-photo { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 90%, var(--warm)); }
+.viewer-photo { margin: 6px auto 18px; width: min(100%, 300px); }
+/* on the calendar: the day's photo, faint, behind it */
+.cal-cell.has-photo { background-image: linear-gradient(rgb(var(--bg-rgb) / 0.45), rgb(var(--bg-rgb) / 0.8)), var(--photo); background-size: cover; background-position: center; }
+
+/* =============== the monthly letter (js/letters.js) =============== */
+.letter-card { padding: 14px; }
+.envelope { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 16px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.envelope:focus-visible { outline: 2px solid var(--accent2); outline-offset: 4px; border-radius: var(--r-md); }
+.envelope-svg { width: 120px; height: auto; overflow: visible; animation: envelopeFloat 4s ease-in-out infinite; }
+.env-back { fill: color-mix(in srgb, var(--warm) 30%, var(--surface)); }
+.env-paper { fill: color-mix(in srgb, var(--text) 92%, var(--warm)); transform-box: fill-box; transition: transform 0.6s var(--ease-out) 0.25s; }
+.env-front { fill: color-mix(in srgb, var(--warm) 42%, var(--surface)); }
+.env-flap { fill: color-mix(in srgb, var(--warm) 52%, var(--surface)); transform-box: view-box; transform-origin: 100px 14px; transition: transform 0.45s var(--ease-out); }
+.env-seal circle { fill: var(--danger); }
+.env-seal path { fill: color-mix(in srgb, var(--danger) 55%, rgb(var(--shade-rgb))); }
+.env-seal { transition: opacity 0.2s ease; }
+.envelope:hover .env-seal circle { fill: color-mix(in srgb, var(--danger) 85%, var(--accent)); }
+.envelope-text { display: grid; gap: 4px; }
+.envelope-text b { color: var(--text); font-size: 16px; }
+.envelope-text span { color: var(--text-3); font-size: 13.5px; }
+.envelope.is-opening .env-seal { opacity: 0; }
+.envelope.is-opening .env-flap { transform: scaleY(-1); }
+.envelope.is-opening .env-paper { transform: translateY(-34px); }
+.envelope.is-opening .envelope-svg { animation: none; }
+.letter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: auto;
+  background: rgb(var(--bg-rgb) / 0.78);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.35s ease both;
+}
+.letter-overlay.is-leaving { animation: lockOut 0.3s ease both; }
+.letter-paper {
+  position: relative;
+  width: min(560px, 100%);
+  padding: clamp(28px, 6vw, 48px) clamp(22px, 6vw, 52px);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text) 94%, var(--warm));
+  color: color-mix(in srgb, var(--bg) 92%, var(--text));
+  box-shadow: 0 40px 80px -30px rgb(var(--shade-rgb) / 0.9);
+  animation: letterRise 0.8s var(--ease-out) both;
+}
+.letter-close { position: absolute; top: 10px; right: 10px; color: color-mix(in srgb, var(--bg) 60%, var(--text)); }
+.letter-month { margin-bottom: 18px; color: color-mix(in srgb, var(--warm) 60%, var(--bg)); font-size: 13px; font-weight: 600; }
+.letter-text { font-family: var(--serif); font-size: 17px; line-height: 1.85; }
+.letter-text p + p { margin-top: 1em; }
+
+/* =============== let something go (js/lantern.js) =============== */
+.dump-lantern { margin-left: auto; font-size: 13px; }
+.lantern-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--scene-sky-top), var(--scene-sky-mid) 70%, var(--scene-sky-low));
+  animation: fadeIn 0.6s ease both;
+}
+.lantern-overlay.is-leaving { animation: lockOut 0.4s ease both; }
+.lantern-scene { position: absolute; inset: 0; pointer-events: none; }
+.lantern-scene::after { content: ""; position: absolute; inset: 0; background: radial-gradient(60% 50% at 50% 42%, rgb(var(--bg-rgb) / 0.55), rgb(var(--bg-rgb) / 0) 75%); }
+.lantern-scene .scene { width: 100%; height: 100%; }
+.lantern-card { position: relative; z-index: 1; display: grid; gap: 14px; width: min(480px, 100%); margin-bottom: 14vh; transition: opacity 0.5s ease, transform 0.6s var(--ease-out); }
+.lantern-ask { color: var(--text); font: 700 clamp(22px, 4vw, 28px)/1.2 var(--font-display); text-align: center; }
+.lantern-text {
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid rgb(var(--warm-rgb) / 0.35);
+  border-radius: var(--r-lg);
+  outline: none;
+  background: rgb(var(--bg-rgb) / 0.55);
+  color: var(--text);
+  font: 400 16px/1.6 var(--font-ui);
+  resize: vertical;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.lantern-text:focus { border-color: rgb(var(--warm-rgb) / 0.7); box-shadow: 0 0 0 4px rgb(var(--warm-rgb) / 0.12); }
+.lantern-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; }
+.lantern-flight { position: absolute; left: 50%; top: 42%; z-index: 2; width: 92px; translate: -50% 0; opacity: 0; pointer-events: none; }
+.lantern-svg { width: 100%; height: auto; overflow: visible; }
+.lantern-glow { fill: rgb(var(--warm-rgb) / 0.35); filter: blur(8px); }
+.lantern-body { fill: color-mix(in srgb, var(--warm) 80%, var(--accent)); }
+.lantern-rib { fill: none; stroke: color-mix(in srgb, var(--warm) 55%, rgb(var(--shade-rgb))); stroke-width: 0.8; opacity: 0.5; }
+.lantern-cap { fill: color-mix(in srgb, var(--warm) 35%, rgb(var(--shade-rgb))); }
+.lantern-flame { fill: var(--accent); animation: flick 1.6s ease-in-out infinite; }
+.lantern-after { position: absolute; left: 0; right: 0; top: 40%; z-index: 1; color: var(--text-2); font-size: 18px; text-align: center; opacity: 0; }
+.lantern-overlay.is-releasing .lantern-card { opacity: 0; transform: scale(0.6) translateY(30px); pointer-events: none; }
+.lantern-overlay.is-releasing .lantern-flight { animation: lanternRise 5s cubic-bezier(0.35, 0, 0.4, 1) 0.35s both; }
+.lantern-overlay.is-releasing .lantern-after { animation: fadeIn 1s ease 2.6s both; }

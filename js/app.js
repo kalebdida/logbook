@@ -25,6 +25,9 @@ import { renderPrayers } from './prayers.js';
 import { loadProfile } from './profile.js';
 import { renderAgeClock } from './ageClock.js';
 import { renderSleep } from './sleep.js';
+import { renderPhoto } from './photo.js';
+import { renderLetter } from './letters.js';
+import { startLivingScene, refreshScene } from './livingScene.js';
 import { renderGratitude, offerGratitude } from './gratitude.js';
 import { startWidget, updateWidget } from './widget.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
@@ -80,6 +83,7 @@ async function renderEverything() {
     loadProfile().then(renderAgeClock),
     renderSleep(),
     renderGratitude(),
+    renderPhoto(),
     renderPrayers(),
     renderGoals(),
     renderCalendar()
@@ -88,6 +92,8 @@ async function renderEverything() {
   await Promise.all([renderDensityMap(), renderAnalytics()].map(function (p) { return p.catch(warn); }));
   safe("today console", refreshReadout); // focus totals from the backend are known now
   safe("home screen widget", updateWidget);
+  safe("living scene", startLivingScene);
+  renderLetter().catch(warn);
 }
 
 /* One broken module should never stop the rest of the app from starting. */
@@ -213,6 +219,7 @@ async function init() {
     if (change.kind === "entries") renderEntryViews();
     if (change.kind === "deadlines") safe("today console", refreshReadout);
     if (change.kind === "entries") safe("gratitude jar", offerGratitude);
+    if (change.kind === "entries" || change.kind === "habits" || change.kind === "import") safe("living scene", refreshScene);
     refreshHeavy();
   });
 

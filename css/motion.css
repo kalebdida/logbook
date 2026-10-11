@@ -262,7 +262,7 @@ body:not(.is-booted) #app { opacity: 0; }
   }
 }
 /* the dashboard scene drifts a touch with the pointer */
-.hero-scene .scene {
+.hero-scene :is(.scene, .my-sky) {
   transform: translate3d(calc(var(--px, 0) * -12px), calc(var(--py, 0) * -6px), 0) scale(1.03);
   transition: transform 1.4s var(--ease-out);
 }
@@ -310,4 +310,41 @@ body:not(.is-booted) #app { opacity: 0; }
   0% { opacity: 0; transform: translate(-50%, 30px) scale(0.6); }
   25% { opacity: 1; }
   100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -90px) scale(1.1); }
+}
+
+@keyframes develop {
+  0% { filter: brightness(2.2) contrast(0.3) saturate(0) blur(6px); }
+  40% { filter: brightness(1.4) contrast(0.7) saturate(0.4) sepia(0.5) blur(2px); }
+  100% { filter: none; }
+}
+@keyframes envelopeFloat {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-3px) rotate(1deg); }
+}
+@keyframes letterRise {
+  from { opacity: 0; transform: translateY(60px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes lanternRise {
+  0% { opacity: 0; transform: translateY(40px) scale(0.6); }
+  12% { opacity: 1; transform: translateY(0) scale(1); }
+  35% { transform: translate(14px, -18vh) rotate(4deg) scale(0.92); }
+  60% { transform: translate(-10px, -36vh) rotate(-3deg) scale(0.75); }
+  85% { opacity: 0.9; transform: translate(8px, -52vh) rotate(2deg) scale(0.5); }
+  100% { opacity: 0; transform: translate(0, -62vh) scale(0.35); }
+}
+
+@keyframes myTwinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.45; }
+}
+@keyframes starBorn {
+  0% { opacity: 0; transform: scale(0.2); }
+  35% { opacity: 1; transform: scale(3.2); filter: drop-shadow(0 0 8px rgb(var(--accent-rgb) / 1)); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes shopGlow {
+  0% { filter: none; }
+  30% { filter: brightness(1.5) drop-shadow(0 0 14px rgb(var(--accent-rgb) / 0.9)); }
+  100% { filter: brightness(1.15); }
 }

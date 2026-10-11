@@ -1,4 +1,4 @@
-import { apiListEntries, apiGetDay, apiListTasks, apiListActivities, apiGetPomodoroDay, apiListHabits, apiHabitLogs, apiListDeadlines } from './api.js';
+import { apiListEntries, apiGetDay, apiListTasks, apiListActivities, apiGetPomodoroDay, apiListHabits, apiHabitLogs, apiListDeadlines, apiPhotoUrl } from './api.js';
 import { KINDS, daysUntil, countdownLabel, matchesDay, displayTitle } from './deadlines.js';
 import { dateKey, deriveTimelineFromEntries, deriveMoodFromEntries } from './dayRecord.js';
 import { categoryById, habitIcon } from './categories.js';
@@ -57,7 +57,8 @@ export async function openDayViewer(dateStr) {
       apiListActivities({ day_date: dateStr }),
       apiGetPomodoroDay(dateStr),
       Promise.all([apiListHabits(true), apiHabitLogs(dateStr, dateStr)]).catch(function () { return [[], []]; }),
-      apiListDeadlines().then(function (all) { return all.filter(function (d) { return matchesDay(d, dateStr); }); }).catch(function () { return []; })
+      apiListDeadlines().then(function (all) { return all.filter(function (d) { return matchesDay(d, dateStr); }); }).catch(function () { return []; }),
+      apiPhotoUrl(dateStr).catch(function () { return null; })
     ]);
   } catch (e) {
     overlay.querySelector(".viewer-panel").innerHTML = '<p class="viewer-empty">Couldn\'t load this day. Is the backend running?</p>';
@@ -118,6 +119,7 @@ export async function openDayViewer(dateStr) {
 
   var n = day.nightReflection;
   var body =
+    (data[7] ? '<figure class="polaroid viewer-photo"><span class="polaroid-img"><img src="' + escapeHtml(data[7]) + '" alt="Photo of the day"></span></figure>' : "") +
     block("Due", duesHtml) +
     block("Intention", text(day.morning.intention)) +
     block("Main focus", text(day.morning.mainFocus)) +

@@ -58,6 +58,8 @@ function keyLabel(key) {
 }
 
 var COMMANDS = [
+  { id: "lantern", title: "Let something go", keys: "lantern release worry heavy vent", run: function () { import('./lantern.js').then(function (m) { m.openLantern(); }); } },
+  { id: "letter", title: "Read last month's letter", keys: "letter month review yuki mochi", run: function () { import('./letters.js').then(function (m) { m.openLetter(); }); } },
   { id: "write", title: "Write an entry", keys: "journal new log", key: "n", run: function () { navigateTo("journal"); afterNav(function () { focusComposer(); }); } },
   { id: "write-good", title: "Write a good-day entry", keys: "good mood sun", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
   { id: "write-okay", title: "Write an okay-day entry", keys: "okay mood cloud", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },

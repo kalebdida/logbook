@@ -1,4 +1,4 @@
-import { apiListEntries, apiListDeadlines } from './api.js';
+import { apiListEntries, apiListDeadlines, apiListPhotos, apiPhotoUrl } from './api.js';
 import { KINDS, displayTitle } from './deadlines.js';
 import { STATUS, moodTag } from './entries.js';
 import { icon } from './icons.js';
@@ -248,6 +248,23 @@ function renderYearView(container, entries, dayEntryMap, now) {
     "</div>";
 }
 
+/* days with a photo show it, faintly, behind the day */
+function paintPhotos(container) {
+  var y = viewYear, m = viewMonth;
+  var start = y + "-" + String(m + 1).padStart(2, "0") + "-01";
+  var end = dateKey(new Date(y, m + 1, 0));
+  apiListPhotos(start, end).then(function (list) {
+    list.forEach(function (p) {
+      var cell = container.querySelector('.cal-cell[data-date="' + p.date + '"]');
+      if (!cell) return;
+      apiPhotoUrl(p.date, "thumb").then(function (u) {
+        cell.classList.add("has-photo");
+        cell.style.setProperty("--photo", "url(" + JSON.stringify(u) + ")");
+      }).catch(function () {});
+    });
+  }).catch(function () {});
+}
+
 export async function renderCalendar() {
   var container = document.getElementById("calendarSection");
   if (!container) return;
@@ -278,6 +295,7 @@ export async function renderCalendar() {
     if (yearScroll) yearScroll.scrollLeft = yearScroll.scrollWidth;
   } else {
     renderMonthView(container, entries, dayEntryMap, now);
+    paintPhotos(container);
   }
 
   if (!listenerAttached) {

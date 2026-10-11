@@ -118,7 +118,8 @@ export async function renderDailyPage() {
   var dump = document.getElementById("brainDumpSection");
   if (dump) {
     dump.innerHTML =
-      '<header class="card-head"><h3 class="card-title">' + icon("cloud") + "<span>Brain dump</span></h3></header>" +
+      '<header class="card-head"><h3 class="card-title">' + icon("cloud") + "<span>Brain dump</span></h3>" +
+        '<button type="button" class="link-btn dump-lantern" data-command="lantern">Let something go</button></header>' +
       '<textarea id="brainDump" class="dump-text" rows="4" placeholder="Empty your head here. One thought per line."></textarea>' +
       '<div class="dump-foot"><span class="card-meta">Lines can become tasks</span>' +
       '<button type="button" class="tool-btn tool-btn--sm" id="dumpToTasks" hidden>' + icon("list-checks") + "<span>Make tasks</span></button></div>";
