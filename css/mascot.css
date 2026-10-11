@@ -118,10 +118,11 @@ html[data-theme-mode="light"] .mascot {
 .mascot-bubble.is-leaving { animation: mascotBubbleOut 0.22s ease both; }
 .mascot.is-sleeping .mascot-bubble { bottom: calc(100% - var(--m-w) * 0.4); }
 
-/* focus: the bubble opens to the left, beside the cat */
-.mascot--focus .mascot-bubble { right: calc(100% + 4px); bottom: calc(var(--m-w) * 0.4); max-width: 200px; transform-origin: 100% 60%; }
-.mascot--focus .mascot-bubble::after { right: -5px; bottom: 12px; transform: rotate(-45deg); }
-.mascot--focus.is-sleeping .mascot-bubble { bottom: calc(var(--m-w) * 0.16); }
+/* focus: the bubble hangs below the cat, inside the timer card, so it never
+   reaches up into the page title */
+.mascot--focus .mascot-bubble { top: calc(100% + 6px); right: 0; bottom: auto; max-width: 220px; transform-origin: calc(100% - 22px) 0; }
+.mascot--focus .mascot-bubble::after { top: -5px; right: 26px; bottom: auto; transform: rotate(-135deg); }
+.mascot--focus.is-sleeping .mascot-bubble { top: calc(100% + 6px); bottom: auto; }
 
 @media (max-width: 760px) {
   /* small screens: the bubble hangs below the cat, pointing up */

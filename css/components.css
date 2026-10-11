@@ -1645,7 +1645,7 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
 .storage-risk { margin: 4px 0 0; padding-left: 19px; color: var(--warm-text); }
 .connect-form .primary-btn { margin-top: 12px; }
 .select-input--wide { max-width: 280px; }
-.reminder-controls .text-input.text-input--time { flex: none; width: 116px; }
+.reminder-controls .text-input.text-input--time { flex: none; width: 150px; min-width: 150px; font-variant-numeric: tabular-nums; }
 .reminder-row { flex-wrap: wrap; }
 .reminder-row .setting-text { flex: 1 1 150px; }
 .reminder-controls { display: flex; flex: none; align-items: center; gap: 10px; }
