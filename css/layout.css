@@ -572,3 +572,18 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 @media (hover: none) and (pointer: coarse) {
   .form-hint, .header-cmd kbd, .nav-key, .search-hint-keys { display: none !important; }
 }
+
+/* reconnecting: calm and small, never an alarm */
+#storageWarning.is-reconnecting {
+  display: flex; align-items: center; gap: 10px;
+  width: fit-content; max-width: 100%;
+  padding: 9px 16px;
+  border-color: rgb(var(--accent2-rgb) / 0.3);
+  border-radius: var(--r-pill);
+  background: rgb(var(--accent2-rgb) / 0.08);
+  color: var(--muted);
+  animation: fadeIn 0.3s ease both;
+}
+#storageWarning.is-reconnecting[hidden] { display: none !important; }
+.reconnect-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); animation: breathe 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .reconnect-dot { animation: none; } }

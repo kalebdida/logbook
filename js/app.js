@@ -229,6 +229,21 @@ async function init() {
     refreshHeavy();
   });
 
+  // the server knew something newer than the copy we showed: draw again,
+  // but never under someone's fingers
+  var pendingFresh = false;
+  async function redrawFresh() {
+    var a = document.activeElement;
+    if (a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT" || a.isContentEditable)) {
+      if (!pendingFresh) { pendingFresh = true; a.addEventListener("blur", function () { pendingFresh = false; redrawFresh(); }, { once: true }); }
+      return;
+    }
+    await loadEntries().catch(warn);
+    invalidateGoals();
+    await renderEverything();
+  }
+  document.addEventListener("logbook:fresh-data", function () { redrawFresh().catch(warn); });
+
   document.addEventListener("logbook:auth-required", async function () {
     await showLock("expired");
     refreshServerCards();

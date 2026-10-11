@@ -625,6 +625,16 @@ async def morning_message(db: Session, user: User, tz: int) -> str:
 
 # ---------- handling messages ----------
 
+def cheer(total_minutes: int) -> str:
+    """A small, friendly word after logging, a bit warmer the more the day holds."""
+    import random
+    if total_minutes >= 240:
+        return random.choice(["Big day. Proud of you.", "That's a serious day of work 🔥", "Look at you go. Rest a bit too, okay?"])
+    if total_minutes >= 90:
+        return random.choice(["Nice, keep it rolling.", "Solid. It adds up.", "Good stuff 👏"])
+    return random.choice(["Every bit counts.", "Good start.", "Nice, one step at a time."])
+
+
 def pet_name(db: Session, uid: int) -> str:
     prof = db.get(Profile, uid)
     return (prof.pet_name if prof and prof.pet_name else "") or "Mochi"
@@ -636,7 +646,7 @@ def allowed_ai(user: User) -> bool:
 
 async def companion_reply(db: Session, user: User, link: TelegramLink, text: str) -> str:
     if not allowed_ai(user):
-        return "The companion needs the AI turned on for your account. Meanwhile: /help shows what I can do."
+        return "I can't really chat yet, the AI isn't switched on for your account 😿 I can still save things for you though. /help shows how."
     now = time.time()
     recent = ai_calls.setdefault(link.chat_id, deque(maxlen=40))
     while recent and now - recent[0] > 3600:
@@ -648,11 +658,18 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
     turns.append({"role": "user", "content": text[:4000]})
     name = pet_name(db, user.id)
     system = (
-        f"You are {name}, the small tabby cat who keeps {user.username} company inside Logbook, their private journal app. "
-        f"You're talking on Telegram. If asked, your name is {name}. You don't meow or roleplay much; "
-        "reply like a warm, honest friend: short (under 120 words unless asked for more), plain words, no lists "
-        "unless they help, no markdown headings. Use what you know about their day below; never invent facts about them. "
-        "If they want to record something, you can point them to a command: /log, /task, /j, /pray, /due.\n\n"
+        f"You are {name}, the little cat who lives in Logbook, {user.username}'s private journal app, and their close friend. "
+        f"You're texting on Telegram. If asked, your name is {name}.\n"
+        "How you talk: like a real friend texting, never like an assistant or a customer-support bot. Warm, sweet, a bit playful, "
+        "casual and human. Short messages (usually 1 to 4 sentences, under 90 words unless they ask for more). "
+        "No lists, no headings, no 'Great question', no 'I'm here to help', no 'As an AI'. An emoji now and then is fine, not every line. "
+        "Match their energy and language: if they write casually, be casual back.\n"
+        "What you do: notice how they're doing and say it. Cheer their wins, even small ones, specifically. When they're down, "
+        "be gentle first, then (if it fits) one small practical step. When they ask for advice, give real, honest advice like a "
+        "friend who cares, not a lecture; it's fine to disagree kindly. Sometimes end with one easy question back so it feels "
+        "like a conversation. If they bring up their faith, meet them there warmly.\n"
+        "Use what you know about their day below and mention it naturally; never invent facts about them. "
+        "If they want to save something, mention the command casually: /log, /task, /j, /pray, /due.\n\n"
         + brief_for_ai(db, user, link.tz_minutes)
     )
     try:
@@ -660,7 +677,7 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
     except ai.AIError as exc:
         turns.pop()
         log.warning("logbook: telegram companion failed: %s", str(exc)[:200])
-        return "I couldn't think of a reply just now. Try again in a minute."
+        return "My brain blanked for a sec 😅 try me again in a minute?"
     turns.append({"role": "assistant", "content": reply})
     return esc(reply)
 
@@ -688,7 +705,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         db.commit()
         total = sum(a.duration_minutes or 0 for a in db.query(Activity).filter(Activity.user_id == uid, Activity.day_date == today))
         what = (minutes_label(minutes) + " of " if minutes else "") + (AREAS[area].lower() if area else "time")
-        text = f"🕒 Logged {what}: <b>{esc(title)}</b>" + (f"\nToday so far: {minutes_label(total)}" if total else "")
+        text = f"🕒 Logged {what}: <b>{esc(title)}</b>" + (f"\nToday so far: {minutes_label(total)}. {cheer(total)}" if total else "")
         buttons = None
         if not area:
             text += "\nWhich area?"
@@ -723,7 +740,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         entry = Entry(user_id=uid, occurred_at=datetime.now(timezone.utc), mood="okay", text=arg[:20000])
         db.add(entry)
         db.commit()
-        await send(chat, "📝 Saved to your journal. How did today feel?",
+        await send(chat, "📝 Got it, saved to your journal. How did today feel?",
                    [[{"text": label, "callback_data": f"m:{entry.id}:{mood}"} for mood, label in MOODS.items()]])
         return
 
@@ -734,7 +751,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         rec = ensure_day(db, uid, today)
         rec.brain_dump = (rec.brain_dump.rstrip() + "\n" if rec.brain_dump.strip() else "") + arg.strip()
         db.commit()
-        await send(chat, "🧠 Added to today's brain dump.")
+        await send(chat, "🧠 Dropped it in today's brain dump. Lighter now?")
         return
 
     if cmd == "pray":
@@ -744,7 +761,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         now = datetime.now(timezone.utc)
         db.add(Prayer(user_id=uid, text=arg.strip()[:4000], created_at=now, updated_at=now))
         db.commit()
-        await send(chat, "🙏 Added to your prayers.")
+        await send(chat, "🙏 Added to your prayers. Praying with you.")
         return
 
     if cmd == "prayers":
@@ -833,7 +850,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         rec.bed_at, rec.wake_at = datetime.now(timezone.utc), None
         db.merge(rec)
         db.commit()
-        await send(chat, "🌙 Goodnight. Send /wake when you're up and I'll tell you how long you slept.")
+        await send(chat, "🌙 Goodnight! You did enough today. Send /wake when you're up and I'll tell you how long you slept.")
         return
 
     if cmd == "wake":
@@ -852,7 +869,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
             await send(chat, "That doesn't look like one night's sleep. Log it in the app instead?")
             return
         db.commit()
-        await send(chat, f"☀️ Good morning. You slept <b>{minutes_label(mins)}</b>." + (" Nice." if mins >= 420 else " Go easy today."))
+        await send(chat, f"☀️ Morning! You slept <b>{minutes_label(mins)}</b>." + (" That's a good night 😌" if mins >= 420 else " A bit short, so go easy on yourself today. Early night later?"))
         return
 
     if cmd in ("grateful", "thanks", "gratitude"):
@@ -899,7 +916,7 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         await send(chat, "Disconnected. Your Logbook is untouched. Connect again from Logbook's settings.")
         return
 
-    await send(chat, "I don't know that one. /help shows everything.")
+    await send(chat, "Hmm, I don't know that one 😅 /help has everything I can do.")
 
 
 async def handle_callback(db: Session, user: User, link: TelegramLink, cb: dict) -> None:

@@ -11,7 +11,7 @@
 
 import { getConnection, serverBase, isDevice } from './connection.js';
 import { deviceRequest } from './deviceStore.js';
-import { cacheable, cacheRead, cacheWrite } from './cache.js';
+import { cacheable, cacheRead, cacheWrite, cachePeek, cacheForget } from './cache.js';
 
 /* Every request goes through here: to the backend over HTTP in server
    mode, or to the in-browser copy of the API in device mode
@@ -23,11 +23,32 @@ export async function request(path, options) {
     // opening: the last copy answers at once (cache.js), the server is asked after
     var copy = cacheRead(path);
     if (copy !== undefined) return copy;
-    var data = await serverRequest(serverBase(), getConnection().token, path, options);
-    cacheWrite(path, data);
-    return data;
+    // after opening too: answer from the copy now, check the server behind it,
+    // and tell the app if the server knew something newer
+    var seen = cachePeek(path);
+    var fresh = serverRequest(serverBase(), getConnection().token, path, options).then(function (data) {
+      if (cacheWrite(path, data) && seen !== undefined) freshData(path);
+      return data;
+    });
+    if (seen !== undefined) { fresh.catch(function () {}); return seen; }
+    return fresh;
   }
-  return serverRequest(serverBase(), getConnection().token, path, options);
+  if (!read) cacheForget(path);
+  try {
+    return await serverRequest(serverBase(), getConnection().token, path, options);
+  } finally {
+    if (!read) cacheForget(path);
+  }
+}
+
+var freshTimer = null, freshPaths = [];
+function freshData(path) {
+  freshPaths.push(path);
+  clearTimeout(freshTimer);
+  freshTimer = setTimeout(function () {
+    var paths = freshPaths; freshPaths = [];
+    document.dispatchEvent(new CustomEvent("logbook:fresh-data", { detail: { paths: paths } }));
+  }, 400);
 }
 
 /* A fresh read straight from the server, for checking the copy. */

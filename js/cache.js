@@ -79,6 +79,23 @@ export function cacheRead(path) {
   return JSON.parse(memory.get(path));
 }
 
+/* After opening: the copy for any path, for answering at once while the
+   server is asked behind it. undefined when there's none. */
+export function cachePeek(path) {
+  if (!cacheable(path) || !memory.has(path)) return undefined;
+  return JSON.parse(memory.get(path));
+}
+
+/* A write makes the copies of that kind of thing old: drop them, so the
+   next read waits for the server. Backups and accounts touch everything. */
+export function cacheForget(path) {
+  var kind = (String(path).split(/[/?]/)[1] || "");
+  if (!kind || kind === "backup" || kind === "auth" || kind === "telegram") { memory = new Map(); return; }
+  Array.from(memory.keys()).forEach(function (k) {
+    if ((k.split(/[/?]/)[1] || "") === kind) memory.delete(k);
+  });
+}
+
 /* true when the server's answer differs from the copy */
 export function cacheWrite(path, data) {
   if (!cacheable(path)) return false;

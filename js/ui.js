@@ -2,24 +2,23 @@ import { getPrefs, displayName } from './prefs.js';
 import { isDevice, serverBase } from './connection.js';
 import { sceneSvg } from './scene.js';
 
+/* A calm line, not an alarm: a server restart or a weak connection is
+   usually over in under a minute, and the last copy stays on screen. */
 export function showBackendWarning(show) {
   var warn = document.getElementById("storageWarning");
   if (!warn) return;
+  warn.classList.toggle("is-reconnecting", show !== false);
   if (show === false) {
-    warn.hidden = true;
+    if (!warn.hidden && warn.classList.contains("was-reconnecting")) warn.hidden = true;
+    warn.classList.remove("was-reconnecting");
     return;
   }
   warn.hidden = false;
-  if (serverBase()) {
-    warn.innerHTML = "<strong>Can't reach your logbook server</strong> (" + serverBase().replace(/</g, "") + "). " +
-      "Nothing will load or save until it's back. If it's on a free host it may be waking up, which takes about a minute. " +
-      "This page retries on its own. You can switch to keeping data on this device in settings.";
-    return;
-  }
-  warn.innerHTML =
-    "<strong>Can't reach the logbook backend.</strong> Nothing will load or save until it's back. " +
-    "Start it from the backend folder with <code>uvicorn app.main:app --reload</code>, then open " +
-    "<code>http://127.0.0.1:8000</code>. This page retries on its own.";
+  warn.classList.add("was-reconnecting");
+  var off = typeof navigator !== "undefined" && navigator.onLine === false;
+  warn.innerHTML = '<span class="reconnect-dot" aria-hidden="true"></span><span>' +
+    (off ? "<strong>You're offline.</strong> What you see is your last copy. Saving waits until you're back."
+         : "<strong>Reconnecting…</strong> What you see is your last copy. It saves again in a moment.") + "</span>";
 }
 
 export function showStorageWarning(kind) {

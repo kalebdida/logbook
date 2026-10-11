@@ -224,7 +224,7 @@ def test_plain_words_go_to_the_companion(server, tg, monkeypatch):
     c.post("/telegram/setup", json={"token": TOKEN}, headers=h(admin))
     connect(c, h(admin), chat=8)
     run(message(8, "should I study or rest?"))
-    assert "AI turned on" in tg.last_text()      # no AI on this server
+    assert "switched on for your account" in tg.last_text()      # no AI on this server
     settings.ai_provider, settings.ai_api_key = "anthropic", "test-key"
     monkeypatch.setattr(bot.ai, "chat", fake_chat)
     try:
