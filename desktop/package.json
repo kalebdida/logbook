@@ -1,0 +1,26 @@
+{
+  "name": "logbook-desktop",
+  "productName": "Logbook",
+  "version": "2.3.0",
+  "description": "Logbook for your computer",
+  "author": "Kaleb Dida",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.2.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "com.kaleb.logbook.desktop",
+    "productName": "Logbook",
+    "files": ["main.js", "build/icon.png"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": { "icon": "build/icon.ico", "target": ["nsis", "portable"] },
+    "nsis": { "oneClick": true, "perMachine": false, "shortcutName": "Logbook", "artifactName": "Logbook-Setup-${version}.exe" },
+    "portable": { "artifactName": "Logbook-${version}-portable.exe" }
+  }
+}

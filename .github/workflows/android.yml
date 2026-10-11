@@ -1,4 +1,5 @@
 # Builds an installable Android APK in the cloud: no Android Studio needed.
+# (rebuilt 2026-10-11 for sleep, photos, letters, the living sky)
 # Run it from the Actions tab ("Run workflow"), or push a tag like v2.1.0.
 # Download the APK from the run's "Artifacts" section, copy it to your
 # phone, and open it (allow "install unknown apps" for your file manager).

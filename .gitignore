@@ -13,3 +13,4 @@ ios/
 *.apk
 *.aab
 .logbook-secret
+desktop/dist/

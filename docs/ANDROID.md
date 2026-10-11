@@ -55,3 +55,10 @@ You'd need a signed release build (`./gradlew bundleRelease` with a keystore),
 a Google Play developer account, and a privacy policy page. The app ID is
 `com.kaleb.logbook` (in `capacitor.config.json`); pick the final one before
 the first release, because it can't change afterwards.
+
+## On a PC
+
+`desktop/` is Logbook for Windows (Electron): a window around the website, so
+it's always current and uses the same account. `.github/workflows/desktop.yml`
+builds an installer and a portable .exe on every change to `desktop/` and
+publishes them as a `desktop-v…` release. Locally: `cd desktop && npm install && npm start`.

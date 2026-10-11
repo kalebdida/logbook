@@ -1,0 +1,44 @@
+# Builds Logbook for Windows: an installer (Logbook-Setup-x.exe) and a
+# portable .exe that runs without installing. It's a window around the
+# website, so it's always the newest version. Runs when anything in desktop/
+# (or this file) changes on main, or by hand from the Actions tab.
+name: desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: logbook-windows
+          path: desktop/dist/*.exe
+      - name: publish on a release
+        if: github.event_name == 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="desktop-v2.3.${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" dist/*.exe --target "$GITHUB_SHA" --latest=false \
+            --repo "$GITHUB_REPOSITORY" --title "Logbook for Windows ${TAG#desktop-}" \
+            --notes "Logbook for your PC. Logbook-Setup installs it (Start menu + desktop shortcut); the portable one just runs. Windows may show a SmartScreen warning because the app isn't signed: click More info, then Run anyway. It's the same Logbook as https://kalebdida.github.io/logbook/ and logs into the same account."
