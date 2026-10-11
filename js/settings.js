@@ -87,6 +87,9 @@ var GROUPS = [
 var DASH_CARDS = [
   ["deadlines", "Coming up", "Deadlines and exams, counting down"],
   ["age", "Your clock", "Your age to the second, and the birthday countdown"],
+  ["sleep", "Sleep", "Going to bed, getting up, two weeks of nights"],
+  ["photo", "Photo of the day", "One picture a day, kept like a polaroid"],
+  ["gratitude", "Gratitude jar", "Every thank-you becomes a firefly"],
   ["habits", "Habits", "The daily check-ins"],
   ["prayers", "Prayers", "What you're praying for, and the answers"],
   ["brainDump", "Brain dump", "A place to empty your head"],

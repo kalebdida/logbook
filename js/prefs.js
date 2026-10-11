@@ -24,7 +24,7 @@ export var DEFAULT_PREFS = {
   clock24: true,
   focusScene: true,          // the focus space fills the screen with the scene
   autoBreak: false,          // start the break by itself when focus ends
-  dash: { deadlines: true, age: true, habits: true, prayers: true, brainDump: true, replay: true, log: true, night: true }
+  dash: { deadlines: true, age: true, sleep: true, gratitude: true, photo: true, habits: true, prayers: true, brainDump: true, replay: true, log: true, night: true }
 };
 
 var cache = null;

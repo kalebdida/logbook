@@ -619,3 +619,14 @@ export async function apiOpenLetter(month, text) {
   var l = await request("/letters/" + month + "?tz_minutes=" + tz, Object.assign({ method: "POST" }, jsonBody(text ? { text: text } : {})));
   return { month: l.month, text: l.text, createdAt: l.created_at };
 }
+
+// every line of "grateful for", newest day first (the gratitude jar)
+export async function apiListGratitude() {
+  var rows = await request("/days/?limit=5000");
+  var out = [];
+  rows.forEach(function (d) {
+    String(d.reflection_gratitude || "").split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean)
+      .forEach(function (line) { out.push({ date: d.date, line: line }); });
+  });
+  return out.sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+}

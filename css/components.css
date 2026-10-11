@@ -2128,6 +2128,9 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
 body[data-hide~="habits"] #habitsSection,
 body[data-hide~="deadlines"] #deadlinesSection,
 body[data-hide~="age"] #ageSection,
+body[data-hide~="sleep"] #sleepSection,
+body[data-hide~="photo"] #photoSection,
+body[data-hide~="gratitude"] #gratitudeSection,
 body[data-hide~="prayers"] #prayersSection,
 body[data-hide~="brainDump"] #brainDumpSection,
 body[data-hide~="log"] #logCard,
@@ -2326,3 +2329,119 @@ html[data-theme-mode="light"] .due-add .due-time-input { color-scheme: light; }
 @media (max-width: 760px) {
   .demo-bar { bottom: calc(var(--bar-h) + var(--safe-bottom) + 10px); border-radius: var(--r-lg); font-size: 12.5px; }
 }
+
+/* =============== sleep (js/sleep.js) =============== */
+.sleep-card .habits-head { gap: 8px; }
+.sleep-btn { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.sleep-now { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 10px 0 12px; }
+.sleep-now b { color: var(--text); font: 700 26px/1.1 var(--font-display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sleep-now span { color: var(--text-3); font-size: 13px; }
+/* two weeks of nights, each a little sky; taller sky, longer sleep */
+.night-strip { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); align-items: end; gap: 4px; height: 64px; }
+.night {
+  position: relative;
+  height: 100%;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  overflow: hidden;
+}
+.night.is-empty { border: 1px dashed rgb(var(--ink-rgb) / 0.1); background: none; }
+.night-sky {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--h) * 100%);
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--scene-sky-top), color-mix(in srgb, var(--scene-sky-mid) 80%, var(--accent2)));
+  box-shadow: inset 0 1px 0 rgb(var(--accent2-rgb) / 0.35);
+  transform-origin: bottom;
+  animation: growUp 0.7s var(--ease-out) both;
+}
+.night-sky { animation-delay: calc(var(--i, 0) * 30ms); }
+.night.is-rested .night-sky { box-shadow: inset 0 1px 0 rgb(var(--accent-rgb) / 0.5), 0 0 12px -4px rgb(var(--accent2-rgb) / 0.6); }
+.night-sky i {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--scene-star);
+  animation: twinkle 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--x) * 0.04s);
+}
+.night-axis { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--faint); font-size: 11.5px; }
+.sleep-insight { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: var(--r-md); background: rgb(var(--accent-rgb) / 0.08); color: var(--text-2); font-size: 13px; }
+.sleep-insight .i { flex: none; color: var(--accent); }
+.sleep-form { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 8px; margin-top: 12px; animation: foldIn 0.25s var(--ease-out) both; }
+.sleep-form label { display: grid; gap: 4px; color: var(--text-3); font-size: 12px; }
+.sleep-form .text-input { min-width: 0; color-scheme: dark; }
+html[data-theme-mode="light"] .sleep-form .text-input { color-scheme: light; }
+
+/* going to bed: the whole night dims for a moment */
+body.is-dimming::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: radial-gradient(ellipse at 50% 30%, rgb(var(--shade-rgb) / 0.25), rgb(var(--shade-rgb) / 0.6));
+  pointer-events: none;
+  animation: dimNight 2.6s ease-in-out both;
+}
+
+/* =============== streak charm (js/today.js) =============== */
+.charm { flex: none; align-self: flex-start; width: 15px; margin: -2px -2px 0 2px; line-height: 0; transform-origin: 50% 0; animation: charmSway 5s ease-in-out infinite; }
+.charm-svg { width: 100%; height: auto; overflow: visible; }
+.charm-pouch { fill: color-mix(in srgb, var(--danger) 78%, var(--warm)); stroke: var(--accent); stroke-width: 0.9; }
+.charm-band { fill: none; stroke: var(--accent); stroke-width: 1.1; }
+.charm-mark { fill: var(--accent); }
+.charm-cord { fill: none; stroke: var(--accent); stroke-width: 1.1; }
+.charm-knot { fill: var(--accent); }
+.charm-crack { fill: none; stroke: rgb(var(--shade-rgb) / 0.7); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 20; }
+.charm:not(.is-used) .charm-svg { filter: drop-shadow(0 0 3px rgb(var(--accent-rgb) / 0.55)); }
+.charm.is-used { opacity: 0.5; animation: none; }
+.charm.is-used .charm-crack { stroke-dashoffset: 0; }
+.charm.is-used .charm-svg { filter: grayscale(0.4); }
+/* the moment it saves you: a flash of light, then the crack */
+.charm.is-saving { animation: charmSave 1.8s var(--ease-out) both; }
+.charm.is-saving .charm-crack { transition: stroke-dashoffset 0.5s ease 0.9s; }
+
+/* =============== gratitude jar (js/gratitude.js) =============== */
+.jar-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: center; gap: 16px; margin-top: 10px; }
+.jar-btn { position: relative; display: block; width: 120px; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.jar-btn:focus-visible { outline: 2px solid var(--accent2); outline-offset: 4px; border-radius: var(--r-md); }
+.jar-svg { display: block; width: 100%; height: auto; overflow: visible; transition: transform 0.3s var(--ease-spring); }
+.jar-btn:hover .jar-svg { transform: rotate(-2deg) translateY(-2px); }
+.jar-btn:active .jar-svg { transform: scale(0.96) rotate(1deg); }
+.jar-shadow { fill: rgb(var(--shade-rgb) / 0.35); }
+.jar-glass { fill: rgb(var(--accent2-rgb) / 0.06); stroke: rgb(var(--accent2-rgb) / 0.45); stroke-width: 2; }
+.jar-shine { fill: none; stroke: rgb(var(--white-rgb) / 0.22); stroke-width: 3; stroke-linecap: round; }
+.jar-lid { fill: color-mix(in srgb, var(--warm) 55%, var(--surface)); stroke: color-mix(in srgb, var(--warm) 70%, var(--surface)); stroke-width: 1; }
+.jar-twine { fill: none; stroke: var(--warm); stroke-width: 1.4; opacity: 0.8; }
+.jar-tag-string { stroke: var(--warm); stroke-width: 0.8; opacity: 0.7; }
+.jar-tag { fill: color-mix(in srgb, var(--text) 85%, var(--warm)); opacity: 0.85; }
+.fly { transform-box: fill-box; transform-origin: center; animation: flyDrift var(--d) ease-in-out infinite alternate; animation-delay: var(--delay); }
+.fly-glow { fill: rgb(var(--accent-rgb) / 0.45); filter: blur(2.5px); animation: flyGlow calc(var(--d) * 0.6) ease-in-out infinite alternate; animation-delay: var(--delay); }
+.fly-core { fill: var(--accent); }
+.fly.is-new { animation: flyIn 1.2s var(--ease-out) both, flyDrift var(--d) ease-in-out 1.2s infinite alternate; }
+.jar-escape {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px 4px rgb(var(--accent-rgb) / 0.6);
+  pointer-events: none;
+  animation: flyOut 1.3s var(--ease-out) forwards;
+}
+.jar-side { min-width: 0; }
+.jar-hint { color: var(--text-3); font-size: 13.5px; line-height: 1.55; }
+.jar-note { margin: 0; animation: fadeUp 0.5s var(--ease-out) both; }
+.jar-note blockquote { margin: 0; color: var(--text); font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; }
+.jar-note figcaption { margin-top: 6px; color: var(--accent); font-size: 12.5px; }
+.jar-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 14px; }
+.jar-add .text-input { border-style: dashed; background: transparent; }
+.jar-add .text-input:focus { border-style: solid; }
+.jar-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) { grid-template-columns: 1fr; }
+.jar-add:not(:focus-within):not(:has(.text-input:not(:placeholder-shown))) .tool-btn { display: none; }

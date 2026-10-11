@@ -288,3 +288,18 @@ def test_yuki_backups_and_birthdays_on_telegram(server, tg, monkeypatch):
     run(message(9, "/backup off"))
     assert asyncio.run(bot.morning_tick(sunday + timedelta(days=7))) == 1
     assert len([1 for m, _ in tg.calls if m == "sendDocument"]) == 2
+
+
+def test_streak_forgives_one_missed_day_a_week(client):
+    from app.database import SessionLocal
+    from app.models import Entry
+    today = date(2026, 10, 11)    # a Sunday
+    with SessionLocal() as db:
+        for back in (0, 1, 3, 4, 5):          # missed Friday the 9th: forgiven
+            db.add(Entry(user_id=1, mood="good", text="x", occurred_at=datetime(2026, 10, 11 - back, 9, tzinfo=timezone.utc)))
+        db.commit()
+        assert bot.streak(db, 1, today, 0) == 5
+        db.add(Entry(user_id=1, mood="good", text="x", occurred_at=datetime(2026, 10, 4, 9, tzinfo=timezone.utc)))
+        db.commit()
+        # Monday the 5th is missed too, and that week's charm is already spent on the 9th
+        assert bot.streak(db, 1, today, 0) == 5

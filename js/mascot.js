@@ -702,6 +702,12 @@ export function mountMascot(container, opts) {
     if (kind === "shy" || kind === "unshy") { el.classList.toggle("is-shy", kind === "shy"); if (kind === "unshy") el.classList.remove("is-peek"); return; }
     if (kind === "peek" || kind === "unpeek") { el.classList.toggle("is-peek", kind === "peek"); return; }
     if (kind === "sad") { el.classList.remove("is-happy"); flash("is-sad", 2600); return; }
+    if (kind === "nap") {   // going to bed: curls up for a moment, then back to normal
+      forced = true; update();
+      clear("nap");
+      timers.nap = setTimeout(function () { forced = null; update(); }, 7000);
+      return;
+    }
     if (kind === "cheer") { el.classList.remove("is-shy", "is-peek", "is-sad"); wakeBriefly(); flash("is-happy", 800); fx("both"); return; }
     if (!r) return;
     if (r.gentle) {

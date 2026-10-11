@@ -415,6 +415,8 @@ def ensure_day(db: Session, uid: int, day: date) -> DayRecord:
 
 
 def streak(db: Session, uid: int, today: date, tz: int) -> int:
+    """Days in a row with an entry. One missed day a week is forgiven (the
+    streak charm), the same rule as js/stats.js streakDetail."""
     rows = db.query(Entry.occurred_at).filter(Entry.user_id == uid).all()
     days = set()
     for (when,) in rows:
@@ -422,10 +424,20 @@ def streak(db: Session, uid: int, today: date, tz: int) -> int:
             when = when.replace(tzinfo=timezone.utc)
         days.add((when + timedelta(minutes=tz)).date())
     d = today if today in days else today - timedelta(days=1)
+    used: set[date] = set()
     n = 0
-    while d in days:
-        n += 1
-        d -= timedelta(days=1)
+    for _ in range(4000):
+        if d in days:
+            n += 1
+            d -= timedelta(days=1)
+            continue
+        week = d - timedelta(days=d.weekday())
+        before = d - timedelta(days=1)
+        if week not in used and before in days and (n > 0 or d < today):
+            used.add(week)
+            d = before
+            continue
+        break
     return n
 
 

@@ -24,6 +24,8 @@ import { renderDeadlines } from './deadlines.js';
 import { renderPrayers } from './prayers.js';
 import { loadProfile } from './profile.js';
 import { renderAgeClock } from './ageClock.js';
+import { renderSleep } from './sleep.js';
+import { renderGratitude, offerGratitude } from './gratitude.js';
 import { startWidget, updateWidget } from './widget.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
@@ -76,6 +78,8 @@ async function renderEverything() {
     renderHabits(),
     renderDeadlines(),
     loadProfile().then(renderAgeClock),
+    renderSleep(),
+    renderGratitude(),
     renderPrayers(),
     renderGoals(),
     renderCalendar()
@@ -208,6 +212,7 @@ async function init() {
     }
     if (change.kind === "entries") renderEntryViews();
     if (change.kind === "deadlines") safe("today console", refreshReadout);
+    if (change.kind === "entries") safe("gratitude jar", offerGratitude);
     refreshHeavy();
   });
 
