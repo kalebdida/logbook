@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+    # a change to this file on main also builds and publishes a new APK
+    branches: [main]
+    paths: [".github/workflows/android.yml"]
 
 # a tag also publishes the APK as a GitHub release: a plain download link,
 # no login needed
@@ -47,11 +50,12 @@ jobs:
           name: logbook-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
       - name: publish the APK on the release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk "logbook-${GITHUB_REF_NAME}.apk"
-          gh release create "$GITHUB_REF_NAME" "logbook-${GITHUB_REF_NAME}.apk" \
-            --repo "$GITHUB_REPOSITORY" --title "Logbook $GITHUB_REF_NAME" \
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then TAG="$GITHUB_REF_NAME"; else TAG="v2.2.${GITHUB_RUN_NUMBER}"; fi
+          cp android/app/build/outputs/apk/debug/app-debug.apk "logbook-${TAG}.apk"
+          gh release create "$TAG" "logbook-${TAG}.apk" --target "$GITHUB_SHA" --latest \
+            --repo "$GITHUB_REPOSITORY" --title "Logbook $TAG" \
             --notes "Android app. Download the .apk on your phone, open it, and allow installing from your browser or file manager. It connects to your Logbook server and asks you to log in. The web version is at https://kalebdida.github.io/logbook/"
