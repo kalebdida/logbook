@@ -345,3 +345,26 @@ def test_photo_sleep_gratitude_and_the_letter(server, tg, monkeypatch):
     asyncio.run(bot.morning_tick(first))
     assert "letter about your September" in tg.last_text() and "A good September day" in tg.last_text()
     assert c.get("/letters/", headers=H).json()[0]["month"] == "2026-09"
+
+
+def test_reminders_for_deadlines_and_the_streak(server, tg):
+    c = server
+    admin = admin_token(c)
+    H = h(admin)
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=H)
+    connect(c, H, chat=12, tz=180)
+    bot.nudge_plans.clear()
+    bot.nudges_sent.clear()
+    c.post("/deadlines/", json={"title": "Essay", "due_date": "2026-11-02", "due_time": "18:00"}, headers=H)
+    # 18:00 local on Nov 2 is 15:00 UTC: the day-before reminder at 15:00 UTC on Nov 1
+    assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 1, 15, 2, tzinfo=timezone.utc))) == 1
+    assert "Essay</b> is tomorrow at 18:00" in tg.last_text()
+    assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 1, 15, 5, tzinfo=timezone.utc))) == 0      # once
+    assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 2, 13, 1, tzinfo=timezone.utc))) == 1
+    assert "2 hours left" in tg.last_text()
+    # 21:00 local (18:00 UTC), nothing written today
+    assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 2, 18, 3, tzinfo=timezone.utc))) == 1
+    assert "A line before bed" in tg.last_text()
+    run(message(12, "/nudges off"))
+    bot.nudges_sent.clear()
+    assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 2, 18, 4, tzinfo=timezone.utc))) == 0

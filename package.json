@@ -15,6 +15,7 @@
     "@capacitor/android": "8.5.2",
     "@capacitor/assets": "3.0.5",
     "@capacitor/cli": "8.5.2",
-    "@capacitor/core": "8.5.2"
+    "@capacitor/core": "8.5.2",
+    "@capacitor/local-notifications": "8.3.1"
   }
 }

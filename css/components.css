@@ -2585,3 +2585,97 @@ body.is-dimming::after {
 .entry-source { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--r-pill); background: rgb(var(--accent2-rgb) / 0.1); color: var(--accent2); font-size: 11.5px; font-weight: 500; }
 .entry-source .i { font-size: 12px; }
 .polaroid.is-empty { width: min(100%, 210px); }
+
+/* =============== device PIN (js/pinLock.js) =============== */
+.pin-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: auto;
+  background: linear-gradient(180deg, var(--scene-sky-top), var(--scene-sky-mid) 70%, var(--scene-sky-low));
+  animation: fadeIn 0.3s ease both;
+}
+.pin-screen.is-leaving { animation: lockOut 0.38s ease both; }
+.pin-scene { position: fixed; inset: 0; pointer-events: none; }
+.pin-scene .scene { width: 100%; height: 100%; filter: blur(2px); }
+.pin-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(340px, 100%);
+  margin-top: 90px;
+  padding: 30px 24px 22px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.14);
+  border-radius: calc(var(--r-xl) + 4px);
+  background: linear-gradient(180deg, rgb(var(--surface-rgb) / 0.82), rgb(var(--surface-rgb) / 0.68));
+  box-shadow: 0 50px 100px -40px rgb(var(--shade-rgb) / 0.9);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  animation: lockIn 0.5s var(--ease-out) both;
+}
+.pin-card.is-wrong { animation: shake 0.42s var(--ease-out); }
+.pin-cat { position: absolute; left: 50%; bottom: 100%; width: 0; height: 0; }
+.pin-cat .mascot--lock { bottom: calc(var(--m-w) * -0.085); }
+.pin-title { color: var(--text); font: 700 24px/1.2 var(--font-display); }
+.pin-hint { min-height: 2.6em; color: var(--text-3); font-size: 13.5px; line-height: 1.45; text-align: center; }
+.pin-dots { display: flex; gap: 12px; margin: 2px 0 8px; }
+.pin-dots i { width: 13px; height: 13px; border: 1.5px solid rgb(var(--accent-rgb) / 0.55); border-radius: 50%; transition: background 0.15s ease, transform 0.2s var(--ease-spring); }
+.pin-dots i.is-on { background: var(--accent); border-color: var(--accent); transform: scale(1.12); box-shadow: 0 0 10px rgb(var(--accent-rgb) / 0.6); }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; }
+.pin-key {
+  height: 60px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.1);
+  border-radius: 50%;
+  background: rgb(var(--bg-rgb) / 0.45);
+  color: var(--text);
+  font: 600 22px/1 var(--font-display);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.pin-key:hover { background: rgb(var(--accent-rgb) / 0.12); }
+.pin-key:active { transform: scale(0.93); background: rgb(var(--accent-rgb) / 0.22); }
+.pin-key:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+.pin-key--quiet { border-color: transparent; background: none; color: var(--text-3); font: 500 13px/1 var(--font-ui); }
+.pin-key--quiet .i { font-size: 20px; }
+.pin-next { width: 100%; margin-top: 6px; }
+
+/* =============== your year (js/yearReview.js) =============== */
+.yr-card { display: grid; gap: 4px; width: 100%; padding: 18px 20px; border-color: rgb(var(--accent-rgb) / 0.35); color: inherit; text-align: left; cursor: pointer; overflow: hidden; }
+.yr-card b { color: var(--text); font-size: 17px; }
+.yr-card span { color: var(--text-3); font-size: 13.5px; }
+.yr-card-sky { position: absolute; inset: 0; pointer-events: none; }
+.yr-card-sky i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px rgb(var(--accent-rgb) / 0.8); animation: twinkle 3s ease-in-out infinite; }
+.yr-card-sky i:nth-child(1) { top: 18%; right: 12%; } .yr-card-sky i:nth-child(2) { top: 40%; right: 22%; animation-delay: .6s; }
+.yr-card-sky i:nth-child(3) { top: 26%; right: 33%; animation-delay: 1.2s; } .yr-card-sky i:nth-child(4) { top: 62%; right: 16%; animation-delay: 1.8s; }
+.yr-card-sky i:nth-child(5) { top: 70%; right: 40%; animation-delay: 2.4s; }
+.yr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  overflow: auto;
+  background: radial-gradient(120% 80% at 50% 0%, var(--scene-sky-mid), var(--scene-sky-top) 70%);
+  animation: fadeIn 0.6s ease both;
+}
+.yr-overlay.is-leaving { animation: lockOut 0.4s ease both; }
+.yr-close { position: fixed; top: 16px; right: 16px; z-index: 2; }
+.yr-inner { display: grid; justify-items: center; gap: 14px; width: min(1100px, 100%); margin: 0 auto; padding: clamp(40px, 8vh, 80px) 16px 60px; text-align: center; }
+.yr-kicker { color: var(--text-3); font-size: 15px; animation: fadeUp 0.6s var(--ease-out) 0.2s both; }
+.yr-year { color: var(--text); font: 800 clamp(72px, 14vw, 140px)/0.95 var(--font-display); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; animation: fadeUp 0.9s var(--ease-out) 0.35s both; }
+.yr-sky { width: 100%; height: auto; margin: 6px 0; overflow: visible; }
+.yr-star { fill: color-mix(in srgb, var(--accent) 65%, var(--text)); opacity: 0; transform-box: fill-box; transform-origin: center; animation: yrStar 0.9s var(--ease-out) both; animation-delay: calc(var(--d) + 0.8s); }
+.yr-star.is-good { fill: var(--accent); filter: drop-shadow(0 0 3px rgb(var(--accent-rgb) / 0.9)); }
+.yr-line { fill: none; stroke: rgb(var(--accent-rgb) / 0.3); stroke-width: 1; stroke-linejoin: round; stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: yrLine 1.6s ease-out both; animation-delay: calc(var(--d) + 0.9s); }
+.yr-line.is-shining { stroke: rgb(var(--accent-rgb) / 0.55); filter: drop-shadow(0 0 4px rgb(var(--accent-rgb) / 0.7)); }
+.yr-month { fill: var(--faint); font: 500 13px var(--font-ui); text-anchor: middle; }
+.yr-caption { max-width: 560px; color: var(--text-2); font-size: 15px; line-height: 1.6; animation: fadeUp 0.8s var(--ease-out) 7s both; }
+.yr-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; width: 100%; margin-top: 18px; }
+.yr-stat { display: grid; gap: 4px; padding: 18px 16px; border: 1px solid rgb(var(--ink-rgb) / 0.1); border-radius: var(--r-lg); background: rgb(var(--surface-rgb) / 0.5); animation: fadeUp 0.7s var(--ease-out) both; animation-delay: calc(7.4s + var(--i) * 0.12s); }
+.yr-stat b { color: var(--accent); font: 700 30px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.yr-stat span { color: var(--text-3); font-size: 13px; }
+.yr-sign { margin-top: 20px; color: var(--text-2); font-family: var(--serif); font-size: 18px; line-height: 1.7; animation: fadeUp 0.8s var(--ease-out) 9s both; }
+@media (prefers-reduced-motion: reduce) { .yr-star { opacity: 1; } .yr-line { stroke-dashoffset: 0; } }

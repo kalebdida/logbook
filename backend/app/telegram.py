@@ -75,6 +75,7 @@ COMMANDS = [
     ("sleep", "Going to bed"),
     ("wake", "I'm up: how long you slept"),
     ("grateful", "Add to your gratitude jar"),
+    ("nudges", "Reminders: /nudges off or on"),
     ("help", "Everything the bot can do"),
 ]
 HELP = (
@@ -87,7 +88,8 @@ HELP = (
     "/pray for wisdom  ·  /prayers\n"
     "/due nov 1 Early decision  ·  /deadlines\n"
     "/morning 7 (or off)  ·  /backup\n"
-    "/sleep  ·  /wake  ·  /grateful family dinner\n\n"
+    "/sleep  ·  /wake  ·  /grateful family dinner  ·  /nudges\n\n"
+    "I'll remind you about deadlines (the day before, and 2 hours before) and your streak at 21:00.\n"
     "Send a photo and it becomes today's photo.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
@@ -865,6 +867,15 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
         await send(chat, f"✨ In the jar. That's {total} firefl{'y' if total == 1 else 'ies'}.")
         return
 
+    if cmd in ("nudges", "reminders"):
+        off = arg.strip().lower() in ("off", "stop", "no")
+        set_setting(db, f"tg_nudges_off:{uid}", "1" if off else "")
+        db.commit()
+        nudge_plans.pop(uid, None)
+        await send(chat, "Reminders are off. /nudges on brings them back." if off else
+                   "🔔 Reminders on: deadlines the day before and 2 hours before, and your streak at 21:00 if you haven't written.")
+        return
+
     if cmd == "backup":
         a = arg.strip().lower()
         if a in ("off", "stop", "no"):
@@ -1067,6 +1078,68 @@ async def morning_tick(now: datetime | None = None) -> int:
     return sent
 
 
+# ---------- reminders through the day ----------
+
+nudge_plans: dict[int, dict] = {}     # user id -> {"built": time, "items": [(when utc, key, kind, text)]}
+nudges_sent: set[str] = set()
+
+
+def nudges_on(db: Session, uid: int) -> bool:
+    return get_setting(db, f"tg_nudges_off:{uid}") != "1"
+
+
+def build_nudges(db: Session, uid: int, tz: int, now: datetime) -> list:
+    """A deadline the day before and two hours before, and the streak at 21:00."""
+    items = []
+    local = now + timedelta(minutes=tz)
+    for d in upcoming(db, uid, local.date(), 2):
+        hh, mm = (int(x) for x in (d.due_time or "23:59").split(":"))
+        due_utc = datetime.combine(d.next_date, datetime.min.time(), timezone.utc).replace(hour=hh, minute=mm) - timedelta(minutes=tz)
+        name = esc(title_for(d))
+        items.append((due_utc - timedelta(hours=24), f"{uid}:d{d.id}:{d.next_date}:24", "due",
+                      f"{KIND_ICON.get(d.kind, '🚩')} <b>{name}</b> is tomorrow" + (f" at {d.due_time}." if d.due_time else ".")))
+        items.append((due_utc - timedelta(hours=2), f"{uid}:d{d.id}:{d.next_date}:2", "due",
+                      f"⏳ <b>{name}</b>: 2 hours left." + (" You've got this." if d.kind != "birthday" else "")))
+    evening = datetime.combine(local.date(), datetime.min.time(), timezone.utc).replace(hour=21) - timedelta(minutes=tz)
+    items.append((evening, f"{uid}:s:{local.date()}", "streak", ""))
+    return items
+
+
+async def nudge_tick(now: datetime | None = None) -> int:
+    if not links_cache:
+        return 0
+    now = now or datetime.now(timezone.utc)
+    sent = 0
+    for uid, link in list(links_cache.items()):
+        plan = nudge_plans.get(uid)
+        if plan is None or (now - plan["built"]).total_seconds() > 3600 or plan["day"] != (now + timedelta(minutes=link["tz"])).date():
+            with SessionLocal() as db:
+                if not nudges_on(db, uid):
+                    nudge_plans[uid] = {"built": now, "day": (now + timedelta(minutes=link["tz"])).date(), "items": []}
+                    continue
+                nudge_plans[uid] = plan = {"built": now, "day": (now + timedelta(minutes=link["tz"])).date(),
+                                           "items": build_nudges(db, uid, link["tz"], now)}
+        for when, key, kind, text in plan["items"]:
+            if key in nudges_sent or not (timedelta(0) <= now - when < timedelta(minutes=10)):
+                continue
+            nudges_sent.add(key)
+            if kind == "streak":
+                with SessionLocal() as db:
+                    today = local_today(link["tz"])
+                    wrote = db.query(Entry).filter(Entry.user_id == uid).all()
+                    if any(((e.occurred_at if e.occurred_at.tzinfo else e.occurred_at.replace(tzinfo=timezone.utc))
+                            + timedelta(minutes=link["tz"])).date() == today for e in wrote):
+                        continue
+                    n = streak(db, uid, today, link["tz"])
+                    text = (f"🌙 Your <b>{n}-day streak</b> is waiting. One line is enough: /j ..." if n
+                            else "🌙 A line before bed? /j how today went")
+            await send(link["chat"], text)
+            sent += 1
+    if len(nudges_sent) > 5000:
+        nudges_sent.clear()
+    return sent
+
+
 async def poll_forever() -> None:
     offset = 0
     while state["token"] and state["mode"] == "polling":
@@ -1102,4 +1175,8 @@ async def run() -> None:
             await morning_tick()
         except Exception:
             log.exception("logbook: morning message failed")
+        try:
+            await nudge_tick()
+        except Exception:
+            log.exception("logbook: reminders failed")
         await asyncio.sleep(60)

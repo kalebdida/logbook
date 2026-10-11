@@ -12,6 +12,8 @@ export var DEFAULT_PREFS = {
   boot: true,
   sound: true,
   notifications: false,
+  phoneNotify: false,        // Android app: deadline and streak notifications with the app closed
+  nudges: true,
   focusMinutes: 25,
   shortBreakMinutes: 5,
   longBreakMinutes: 15,

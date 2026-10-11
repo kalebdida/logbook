@@ -30,6 +30,9 @@ import { renderLetter } from './letters.js';
 import { startLivingScene, refreshScene } from './livingScene.js';
 import { renderGratitude, offerGratitude } from './gratitude.js';
 import { startWidget, updateWidget } from './widget.js';
+import { startPhoneNotify } from './phoneNotify.js';
+import { startPinLock } from './pinLock.js';
+import { renderYearCard } from './yearReview.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
@@ -94,6 +97,7 @@ async function renderEverything() {
   safe("home screen widget", updateWidget);
   safe("living scene", startLivingScene);
   renderLetter().catch(warn);
+  safe("year in review", renderYearCard);
 }
 
 /* One broken module should never stop the rest of the app from starting. */
@@ -126,6 +130,7 @@ async function init() {
   safe("theme", initThemes);
   safe("icons", paintIcons);
   safe("loading screen", initSplash);
+  safe("device PIN", startPinLock);
   safe("offline + install", startPWA);
   safe("look", applyLook);
   if (!storageWorks()) showStorageWarning();
@@ -194,6 +199,7 @@ async function init() {
   startStatusWatch();
   safe("reminders", startReminders);
   safe("home screen widget", startWidget);
+  safe("phone notifications", startPhoneNotify);
 
   // when the backend comes back after being down, load everything fresh
   onStatus(async function (ok, wasOffline) {

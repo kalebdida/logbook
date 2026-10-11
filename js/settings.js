@@ -15,6 +15,8 @@ import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
 import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
 import { renderTelegramCard } from './telegramCard.js';
+import { phoneNotifyAvailable, askPermission } from './phoneNotify.js';
+import { hasPin, setPin, clearPin, pinPad } from './pinLock.js';
 import { GIFTS, streakInfo } from './mascot.js';
 import { getProfile, saveProfile, onProfile } from './profile.js';
 
@@ -156,6 +158,10 @@ export function renderSettings() {
         "</label>" +
         giftsRow() +
       "</section>" +
+      '<section class="settings-card">' +
+        cardHead("lock", "Lock this device", "A PIN when Logbook opens here, and again after a minute away. For a phone other people pick up.") +
+        toggle("prefPin", "Ask for a PIN", "", hasPin()) +
+      "</section>" +
       '<section class="settings-card settings-card--wide" id="settingsLine">' +
         cardHead("quote", "The line on your dashboard", "Pick what greets you each day. The refresh button on the card shows another one.") +
         '<div class="line-picker" role="radiogroup" aria-label="Daily line">' +
@@ -202,6 +208,7 @@ export function renderSettings() {
         toggle("prefFocusScene", "Fill the screen while focusing", "The timer sits on your theme's scene with nothing else around. Esc or the button leaves.", p.focusScene !== false) +
         toggle("prefSound", "Chime when a block ends", "", p.sound) +
         toggle("prefNotify", "Desktop notification", "Only when the tab is in the background", p.notifications) +
+        (phoneNotifyAvailable() ? toggle("prefPhoneNotify", "Phone notifications", "Deadlines (a day and 2 hours before) and your streak at 21:00, even with the app closed", p.phoneNotify) : "") +
       "</section>" +
       '<section class="settings-card" id="settingsReminders">' + cardHead("bell", "Reminders") + renderReminderRows() + "</section>") +
 
@@ -387,6 +394,25 @@ function wire(el) {
       dash[box.id.slice(5)] = box.checked;
       setPrefs({ dash: dash });
     });
+  });
+
+  var pinBox = el.querySelector("#prefPin");
+  pinBox.addEventListener("change", async function () {
+    if (pinBox.checked) {
+      var pin = await pinPad("set");
+      if (pin) { await setPin(pin); toast("PIN set. Logbook asks for it when it opens."); }
+      else pinBox.checked = false;
+    } else {
+      if (await pinPad("confirm")) { clearPin(); toast("PIN removed"); }
+      else pinBox.checked = true;
+    }
+  });
+
+  var phoneBox = el.querySelector("#prefPhoneNotify");
+  if (phoneBox) phoneBox.addEventListener("change", async function () {
+    if (!phoneBox.checked) return setPrefs({ phoneNotify: false });
+    if (await askPermission()) { setPrefs({ phoneNotify: true }); toast("Notifications on"); }
+    else { phoneBox.checked = false; toast("Allow notifications for Logbook in your phone's settings first", "warn"); }
   });
 
   el.querySelector("#prefNotify").addEventListener("change", async function (e) {

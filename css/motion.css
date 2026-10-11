@@ -348,3 +348,12 @@ body:not(.is-booted) #app { opacity: 0; }
   30% { filter: brightness(1.5) drop-shadow(0 0 14px rgb(var(--accent-rgb) / 0.9)); }
   100% { filter: brightness(1.15); }
 }
+
+@keyframes yrStar {
+  0% { opacity: 0; transform: scale(0.2); }
+  50% { opacity: 1; transform: scale(2.4); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes yrLine {
+  to { stroke-dashoffset: 0; }
+}
