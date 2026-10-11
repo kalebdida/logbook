@@ -105,7 +105,7 @@ function draw() {
       '<div class="habits-head"><h3 class="daily-section-title">' + icon("moon-star") + "<span>Sleep</span></h3>" + action + "</div>" +
       (st.kind === "wake"
         ? '<p class="sleep-now"><b>In bed since ' + bed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + "</b><span>Tap when you're up · " +
-            '<button type="button" class="link-btn" data-sleep="undo">Not going to bed yet</button></span></p>"
+            '<button type="button" class="link-btn" data-sleep="undo">Not going to bed yet</button></span></p>'
         : '<p class="sleep-now">' + (last ? "<b>" + hm(last.minutes) + "</b><span>last night</span>" : "<b>No night yet</b><span>" + (st.kind === "bed" ? "Tap when you go to bed" : "Log how you slept") + "</span>") + "</p>") +
       '<div class="night-strip" aria-label="The last two weeks of sleep">' + strip + "</div>" +
       '<div class="night-axis"><span>2 weeks ago</span><span>' + (avg != null ? "Average " + hm(avg) + " this week" : "") + "</span></div>" +
