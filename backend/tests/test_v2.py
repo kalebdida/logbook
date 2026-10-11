@@ -426,3 +426,15 @@ def test_keep_awake_pings_its_own_address(monkeypatch):
 
     asyncio.run(go())
     assert seen[:3] == ["https://example.onrender.com/ping"] * 3
+
+
+def test_verse_list_covers_a_year_without_repeats():
+    from datetime import date, timedelta
+    from app import verses
+
+    items = verses.refs()
+    assert len(items) >= 366 and len(set(items)) == len(items)
+    start = date(2026, 1, 1)
+    year = [verses.ref_for(start + timedelta(days=i)) for i in range(366)]
+    assert len(set(year)) == 366
+    assert verses.clean("In the\n beginning ,  God") == "In the beginning, God"

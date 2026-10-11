@@ -433,6 +433,13 @@
   font: 500 18px/1.6 var(--serif);
 }
 .verse-text.is-new { animation: fadeUp 0.5s var(--ease-out) both; }
+.verse-box.is-loading .verse-text {
+  min-height: 3.2em;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, rgb(var(--ink-rgb) / 0.04), rgb(var(--ink-rgb) / 0.1), rgb(var(--ink-rgb) / 0.04));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
 .verse-box[data-kind="affirmation"] .verse-text,
 .verse-box[data-kind="custom"] .verse-text { font: 600 18px/1.5 var(--font-display); letter-spacing: -0.015em; }
 .verse-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; margin-top: 10px; }

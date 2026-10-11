@@ -19,6 +19,7 @@ export var DEFAULT_PREFS = {
   mascotName: "Mochi",
   dailyLine: "verse",        // verse | quote | affirmation | custom | mix | off
   dailyLineCustom: "",
+  verseTranslation: "kjv",   // kjv | web | bbe | asv (bible-api.com)
   foldLog: true,             // the time log card starts open
   clock24: true,
   focusScene: true,          // the focus space fills the screen with the scene

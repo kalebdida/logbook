@@ -3,7 +3,13 @@ import { getPrefs } from './prefs.js';
 
 /* The line on the dashboard: a Bible verse, a quote, an affirmation, your
    own lines, or nothing. Picked in settings ("dailyLine"). The same line
-   shows all day; the small refresh button shows another one. */
+   shows all day; the small refresh button shows another one.
+
+   Verses: a different one every day for well over a year. The references
+   are in assets/verse-refs.json (the Telegram bot reads the same list, so
+   both show the same verse); the words come from bible-api.com in the
+   translation picked in settings, and are kept in this browser once
+   fetched. Offline, or if the site is down, the verses below fill in. */
 
 export var VERSES = [
   { text: "Be strong and of a good courage; be not afraid, neither be thou dismayed: for the LORD thy God is with thee whithersoever thou goest.", ref: "Joshua 1:9" },
@@ -107,6 +113,94 @@ export var LINE_KINDS = {
 
 var offset = 0;   // how many times "show another" was pressed today
 
+export var TRANSLATIONS = {
+  kjv: "King James",
+  web: "World English",
+  bbe: "Basic English",
+  asv: "American Standard"
+};
+
+var refs = null;          // the list from verse-refs.json, once loaded
+var refsLoading = null;
+var TEXT_KEY = "logbook-verse-text";
+
+/* Days since 2020-01-01 in local time, so the verse changes at midnight. */
+export function dayNumber(d) {
+  d = d || new Date();
+  return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(2020, 0, 1)) / 86400000);
+}
+
+/* Same formula as the server (app/verses.py). */
+export function refForDay(list, day, shift) {
+  return list[((day + (shift || 0) * 41) % list.length + list.length) % list.length];
+}
+
+function loadRefs() {
+  if (refs) return Promise.resolve(refs);
+  if (!refsLoading) {
+    refsLoading = fetch("assets/verse-refs.json").then(function (r) {
+      if (!r.ok) throw new Error("refs " + r.status);
+      return r.json();
+    }).then(function (list) {
+      refs = list;
+      return list;
+    }).catch(function (e) {
+      refsLoading = null;
+      throw e;
+    });
+  }
+  return refsLoading;
+}
+
+function savedTexts() {
+  try { return JSON.parse(localStorage.getItem(TEXT_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+
+function saveText(key, text) {
+  var all = savedTexts();
+  all[key] = { text: text, at: Date.now() };
+  var keys = Object.keys(all);
+  if (keys.length > 80) {
+    keys.sort(function (a, b) { return all[a].at - all[b].at; }).slice(0, keys.length - 80).forEach(function (k) { delete all[k]; });
+  }
+  try { localStorage.setItem(TEXT_KEY, JSON.stringify(all)); } catch (e) {}
+}
+
+function apiRef(ref) {
+  return ref.replace(/^Psalm /, "Psalms ").replace(/–/g, "-");
+}
+
+export function cleanVerse(text) {
+  return String(text || "").replace(/\s+/g, " ").replace(/\s+([,.;:!?])/g, "$1").trim();
+}
+
+/* The words of one reference: from this browser if fetched before, else
+   from bible-api.com. Rejects when offline or the site is down. */
+export function fetchVerse(ref, translation) {
+  translation = TRANSLATIONS[translation] ? translation : "kjv";
+  var key = translation + " " + ref;
+  var have = savedTexts()[key];
+  if (have) return Promise.resolve({ text: have.text, ref: ref });
+  return fetch("https://bible-api.com/" + encodeURIComponent(apiRef(ref)) + "?translation=" + translation)
+    .then(function (r) {
+      if (!r.ok) throw new Error("verse " + r.status);
+      return r.json();
+    })
+    .then(function (body) {
+      var text = cleanVerse(body.text);
+      if (!text) throw new Error("empty verse");
+      saveText(key, text);
+      return { text: text, ref: ref };
+    });
+}
+
+function builtInFor(ref) {
+  var bare = ref.replace(/–/g, "-");
+  return VERSES.filter(function (v) { return v.ref.replace(/–/g, "-") === bare; })[0] || null;
+}
+
+var drawn = 0;   // which render is current, so a slow fetch can't overwrite a newer pick
+
 export function customLines() {
   return String(getPrefs().dailyLineCustom || "").split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
     // "text — who" or "text - who" splits off a source
@@ -133,6 +227,32 @@ export function renderVerse() {
   var list = linesFor(kind);
   // a stable pick for the day, spread so neighbouring days differ
   var pick = list[(dayOfYear(new Date()) * 7 + offset * 13) % list.length];
+  var mine = ++drawn;
+  if (kind === "verse") {
+    var translation = getPrefs().verseTranslation || "kjv";
+    var shift = offset;
+    var show = function (v) { if (mine === drawn) paintLine(box, info, kind, v, true); };
+    if (refs) {
+      var ref = refForDay(refs, dayNumber(), shift);
+      var known = translation === "kjv" ? builtInFor(ref) : null;
+      var saved = savedTexts()[translation + " " + ref];
+      if (saved || known) {
+        paintLine(box, info, kind, { text: saved ? saved.text : known.text, ref: ref }, true);
+        if (saved) return;
+      } else {
+        paintLine(box, info, kind, { text: "", ref: ref }, false);
+      }
+      fetchVerse(ref, translation).then(show).catch(function () { if (!saved && !known) show(pick); });
+      return;
+    }
+    paintLine(box, info, kind, { text: "", ref: "" }, false);
+    loadRefs().then(function () { if (mine === drawn) renderVerse(); }).catch(function () { show(pick); });
+    return;
+  }
+  paintLine(box, info, kind, pick, true);
+}
+
+function paintLine(box, info, kind, pick, ready) {
   document.getElementById("dailyLineTitle").textContent = info.title;
   var iconEl = document.getElementById("dailyLineIcon");
   if (iconEl && iconEl.getAttribute("data-icon") !== info.icon) {
@@ -141,8 +261,10 @@ export function renderVerse() {
     import('./icons.js').then(function (m) { m.paintIcons(box); });
   }
   var textEl = document.getElementById("verseText");
+  box.classList.toggle("is-loading", !ready);
+  if (textEl.textContent === pick.text && ready) return;
   textEl.textContent = pick.text;
-  textEl.classList.remove("is-new"); void textEl.offsetWidth; textEl.classList.add("is-new");
+  if (ready) { textEl.classList.remove("is-new"); void textEl.offsetWidth; textEl.classList.add("is-new"); }
   document.getElementById("verseRef").textContent = pick.ref ? pick.ref : "";
   box.dataset.kind = kind;
 }
@@ -155,6 +277,6 @@ export function wireDailyLine() {
   if (next) next.addEventListener("click", function () { offset++; renderVerse(); });
   document.addEventListener("logbook:prefs-changed", function (e) {
     var p = e.detail.patch || {};
-    if ("dailyLine" in p || "dailyLineCustom" in p) { offset = 0; renderVerse(); }
+    if ("dailyLine" in p || "dailyLineCustom" in p || "verseTranslation" in p) { offset = 0; renderVerse(); }
   });
 }

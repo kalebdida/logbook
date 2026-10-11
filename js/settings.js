@@ -12,7 +12,7 @@ import { renderAccountCard } from './account.js';
 import { renderThemeCard } from './themeSettings.js';
 import { renderReminderRows, wireReminderRows } from './reminders.js';
 import { isDevice } from './connection.js';
-import { LINE_KINDS, linesFor } from './verse.js';
+import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
 
 /* Copy this into the browser console on the OLD copy of logbook (the
    page where your old data lives) to download everything it stored. */
@@ -139,6 +139,12 @@ export function renderSettings() {
             "</label>";
           }).join("") +
         "</div>" +
+        '<label class="setting-row" for="prefVerseTranslation"' + (kind === "verse" ? "" : " hidden") + ">" +
+          '<span class="setting-text"><span class="setting-label">Bible translation</span><span class="setting-hint">A new verse every day, from bible-api.com.</span></span>' +
+          '<select class="select-input" id="prefVerseTranslation">' + Object.keys(TRANSLATIONS).map(function (t) {
+            return '<option value="' + t + '"' + ((p.verseTranslation || "kjv") === t ? " selected" : "") + ">" + TRANSLATIONS[t] + "</option>";
+          }).join("") + "</select>" +
+        "</label>" +
         '<label class="setting-row setting-row--stack" for="prefLineCustom"' + (kind === "custom" || kind === "mix" ? "" : " hidden") + ">" +
           '<span class="setting-text"><span class="setting-label">Your lines</span><span class="setting-hint">One per line. Add a source after a dash: <em>Keep going — Mom</em></span></span>' +
           '<textarea class="text-area" id="prefLineCustom" rows="4" placeholder="Discipline is remembering what you want.">' + escapeHtml(p.dailyLineCustom || "") + "</textarea>" +
@@ -310,8 +316,11 @@ function wire(el) {
       el.querySelectorAll(".line-option").forEach(function (o) { o.classList.toggle("is-on", o.contains(r)); });
       var custom = el.querySelector('[for="prefLineCustom"]');
       if (custom) custom.hidden = !(r.value === "custom" || r.value === "mix");
+      var tr = el.querySelector('[for="prefVerseTranslation"]');
+      if (tr) tr.hidden = r.value !== "verse";
     });
   });
+  el.querySelector("#prefVerseTranslation").addEventListener("change", function (e) { setPrefs({ verseTranslation: e.target.value }); });
   var lineTimer = null;
   el.querySelector("#prefLineCustom").addEventListener("input", function (e) {
     clearTimeout(lineTimer);
