@@ -36,6 +36,11 @@ After changing the web code: `npm run android:sync`, then build again.
 
 ## What's different in the app
 
+- A home screen widget: long-press your home screen → Widgets → Logbook. It shows your
+  streak, today's tasks and the next deadline, and updates whenever you use the app.
+  The native part lives in `android-extras/` and is added by `scripts/android_widget.py`
+  (the CI build and `npm run android:init` run it).
+
 - Data lives in the app's storage. Uninstalling the app deletes it, so download a
   backup from settings first (or connect to your server).
 - Reminders show inside the app while it's open. Notifications that arrive when

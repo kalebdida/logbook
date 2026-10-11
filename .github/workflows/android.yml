@@ -38,6 +38,8 @@ jobs:
         env:
           LOGBOOK_API_URL: ${{ vars.LOGBOOK_API_URL || 'https://logbook-lt30.onrender.com' }}
       - run: npx cap add android
+      - name: home screen widget
+        run: python scripts/android_widget.py
       - name: app icon and splash screen
         run: npm run android:icons
         continue-on-error: true

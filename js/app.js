@@ -21,6 +21,7 @@ import { showStorageWarning, startBoot, initSplash } from './ui.js';
 import { startAlive } from './alive.js';
 import { renderDeadlines } from './deadlines.js';
 import { renderPrayers } from './prayers.js';
+import { startWidget, updateWidget } from './widget.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
@@ -78,6 +79,7 @@ async function renderEverything() {
   safe("today console", refreshReadout);
   await Promise.all([renderDensityMap(), renderAnalytics()].map(function (p) { return p.catch(warn); }));
   safe("today console", refreshReadout); // focus totals from the backend are known now
+  safe("home screen widget", updateWidget);
 }
 
 /* One broken module should never stop the rest of the app from starting. */
@@ -176,6 +178,7 @@ async function init() {
   }
   startStatusWatch();
   safe("reminders", startReminders);
+  safe("home screen widget", startWidget);
 
   // when the backend comes back after being down, load everything fresh
   onStatus(async function (ok, wasOffline) {
