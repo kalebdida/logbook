@@ -89,7 +89,6 @@ with sync_playwright() as p:
     check("'on this day' replay shows a week-old entry", page.is_visible("#weekAgoSection") and "7 days ago" in page.text_content("#weekAgoSection"))
 
     # ---------- morning: yesterday's plan carries in ----------
-    page.click("#usePlanBtn")
     check("last night's plan becomes today's focus", page.input_value("#mainFocus") == "be patient")
     page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('Saved')", timeout=5000)
     page.fill("#mainFocus", "ship logbook")
@@ -99,12 +98,12 @@ with sync_playwright() as p:
     day = api(f"/days/{today}")
     check("autosave writes today's focus to the backend", day["morning_main_focus"] == "ship logbook", day)
 
-    # ---------- tomorrow: plan it as tasks ----------
+    # ---------- tonight: tomorrow's one thing ----------
     page.click("#nightCard summary") if not page.evaluate("document.getElementById('nightCard').open") else None
-    page.fill('#tomorrowTasks input[name="title"]', "call the bank")
-    page.press('#tomorrowTasks input[name="title"]', "Enter")
-    page.wait_for_selector("#tomorrowTasks .task-row")
-    check("tomorrow's list adds tasks to tomorrow", [t["title"] for t in api(f"/tasks/?day_date={today + timedelta(days=1)}")] == ["call the bank"])
+    page.fill("#nightTomorrowPlan", "call the bank")
+    page.dispatch_event("#nightTomorrowPlan", "input")
+    page.wait_for_function("document.getElementById('dailySaveStatus').textContent.startsWith('Saved')", timeout=5000)
+    check("tomorrow's one thing is saved on tonight", api(f"/days/{today}")["reflection_tomorrow_plan"] == "call the bank")
 
     # ---------- brain dump turns into tasks ----------
     page.fill("#brainDump", "- buy milk\nreply to sara")

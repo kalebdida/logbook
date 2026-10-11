@@ -11,7 +11,8 @@ import { icon } from './icons.js';
 /* The dashboard's day, in the order a day goes:
      Today      one focus line + the task list
      Time log   what you actually did, by life area
-     Tonight    wins, lessons, gratitude, and tomorrow's tasks
+     Tonight    wins, lessons, gratitude, and tomorrow's one thing
+                (it becomes tomorrow's focus line)
    plus a brain dump in the side column that can turn into tasks.
    Everything saves as you type. Older days may hold an "intention", a
    free-text "tomorrow's plan" or "notes"; those boxes only show when they
@@ -86,10 +87,6 @@ export async function renderDailyPage() {
         '<h3 class="card-title" id="planTitle">' + icon("target") + "<span>Today</span></h3>" +
         '<span id="dailySaveStatus" class="daily-save-status" aria-live="polite"></span>' +
       "</header>" +
-      (plannedYesterday && !record.morning.mainFocus
-        ? '<div class="carry-hint">' + icon("moon") + '<span>Last night you planned: <q>' + escapeHtml(plannedYesterday) + "</q></span>" +
-          ' <button type="button" class="link-btn" id="usePlanBtn">Make it today\'s focus</button></div>'
-        : "") +
       '<label class="focus-line" for="mainFocus">' +
         '<span class="section-label">The one thing that would make today count</span>' +
         '<textarea id="mainFocus" rows="1" enterkeyhint="next" placeholder="Finish the essay draft, call grandma, rest properly…"></textarea>' +
@@ -108,11 +105,7 @@ export async function renderDailyPage() {
         field("nightLessons", "A lesson", 2, "What you'd do differently") +
         field("nightGratitude", "Grateful for", 2, "Someone or something") +
       "</div>" +
-      (legacy("nightTomorrowPlan") ? field("nightTomorrowPlan", "Tomorrow's plan (from before)", 2, "") : "") +
-      '<div class="tomorrow-block">' +
-        '<h4 class="sub-title">' + icon("sunrise") + "<span>Plan tomorrow</span></h4>" +
-        '<div id="tomorrowTasks"></div>' +
-      "</div>");
+      field("nightTomorrowPlan", "Tomorrow's one thing", 1, "It becomes tomorrow's focus line", "tomorrow-line"));
 
   // the brain dump lives in the side column
   var dump = document.getElementById("brainDumpSection");
@@ -120,7 +113,7 @@ export async function renderDailyPage() {
     dump.innerHTML =
       '<header class="card-head"><h3 class="card-title">' + icon("cloud") + "<span>Brain dump</span></h3>" +
         '<button type="button" class="link-btn dump-lantern" data-command="lantern">Let something go</button></header>' +
-      '<textarea id="brainDump" class="dump-text" rows="4" placeholder="Empty your head here. One thought per line."></textarea>' +
+      '<textarea id="brainDump" class="dump-text" rows="4" placeholder="Not for keeping. Empty your head, one thought per line, then turn lines into tasks or let them go."></textarea>' +
       '<div class="dump-foot"><span class="card-meta">Lines can become tasks</span>' +
       '<button type="button" class="tool-btn tool-btn--sm" id="dumpToTasks" hidden>' + icon("list-checks") + "<span>Make tasks</span></button></div>";
   }
@@ -142,16 +135,11 @@ export async function renderDailyPage() {
     if (Object.keys(dirty).length) { setStatus("Unsaved changes restored"); scheduleSave(); }
   }
 
-  var usePlan = document.getElementById("usePlanBtn");
-  if (usePlan) {
-    usePlan.addEventListener("click", function () {
-      var el = document.getElementById("mainFocus");
-      el.value = plannedYesterday;
-      markDirty("mainFocus");
-      usePlan.closest(".carry-hint").remove();
-      grow(el);
-      el.focus();
-    });
+  // last night's "tomorrow's one thing" becomes this morning's focus line
+  var focusEl = document.getElementById("mainFocus");
+  if (plannedYesterday && !has(focusEl.value)) {
+    focusEl.value = plannedYesterday;
+    markDirty("mainFocus");
   }
 
   FIELD_IDS.forEach(function (id) {
@@ -176,10 +164,6 @@ export async function renderDailyPage() {
 
   await Promise.all([
     renderTasks(document.getElementById("dailyTasks"), today, { key: "today", empty: "Nothing yet. What needs doing today?" }),
-    renderTasks(document.getElementById("tomorrowTasks"), dateKey(tomorrow), {
-      key: "tomorrow", carry: false, progress: false, placeholder: "Add a task", label: "New task for tomorrow",
-      empty: "Nothing planned yet. One or two things make the morning easier."
-    }),
     renderActivities(document.getElementById("dailyActivities"), today)
   ]);
   updateLogMeta();

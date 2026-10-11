@@ -6,7 +6,9 @@ import { categoryById, categoryOptions } from "./categories.js";
 import { emitChange } from "./bus.js";
 import { toast } from "./toast.js";
 
-var CATEGORIES = ["daily", "weekly", "monthly", "long-term"];
+// Goals are about progress; anything with a date is a deadline (with a
+// countdown) and anything daily is a habit, so goals don't ask for either.
+var CATEGORIES = ["weekly", "monthly", "long-term"];
 var PRIORITIES = ["low", "medium", "high"];
 var PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
 var CELEBRATION_DURATION = 700;
@@ -72,7 +74,7 @@ function renderGoalsShell() {
   return `
     <section class="goals-card" aria-label="Goals">
       <div class="goals-heading">
-        <p class="density-subtitle">The things you're climbing toward, one step at a time</p>
+        <p class="density-subtitle">Bigger things you're building toward. Move the progress as you go</p>
         <button class="primary-btn goals-add-button" type="button" data-goal-action="add">${icon("plus")}<span>New goal</span></button>
       </div>
 
@@ -118,7 +120,6 @@ function renderControls() {
 
       <select id="goalSort" class="goals-select" aria-label="Sort goals">
         <option value="priority"${selected(state.sort, "priority")}>By priority</option>
-        <option value="due-date"${selected(state.sort, "due-date")}>By due date</option>
         <option value="progress"${selected(state.sort, "progress")}>By progress</option>
         <option value="newest"${selected(state.sort, "newest")}>Newest first</option>
       </select>
@@ -138,7 +139,7 @@ function renderEditor() {
   var goal = existingGoal || {
     title: "",
     description: "",
-    category: "daily",
+    category: "monthly",
     priority: "medium",
     progress: 0,
     targetDate: "",
@@ -180,10 +181,8 @@ function renderEditor() {
         </select>
       </label>
 
-      <label class="goals-field goals-field--phone-wide">
-        <span>Target date <em>Optional</em></span>
-        <input name="targetDate" type="date" value="${escapeHtml(goal.targetDate || "")}" />
-      </label>
+      ${goal.targetDate ? `<input name="targetDate" type="hidden" value="${escapeHtml(goal.targetDate)}" />` : ""}
+      <p class="goals-hint goals-field--wide">${icon("info")}<span>Something with a date, like an exam? Add it as a deadline on Today and it gets a countdown. Something every day? That's a habit.</span></p>
 
       <label class="goals-field goals-field--phone-wide" title="When it's done, it counts toward this area on the Life areas map">
         <span>Life area <em>Optional</em></span>
@@ -375,7 +374,7 @@ async function handleSubmit(event) {
     category: form.elements.category.value,
     priority: form.elements.priority.value,
     progress: form.elements.progress.value,
-    targetDate: form.elements.targetDate.value,
+    targetDate: (form.elements.targetDate || {}).value || "",
     activityCategory: form.elements.activityCategory.value
   };
 
