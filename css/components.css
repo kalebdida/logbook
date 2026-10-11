@@ -1897,6 +1897,15 @@ body.is-focus-space .pomodoro-controls .icon-btn--lg { background: rgb(var(--bg-
   font-size: 26px;
 }
 .lock-brand { color: var(--text); font: 700 32px/1.05 var(--font-display); letter-spacing: -0.04em; }
+.lock-greet { margin-bottom: -4px; color: var(--accent); font-size: 14px; font-weight: 500; letter-spacing: 0.01em; }
+.lock-panel.has-cat { margin-top: 98px; padding-top: 30px; }
+.lock-panel.has-cat .lock-mark { display: none; }
+.lock-panel.is-wrong { animation: shake 0.42s var(--ease-out); }
+.lock-screen { animation: fadeIn 0.55s var(--ease-out) both; }
+.lock-screen .lock-panel { animation-delay: 0.12s; }
+.lock-screen.is-leaving { animation: lockOut 0.5s var(--ease-out) both; }
+.lock-screen.is-leaving .lock-panel { animation: lockPanelOut 0.45s var(--ease-out) both; }
+.lock-scene .scene { transform: translate3d(calc(var(--px, 0) * -14px), calc(var(--py, 0) * -8px), 0) scale(1.03); transition: transform 1.2s var(--ease-out); }
 .lock-line { max-width: 300px; color: var(--text-2); font-size: 15px; line-height: 1.5; }
 .lock-tabs { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r-pill); background: rgb(var(--bg-rgb) / 0.45); }
 .lock-tab {

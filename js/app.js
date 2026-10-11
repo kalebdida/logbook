@@ -17,6 +17,7 @@ import { startMusic } from './music.js';
 import { renderHabits } from './habits.js';
 import { startPWA } from './pwa.js';
 import { showStorageWarning, startBoot, initSplash } from './ui.js';
+import { startAlive } from './alive.js';
 import { renderTodayConsole, refreshReadout, tickNow } from './today.js';
 import { renderDailyPage } from './dailyPage.js';
 import { openDayViewer } from './dayViewer.js';
@@ -93,6 +94,7 @@ async function init() {
   safe("navigation", initNavigation);
   safe("command palette", initPalette);
   safe("background", startBackground);
+  safe("signs of life", startAlive);
   safe("daily line", wireDailyLine);
   safe("daily line", renderVerse);
   safe("focus timer", renderPomodoro);

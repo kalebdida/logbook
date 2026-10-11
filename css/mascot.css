@@ -45,6 +45,17 @@ html[data-theme-mode="light"] .mascot {
   right: 30px;
   bottom: calc(100% - var(--m-w) * 0.075);
 }
+/* splash: sits above the name on the loading screen */
+.mascot--splash { position: relative; z-index: 1; }
+/* lock: perched on the top edge of the login card */
+.mascot--lock {
+  --m-w: 112px;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - var(--m-w) * 0.085);
+  translate: -50% 0;
+  animation: mascotArrive 0.7s var(--ease-spring) 0.45s both;
+}
 /* corner: fixed to the viewport */
 .mascot--corner {
   position: fixed;
@@ -121,6 +132,9 @@ html[data-theme-mode="light"] .mascot {
 /* focus: the bubble hangs below the cat, inside the timer card, so it never
    reaches up into the page title */
 .mascot--focus .mascot-bubble { top: calc(100% + 6px); right: 0; bottom: auto; max-width: 220px; transform-origin: calc(100% - 22px) 0; }
+/* lock and splash: the bubble sits to the cat's right, pointing back at it */
+:is(.mascot--lock, .mascot--splash) .mascot-bubble { right: auto; bottom: 46%; left: calc(100% - var(--m-w) * 0.08); max-width: min(210px, 52vw); transform-origin: 0 100%; }
+:is(.mascot--lock, .mascot--splash) .mascot-bubble::after { right: auto; bottom: 9px; left: -5px; transform: rotate(135deg); }
 .mascot--focus .mascot-bubble::after { top: -5px; right: 26px; bottom: auto; transform: rotate(-135deg); }
 .mascot--focus.is-sleeping .mascot-bubble { top: calc(100% + 6px); bottom: auto; }
 
@@ -194,6 +208,25 @@ html[data-theme-mode="light"] .mascot {
 .mascot .m-pupil { transition: transform 0.35s var(--ease-out); }
 .mascot .m-eye { transition: opacity 0.15s ease; }
 .mascot .m-eyes-happy { opacity: 0; transition: opacity 0.15s ease; }
+.mascot .m-mouth-sad { opacity: 0; }
+.mascot .m-mouth { transition: opacity 0.2s ease; }
+.mascot .m-yawn { fill: var(--m-ink); transform-box: fill-box; transform-origin: 50% 0; transform: scaleY(0); }
+.mascot .m-arm { fill: none; stroke: var(--m-fur); stroke-width: 9; stroke-linecap: round; }
+.mascot .m-ear-l { transform-box: view-box; transform-origin: 46px 31px; transition: transform 0.4s var(--ease-spring); }
+.mascot .m-ear-r { transition: transform 0.4s var(--ease-spring); }
+.mascot .m-cover-l,
+.mascot .m-cover-r { transform-box: view-box; transform: translateY(40px); opacity: 0; transition: transform 0.38s var(--ease-spring), opacity 0.2s ease; }
+.mascot .m-cover-l { transform-origin: 47px 76px; }
+.mascot .m-cover-r { transform-origin: 73px 76px; }
+
+/* following the pointer: the eyes look, the head turns a touch */
+.mascot:not(.is-attentive):not(.is-shy) .m-eyes { transform: translate(calc(var(--gaze-x, 0) * 2.6px), calc(var(--gaze-y, 0) * 1.8px)); }
+.mascot:not(.is-attentive):not(.is-shy):not(.is-pet):not(.is-soft):not(.is-sad) .m-head { transform: rotate(calc(var(--gaze-x, 0) * 5deg)) translateY(calc(var(--gaze-y, 0) * 0.8px)); }
+/* the pointer right on it: ears up, pupils wide */
+.mascot.is-near:not(.is-sleeping) .m-pupil { transform: scale(1.18, 1.1); }
+.mascot.is-near:not(.is-sleeping) .m-ear-l { transform: rotate(-6deg) scale(1.04); }
+.mascot.is-near:not(.is-sleeping) .m-ear-r { animation: none; transform: rotate(6deg) scale(1.04); }
+.mascot-btn:hover .m-tail { animation-duration: 1.8s !important; }
 
 /* two poses in one drawing: sitting up, curled asleep */
 .mascot .m-sit,
@@ -229,6 +262,37 @@ html[data-theme-mode="light"] .mascot {
 .mascot.is-pet .m-cat { animation: mascotPurr 1s ease-in-out both; }
 .mascot.is-pet .m-head { transform: rotate(-7deg); }
 .mascot.is-pet .m-blush { fill: rgb(var(--warm-rgb) / 0.6); }
+
+/* shy: both paws over the eyes (typing a password) */
+.mascot.is-shy .m-cover-l,
+.mascot.is-shy .m-cover-r { transform: none; opacity: 1; }
+.mascot.is-shy .m-head { transform: rotate(0) translateY(1.5px); }
+.mascot.is-shy .m-blush { fill: rgb(var(--warm-rgb) / 0.6); }
+/* peek: one paw slides down, one eye looks */
+.mascot.is-shy.is-peek .m-cover-r { transform: translate(5px, 13px) rotate(18deg); }
+.mascot.is-shy.is-peek .m-head { transform: rotate(-6deg) translateY(1px); }
+
+/* sad: ears down, eyes low, a small frown */
+.mascot.is-sad .m-ear-l { transform: rotate(-24deg); }
+.mascot.is-sad .m-ear-r { animation: none; transform: rotate(24deg); }
+.mascot.is-sad .m-head { transform: translateY(2.4px) rotate(-3deg); }
+.mascot.is-sad .m-eye { transform: scaleY(0.62); animation: none; }
+.mascot.is-sad .m-eyes { transform: translateY(1.4px); }
+.mascot.is-sad .m-mouth { opacity: 0; }
+.mascot.is-sad .m-mouth-sad { opacity: 1; }
+.mascot.is-sad .m-tail { animation: none; transform: rotate(-14deg); }
+
+/* little habits now and then */
+.mascot.act-look .m-eyes { animation: mascotLook 2.2s ease-in-out both; }
+.mascot.act-look .m-head { animation: mascotLookHead 2.2s ease-in-out both; }
+.mascot.act-yawn .m-yawn { animation: mascotYawn 1.9s ease-in-out both; }
+.mascot.act-yawn .m-eye { animation: mascotYawnEye 1.9s ease-in-out both; }
+.mascot.act-yawn .m-mouth { opacity: 0; }
+.mascot.act-yawn .m-head { animation: mascotYawnHead 1.9s ease-in-out both; }
+.mascot.act-ears .m-ear-l { animation: mascotTwitchL 0.9s ease-in-out both; }
+.mascot.act-ears .m-ear-r { animation: mascotTwitch 0.9s ease-in-out both; animation-name: mascotTwitchR; }
+.mascot.act-tail .m-tail { animation: mascotSwish 1.4s ease-in-out both; }
+.mascot.act-stretch .m-cat { animation: mascotStretch 1.6s ease-in-out both; }
 
 /* asleep: slow breathing, a small z drifting up */
 .mascot.is-sleeping .m-curl-body { animation: mascotSleepBreathe 5s ease-in-out infinite; }
@@ -310,6 +374,54 @@ html[data-theme-mode="light"] .mascot {
   25% { opacity: 1; transform: translateY(0) scale(1.06); }
   100% { opacity: 0; transform: translateY(-13px) scale(0.9); }
 }
+@keyframes mascotLook {
+  0%, 100% { transform: none; }
+  18%, 40% { transform: translate(-2.8px, 0.4px); }
+  58%, 82% { transform: translate(2.8px, 0.4px); }
+}
+@keyframes mascotLookHead {
+  0%, 100% { transform: none; }
+  18%, 40% { transform: rotate(-7deg); }
+  58%, 82% { transform: rotate(7deg); }
+}
+@keyframes mascotYawn {
+  0%, 100% { transform: scaleY(0); }
+  30%, 62% { transform: scaleY(1.2); }
+}
+@keyframes mascotYawnEye {
+  0%, 100% { transform: scaleY(1); }
+  25%, 66% { transform: scaleY(0.12); }
+}
+@keyframes mascotYawnHead {
+  0%, 100% { transform: none; }
+  30%, 62% { transform: rotate(-4deg) translateY(-1.4px); }
+}
+@keyframes mascotTwitchL {
+  0%, 100% { transform: none; }
+  25% { transform: rotate(12deg); }
+  55% { transform: rotate(-3deg); }
+}
+@keyframes mascotTwitchR {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(-12deg); }
+  60% { transform: rotate(3deg); }
+}
+@keyframes mascotSwish {
+  0%, 100% { transform: rotate(-4deg); }
+  25% { transform: rotate(16deg); }
+  50% { transform: rotate(-12deg); }
+  75% { transform: rotate(10deg); }
+}
+@keyframes mascotStretch {
+  0%, 100% { transform: none; }
+  35%, 60% { transform: scale(1.04, 0.94); }
+  80% { transform: scale(0.99, 1.02); }
+}
+@keyframes mascotArrive {
+  0% { opacity: 0; transform: translateY(18px) scale(0.9); }
+  60% { opacity: 1; transform: translateY(-5px) scale(1.02); }
+  100% { opacity: 1; transform: none; }
+}
 @keyframes mascotBubbleIn {
   from { opacity: 0; transform: translateY(6px) scale(0.92); }
   to { opacity: 1; transform: none; }
@@ -326,5 +438,6 @@ html[data-theme-mode="light"] .mascot {
   .mascot.is-fx[data-fx="sparkles"] .m-spark,
   .mascot.is-fx[data-fx="both"] .m-fx-item { opacity: 1; }
   .mascot.is-sleeping .m-z { opacity: 0.85; }
+  .mascot.is-shy .m-cover-l, .mascot.is-shy .m-cover-r { opacity: 1; }
 }
 body.is-focus-space .mascot.is-sleeping .mascot-bubble { display: none; }

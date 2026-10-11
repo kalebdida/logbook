@@ -224,3 +224,49 @@ body:not(.is-booted) #app { opacity: 0; }
   25% { transform: translateX(-5px); }
   60% { transform: translateX(4px); }
 }
+
+@keyframes shootingStar {
+  0%, 90% { opacity: 0; transform: translate(260px, 30px); }
+  91% { opacity: 0.9; transform: translate(300px, 40px); }
+  95% { opacity: 0; transform: translate(470px, 84px); }
+  100% { opacity: 0; transform: translate(470px, 84px); }
+}
+
+@keyframes lockOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes lockPanelOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-10px) scale(0.97); filter: blur(2px); }
+}
+
+/* ---------- signs of life (js/alive.js) ---------- */
+/* cards settle in one after another when a page opens (zero specificity,
+   so any card's own animation still wins) */
+:where(.page-enter) :where(.card, .daily-section, .habits-card, .goals-card, .analytics-card, .settings-card, .cal-card, .density-map-card, .pomodoro-card, .music-card, .companion-card, .verse-box, .replay-card, .day-card) {
+  animation: settleIn 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 45ms + 40ms);
+}
+@keyframes settleIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+/* a soft light that follows the pointer across a card */
+@media (hover: hover) and (pointer: fine) {
+  :is(.card, .daily-section, .habits-card, .goals-card, .analytics-card, .settings-card, .cal-card, .density-map-card, .replay-card, .day-card).is-lit {
+    background:
+      radial-gradient(380px circle at var(--mx, 50%) var(--my, 0), rgb(var(--accent2-rgb) / 0.065), rgb(var(--accent2-rgb) / 0) 70%),
+      var(--card-bg);
+    border-color: rgb(var(--ink-rgb) / 0.12);
+  }
+}
+/* the dashboard scene drifts a touch with the pointer */
+.hero-scene .scene {
+  transform: translate3d(calc(var(--px, 0) * -12px), calc(var(--py, 0) * -6px), 0) scale(1.03);
+  transition: transform 1.4s var(--ease-out);
+}
+.is-counting { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-scene .scene, .lock-scene .scene { transform: none !important; }
+}

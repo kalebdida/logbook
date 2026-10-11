@@ -573,3 +573,6 @@ html[data-background="window"] .lock-scene .scene { filter: blur(1.4px) saturate
   html[data-background="rooftop"] #sky::after { height: 15vh; }
   html[data-background="mist"] #sky::after { height: 20vh; }
 }
+
+/* a shooting star now and then over the night scenes */
+.scene-shooting { opacity: 0; animation: shootingStar 19s linear infinite; animation-delay: 6s; }

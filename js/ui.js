@@ -1,5 +1,6 @@
 import { getPrefs, displayName } from './prefs.js';
 import { isDevice, serverBase } from './connection.js';
+import { sceneSvg } from './scene.js';
 
 export function showBackendWarning(show) {
   var warn = document.getElementById("storageWarning");
@@ -41,19 +42,30 @@ export function initSplash() {
   if (!bootEl) return;
   var terminal = document.documentElement.dataset.theme === "terminal";
   bootEl.classList.toggle("is-terminal", terminal);
+  var cat = null;
   if (!terminal) {
-    import('./scene.js').then(function (m) {
-      if (bootEl.dataset.done) return;
+    try {
       var holder = document.createElement("div");
       holder.className = "splash-scene";
       holder.setAttribute("aria-hidden", "true");
-      holder.innerHTML = m.sceneSvg(window.innerWidth < window.innerHeight * 1.2 ? { crop: "peak" } : null);
+      holder.innerHTML = sceneSvg(window.innerWidth < window.innerHeight * 1.2 ? { crop: "peak" } : null);
       bootEl.insertBefore(holder, bootEl.firstChild);
-    }).catch(function () {});
+    } catch (e) {}
+    // the cat waits with you; it nods off if the server takes its time
+    if (getPrefs().mascot !== false) {
+      cat = import('./mascot.js').then(function (m) {
+        if (bootEl.dataset.done) return null;
+        var spot = document.createElement("div");
+        spot.className = "splash-cat";
+        bootEl.querySelector(".splash").insertBefore(spot, bootEl.querySelector(".splash-title"));
+        bootEl.classList.add("has-cat");
+        return m.mountMascot(spot, { size: "md", place: "splash", quiet: true, awake: true });
+      }).catch(function () { return null; });
+    }
   }
   var line = document.getElementById("splashLine");
   var note = document.getElementById("splashNote");
-  var cat = null;
+  var napped = false;
   document.addEventListener("logbook:connect-progress", function (e) {
     if (bootEl.dataset.done || !line) return;
     var d = e.detail || {};
@@ -64,22 +76,16 @@ export function initSplash() {
       line.textContent = "Waking up the server… " + secs + "s";
       note.hidden = false;
       note.textContent = "Free servers take a nap when nobody's around. The first visit after a quiet spell takes up to a minute. Nothing you type will be lost.";
-      if (!cat && !terminal) {
-        cat = true;
-        import('./mascot.js').then(function (m) {
-          var spot = document.createElement("div");
-          spot.className = "splash-cat";
-          bootEl.querySelector(".splash").insertBefore(spot, bootEl.querySelector(".splash-title"));
-          var c = m.mountMascot(spot, { size: "md", place: "splash" });
-          if (c && c.sleep) c.sleep(true);
-        }).catch(function () {});
+      if (cat && !napped && d.elapsed > 9000) {
+        napped = true;
+        cat.then(function (c) { if (c) c.sleep(true); });
       }
     }
     if (d.phase === "ready") line.textContent = "Almost there…";
     if (d.phase === "offline") line.textContent = "Can't reach the server right now. Opening what's here…";
   });
   // a quick load never shows the screen at all; a slow one fades it in
-  splashTimer = setTimeout(function () { bootEl.classList.add("is-visible"); }, 350);
+  splashTimer = setTimeout(function () { bootEl.classList.add("is-visible"); }, 120);
 }
 
 export function hideSplashForLock() {

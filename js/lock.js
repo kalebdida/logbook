@@ -5,11 +5,24 @@ import { getConnection, setConnection, serverBase, describeConnection } from './
 import { escapeHtml } from './utils.js';
 import { icon } from './icons.js';
 import { sceneSvg } from './scene.js';
+import { mountMascot } from './mascot.js';
+import { getPrefs } from './prefs.js';
 
 var waiting = null;
 
+function greeting() {
+  var h = new Date().getHours();
+  return h >= 5 && h < 12 ? "Good morning." : h >= 12 && h < 17 ? "Good afternoon." : h >= 17 && h < 23 ? "Good evening." : "Up late?";
+}
+
+function reduceMotion() {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
+}
+
+function wait(ms) { return new Promise(function (r) { setTimeout(r, reduceMotion() ? 0 : ms); }); }
+
 var MODES = {
-  login: { line: "Welcome back. Log in to open your logbook.", button: "Log in" },
+  login: { line: "Log in to open your logbook.", button: "Log in" },
   join: { line: "Got an invite? Make your account. Your logbook is yours alone.", button: "Create account" },
   reset: { line: "Got a reset code? Set a new password.", button: "Set new password" }
 };
@@ -50,6 +63,7 @@ export function showLock(reason) {
       '<form class="lock-panel" autocomplete="on" novalidate>' +
         '<header class="lock-head">' +
           '<span class="lock-mark" aria-hidden="true">' + icon("moon-star") + "</span>" +
+          '<p class="lock-greet"></p>' +
           '<h1 class="lock-brand">Logbook</h1>' +
           '<p class="lock-line"></p>' +
         "</header>" +
@@ -80,6 +94,59 @@ export function showLock(reason) {
     var err = form.querySelector(".lock-error");
     var last = getConnection().username || "";
     f.username.value = last;
+    form.querySelector(".lock-greet").textContent = greeting();
+
+    // the cat keeps you company here too: it watches you type your name,
+    // covers its eyes for the password, and is pleased when you get in
+    var cat = null;
+    try {
+      if (getPrefs().mascot !== false) {
+        cat = mountMascot(form, { size: "md", place: "lock", quiet: true, awake: true });
+        form.classList.add("has-cat");
+      }
+    } catch (e) { cat = null; }
+    var shyLine = false, openedAt = Date.now();
+    function catDo(kind) { if (cat) cat.react(kind); }
+    function catSay(text) { if (cat) cat.say(text); }
+    setTimeout(function () {
+      if (!el.isConnected) return;
+      catSay(reason === "expired" ? "You were away a while. Log in again?" : last ? "Hi again, " + last + "." : "Hi. I'm " + (String(getPrefs().mascotName || "").trim() || "Mochi") + ". I'll wait here.");
+    }, 1300);
+    function isSecret(t) { return t && t.name && /^password2?$/.test(t.name); }
+    form.addEventListener("focusin", function (e) {
+      if (isSecret(e.target)) {
+        catDo("shy");
+        if (!shyLine) {
+          shyLine = true;
+          setTimeout(function () { if (el.isConnected) catSay("I won't look."); }, Math.max(250, 4200 - (Date.now() - openedAt)));
+        }
+        catDo(e.target.type === "text" ? "peek" : "unpeek");
+      } else if (!e.target.closest("[data-peek]")) {
+        catDo("unshy");
+      }
+    });
+    form.addEventListener("focusout", function () {
+      setTimeout(function () {
+        if (!form.contains(document.activeElement) || !isSecret(document.activeElement) && !document.activeElement.closest("[data-peek]")) catDo("unshy");
+      }, 60);
+    });
+
+    // the scene drifts a little with the pointer
+    if (!reduceMotion()) {
+      el.addEventListener("pointermove", function (e) {
+        if (e.pointerType === "touch") return;
+        el.style.setProperty("--px", (e.clientX / window.innerWidth - 0.5).toFixed(3));
+        el.style.setProperty("--py", (e.clientY / window.innerHeight - 0.5).toFixed(3));
+      }, { passive: true });
+    }
+
+    async function leave() {
+      catDo("cheer");
+      catSay(greeting() === "Up late?" ? "Welcome in. Keep it short tonight." : "Welcome in.");
+      await wait(750);
+      el.classList.add("is-leaving");
+      await wait(450);
+    }
 
     function setMode(next) {
       mode = next;
@@ -114,6 +181,8 @@ export function showLock(reason) {
         b.setAttribute("aria-label", show ? "Hide password" : "Show password");
         b.innerHTML = icon(show ? "eye-off" : "eye");
         input.focus();
+        catDo(show ? "peek" : "unpeek");
+        if (show) catSay("Okay, I peeked. A little.");
       });
     });
 
@@ -144,10 +213,12 @@ export function showLock(reason) {
           // page unloads goes out with no token and is refused.
           clearLocalTraces();
           setConnection({ token: "", pendingToken: res.token || "", username: who });
+          await leave();
           location.reload();
           return;
         }
         setConnection({ token: res.token || "", username: who });
+        await leave();
         el.remove();
         document.body.classList.remove("has-overlay");
         waiting = null;
@@ -156,7 +227,12 @@ export function showLock(reason) {
         err.textContent = ex.status === 401 ? "Wrong username or password."
           : ex.status === 429 || ex.status === 400 ? ex.detail
           : "Can't reach the server. It may be waking up; try again in a moment.";
+        form.classList.remove("is-wrong");
+        void form.offsetWidth;
+        form.classList.add("is-wrong");
         f.password.select();
+        if (ex.status === 401) setTimeout(function () { catDo("unshy"); catDo("sad"); catSay("Hmm. That's not it."); }, 40);
+        else if (!ex.status) catSay("The server's still yawning. Give it a moment.");
       } finally {
         btn.disabled = false;
       }

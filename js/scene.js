@@ -237,6 +237,113 @@ function nightTrain() {
   return '<g class="scene-train"><g transform="translate(0 343)">' + cars + "</g></g>";
 }
 
+
+/* Fuji, drawn to look real: the true concave profile with a flat, notched
+   summit, rock gullies running down from the crater, moonlight on the right
+   flank, a snow cap that reaches down the gullies in long fingers, a fine
+   grain, and mist where it meets the land. Everything is clipped to the
+   mountain so the details never spill into the sky. */
+var FUJI = "M330 344 C 500 318 650 226 742 122 Q 750 113 758 113 L 766 110 L 772 113 L 779 109 L 786 112 Q 795 113 803 122 C 895 226 1045 318 1215 344 Z";
+
+function fujiFlankY(x) {
+  // the outline's height at x (close enough for placing snow and gullies)
+  var t, y;
+  if (x < 742) { t = (742 - x) / 412; y = 122 + 222 * Math.pow(t, 0.62); }
+  else if (x > 803) { t = (x - 803) / 412; y = 122 + 222 * Math.pow(t, 0.62); }
+  else y = 112;
+  return y;
+}
+
+function fujiGullies(seed) {
+  var r = rand(seed), dark = "", lit = "";
+  for (var i = 0; i < 38; i++) {
+    var sx = 744 + r() * 58, sy = 116 + r() * 14;
+    var side = sx < 772 ? -1 : 1;
+    var len = 40 + r() * 120;
+    // follow the slope: steep near the top, so mostly downward
+    var k = (0.35 + r() * 0.75) * side;
+    var ex = sx + k * len, ey = sy + len;
+    var mx = sx + k * len * 0.3 + (r() - 0.5) * 6, my = sy + len * 0.55;
+    var d = "M" + f(sx) + " " + f(sy) + " Q" + f(mx) + " " + f(my) + " " + f(ex) + " " + f(ey);
+    var w = (0.5 + r() * 0.9).toFixed(2);
+    if (side < 0 || r() > 0.5) dark += '<path d="' + d + '" stroke-width="' + w + '" opacity="' + (0.1 + r() * 0.14).toFixed(2) + '"/>';
+    else lit += '<path d="' + d + '" stroke-width="' + w + '" opacity="' + (0.05 + r() * 0.07).toFixed(2) + '"/>';
+  }
+  return { dark: dark, lit: lit };
+}
+
+function fujiSnow(seed) {
+  // a full cap over the top third with a ragged snow line; below it, snow
+  // runs down the gullies as tapered tongues that fan out from the summit
+  var r = rand(seed), d = "M600 90 ", line = [];
+  for (var x = 600; x <= 950; x += 3) {
+    var arc = Math.abs(x - 773) / 100;
+    var y = 186 - arc * 6 + (r() - 0.5) * 7 + Math.sin(x / 9) * 2.5;
+    line.push([x, y]);
+    d += "L" + x + " " + f(y) + " ";
+  }
+  d += "L950 90 Z";
+  var lineY = function (x) { var i = Math.max(0, Math.min(line.length - 1, Math.round((x - 600) / 3))); return line[i][1]; };
+  for (var fx = 686; fx < 862; fx += 5 + r() * 8) {
+    var by = lineY(fx) - 3, w = 4 + r() * 9;
+    var len = r() > 0.25 ? 12 + Math.pow(r(), 1.6) * 78 : 5 + r() * 8;
+    var slant = Math.max(-1.3, Math.min(1.3, (fx - 772) / (by - 104)));   // follow the line from the summit
+    len *= 1 - Math.min(0.6, Math.abs(fx - 772) / 180);
+    var tx = fx + slant * len, ty = by + len;
+    var bend = (r() - 0.5) * 3;
+    d += "M" + f(fx - w / 2) + " " + f(by) +
+      " Q" + f(fx - w * 0.18 + slant * len * 0.5 + bend) + " " + f(by + len * 0.5) + " " + f(tx) + " " + f(ty) +
+      " Q" + f(fx + w * 0.18 + slant * len * 0.5 + bend) + " " + f(by + len * 0.5) + " " + f(fx + w / 2) + " " + f(by) + " Z ";
+  }
+  return d;
+}
+
+function fujiStreaks(seed) {
+  var r = rand(seed), out = "";
+  for (var i = 0; i < 22; i++) {
+    var sx = 750 + r() * 46, side = sx < 772 ? -1 : 1;
+    var len = 14 + r() * 40, ex = sx + side * (0.25 + r() * 0.6) * len;
+    out += '<path d="M' + f(sx) + " 118 L" + f(ex) + " " + f(118 + len) + '" stroke-width="' + (0.4 + r() * 0.7).toFixed(2) + '" opacity="' + (0.15 + r() * 0.25).toFixed(2) + '"/>';
+  }
+  return out;
+}
+
+function fuji(n) {
+  var g = fujiGullies(41), snowPath = fujiSnow(9);
+  return (
+    "<defs>" +
+      '<clipPath id="scFujiClip' + n + '"><path d="' + FUJI + '"/></clipPath>' +
+      '<linearGradient id="scFujiBody' + n + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scene-peak)"/><stop offset=".5" stop-color="color-mix(in srgb, var(--scene-peak) 45%, var(--scene-ridge))"/><stop offset="1" stop-color="color-mix(in srgb, var(--scene-ridge) 70%, var(--scene-far))"/></linearGradient>' +
+      '<linearGradient id="scFujiShade' + n + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--scene-ridge)" stop-opacity=".55"/><stop offset=".47" stop-color="var(--scene-ridge)" stop-opacity=".22"/><stop offset=".5" stop-color="var(--scene-ridge)" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="scFujiMoon' + n + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--scene-snow)" stop-opacity=".08"/><stop offset="1" stop-color="var(--scene-snow)" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="scFujiSnow' + n + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scene-snow)"/><stop offset=".7" stop-color="color-mix(in srgb, var(--scene-snow) 80%, var(--scene-snow-shade))"/><stop offset="1" stop-color="var(--scene-snow-shade)"/></linearGradient>' +
+      '<linearGradient id="scFujiSnowShade' + n + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--scene-snow-shade)" stop-opacity=".9"/><stop offset=".4" stop-color="var(--scene-snow-shade)" stop-opacity=".45"/><stop offset=".56" stop-color="var(--scene-snow-shade)" stop-opacity=".08"/><stop offset=".7" stop-color="var(--scene-snow-shade)" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="scFujiMist' + n + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--scene-sky-low)" stop-opacity="0"/><stop offset="1" stop-color="var(--scene-sky-low)" stop-opacity=".75"/></linearGradient>' +
+      '<filter id="scGrain' + n + '" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .5"/></feComponentTransfer></filter>' +
+    "</defs>" +
+    '<g class="scene-fuji">' +
+      '<path d="' + FUJI + '" fill="url(#scFujiBody' + n + ')"/>' +
+      '<g clip-path="url(#scFujiClip' + n + ')">' +
+        '<rect x="330" y="100" width="885" height="250" fill="url(#scFujiShade' + n + ')"/>' +
+        '<path d="M774 110 C 800 190 860 270 960 344 L1215 344 L1215 100 Z" fill="url(#scFujiMoon' + n + ')"/>' +
+        '<g fill="none" stroke="var(--scene-ridge)" stroke-linecap="round">' + g.dark + "</g>" +
+        '<g fill="none" stroke="var(--scene-snow)" stroke-linecap="round">' + g.lit + "</g>" +
+        '<path class="scene-snow" d="' + snowPath + '" fill="url(#scFujiSnow' + n + ')"/>' +
+        '<path d="' + snowPath + '" fill="url(#scFujiSnowShade' + n + ')"/>' +
+        '<g fill="none" stroke="var(--scene-snow-shade)" stroke-linecap="round">' + fujiStreaks(5) + "</g>" +
+        '<rect x="330" y="100" width="885" height="250" filter="url(#scGrain' + n + ')" opacity=".07"/>' +
+        '<rect x="330" y="262" width="885" height="90" fill="url(#scFujiMist' + n + ')"/>' +
+      "</g>" +
+    "</g>"
+  );
+}
+
+function milkyWay(n) {
+  return '<defs><radialGradient id="scMilky' + n + '"><stop offset="0" stop-color="var(--scene-star)" stop-opacity=".09"/><stop offset=".6" stop-color="var(--scene-star)" stop-opacity=".035"/><stop offset="1" stop-color="var(--scene-star)" stop-opacity="0"/></radialGradient></defs>' +
+    '<ellipse cx="430" cy="110" rx="520" ry="46" transform="rotate(-16 430 110)" fill="url(#scMilky' + n + ')"/>' +
+    '<g class="scene-shooting"><line x1="0" y1="0" x2="70" y2="18" stroke="var(--scene-star)" stroke-width="1.4" stroke-linecap="round"/></g>';
+}
+
 function night(n) {
   return (
     "<defs>" +
@@ -252,14 +359,13 @@ function night(n) {
       '<mask id="scCrescent' + n + '"><circle cx="1010" cy="74" r="15" fill="#fff"/><circle cx="1017" cy="69" r="13.5" fill="#000"/></mask>' +
     "</defs>" +
     '<rect class="scene-sky" width="1200" height="400" fill="url(#scSky' + n + ')"/>' +
+    milkyWay(n) +
     '<g class="scene-stars" fill="var(--scene-star)">' + nightStars() + "</g>" +
     '<circle cx="1010" cy="74" r="70" fill="url(#scMoonGlow' + n + ')"/>' +
     '<circle cx="1010" cy="74" r="15" fill="var(--scene-moon)" mask="url(#scCrescent' + n + ')"/>' +
     // the far range, then the mountain
     '<path d="M0 318 C 90 300 170 296 250 306 S 380 292 450 300 S 640 290 760 302 S 1040 286 1200 296 L 1200 400 L 0 400 Z" fill="var(--scene-far)"/>' +
-    '<path d="M370 340 C 520 304 650 206 738 124 L 750 113 Q 770 107 790 113 L 802 124 C 890 206 1020 304 1170 340 Z" fill="url(#scFuji' + n + ')"/>' +
-    '<path d="M778 110 Q 786 110 790 113 L 802 124 C 890 206 1020 304 1170 340 L 1060 340 C 930 286 836 200 778 110 Z" fill="url(#scLit' + n + ')"/>' +
-    '<path class="scene-snow" d="M686 170 C 706 152 724 137 738 124 L 750 113 Q 770 107 790 113 L 802 124 C 816 137 834 152 854 170 L 846 172 L 838 186 L 832 176 L 822 204 L 815 184 L 806 214 L 798 190 L 788 228 L 780 196 L 771 236 L 764 198 L 754 220 L 748 190 L 738 206 L 732 182 L 722 192 L 716 178 L 704 182 L 698 174 Z" fill="url(#scSnow' + n + ')"/>' +
+    fuji(n) +
     '<rect y="250" width="1200" height="150" fill="url(#scHaze' + n + ')"/>' +
     // tree line and the train that runs along it
     nightTrees() +
@@ -391,14 +497,6 @@ function poleRow(S, side, line, ks, height) {
 function bluehour(n) {
   var g = namer(n), r = rand(23);
   var VX = 770, VY = 318, S = street(VX, VY, 82);
-  var FUJI = "M290 322 C 470 292 612 204 734 126 L 751 114 Q 770 106 789 114 L 806 126 C 928 204 1070 292 1250 322 Z";
-  var snow = "M500 80 L1040 80";
-  for (var x = 1030; x >= 510; x -= 6 + Math.round(r() * 7)) {
-    var dd = Math.abs(x - 770) / 250;
-    var tooth = r() > 0.5 ? 10 + r() * 36 : r() * 8;
-    snow += " L" + x + " " + f(222 - dd * dd * 30 + tooth);
-  }
-  snow += " Z";
 
   // the far town where the street meets the mountain
   var far = "", farLights = "";
@@ -494,11 +592,8 @@ function bluehour(n) {
   return (
     "<defs>" +
       lin(g.id("bhSky"), [[0, "var(--scene-sky-top)"], [0.55, "var(--scene-sky-mid)"], [1, "var(--scene-sky-low)"]], 'gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="330"') +
-      lin(g.id("bhFuji"), [[0, "var(--scene-peak)"], [1, "var(--scene-far)"]], 'gradientUnits="userSpaceOnUse" x1="0" y1="110" x2="0" y2="320"') +
-      lin(g.id("bhSnow"), [[0, "var(--scene-snow)"], [1, "var(--scene-snow-shade)"]], 'gradientUnits="userSpaceOnUse" x1="0" y1="110" x2="0" y2="270"') +
       lin(g.id("bhRoad"), [[0, "var(--scene-road-far)"], [1, "var(--scene-road)"]], 'gradientUnits="userSpaceOnUse" x1="0" y1="318" x2="0" y2="400"') +
       lin(g.id("bhGround"), [[0, "var(--scene-far)"], [1, "var(--scene-ground)"]], 'gradientUnits="userSpaceOnUse" x1="0" y1="318" x2="0" y2="400"') +
-      lin(g.id("bhShade"), [[0, "var(--scene-ridge)", 0], [1, "var(--scene-ridge)", 0.4]], 'x1="0" y1="0" x2="1" y2="0"') +
       glow(g.id("bhCloud"), "var(--scene-cloud)", 0.55) +
       rad(g.id("bhHaze"), [[0, "var(--scene-haze)", 0.5], [1, "var(--scene-haze)", 0]], 'cx=".5" cy="1" r=".7"') +
       glow(g.id("lampHalo"), "var(--scene-lamp)", 0.5) +
@@ -510,19 +605,11 @@ function bluehour(n) {
       lin(g.id("headRefl"), [[0, "var(--scene-head)", 0.35], [1, "var(--scene-head)", 0]]) +
       glow(g.id("vend"), "var(--scene-vend)", 0.45) +
       carDefs(g) +
-      '<clipPath id="' + g.id("bhMt") + '"><path d="' + FUJI + '"/></clipPath>' +
     "</defs>" +
     '<rect class="scene-sky" width="1200" height="400" fill="' + g.url("bhSky") + '"/>' +
     '<g fill="var(--scene-star)">' + stars(41, 26, 120, 4, 1) + "</g>" +
     // Fuji, snow to the shoulders, the far side in shade
-    '<path d="' + FUJI + '" fill="' + g.url("bhFuji") + '"/>' +
-    '<g clip-path="' + g.url("bhMt") + '">' +
-      '<path d="' + snow + '" fill="' + g.url("bhSnow") + '"/>' +
-      '<path d="M770 100 C 784 150 812 220 880 330 L 1260 330 L 1260 90 Z" fill="' + g.url("bhShade") + '"/>' +
-      '<g stroke="var(--scene-snow-shade)" stroke-width="1.1" fill="none" opacity=".3">' +
-        '<path d="M756 118 Q 744 170 726 240"/><path d="M788 118 Q 806 176 826 250"/><path d="M742 130 Q 716 176 690 222"/>' +
-      "</g>" +
-    "</g>" +
+    '<g transform="translate(770 322) scale(1.08 .92) translate(-772 -344)">' + fuji(n) + "</g>" +
     // a band of cloud resting on the mountain's shoulder
     '<g class="scene-drift" style="--drift:22px">' +
       '<ellipse cx="640" cy="238" rx="150" ry="13" fill="' + g.url("bhCloud") + '"/>' +

@@ -48,7 +48,9 @@ var LINES = {
   petGentle: ["It's okay to have a slow day.", "One thing at a time.", "I'm right here.", "Prrr. Go easy today."],
   petSleepy: ["Mm. Still here.", "Five more minutes.", "Prrr. Sleepy."],
   petFocus: ["Shh. You've got this.", "Keep going. I'll wait."],
-  petLate: ["It's late. Sleep soon?", "Mm. Bedtime soon, okay?"]
+  petLate: ["It's late. Sleep soon?", "Mm. Bedtime soon, okay?"],
+  petMany: ["Okay, okay. I'm awake!", "That's a lot of pets. I approve.", "Prrrrr. Don't stop."],
+  wake: ["Mm? Oh, hi.", "I was only resting my eyes."]
 };
 
 /* the "happy" kinds hop and sparkle; the gentle ones just speak */
@@ -132,8 +134,15 @@ function catSvg() {
           '<path class="m-line m-eyes-happy" d="M42.6 46.4 q5.4 -5.2 10.8 0 M66.6 46.4 q5.4 -5.2 10.8 0"/>' +
           '<path class="m-nose" d="M57.2 52.4 h5.6 q0 2.6 -2.8 3.6 q-2.8 -1 -2.8 -3.6 z"/>' +
           '<path class="m-line m-mouth" d="M60 55.8 q-1.4 2.8 -4.2 1.8 M60 55.8 q1.4 2.8 4.2 1.8"/>' +
+          '<path class="m-line m-mouth-sad" d="M56.4 59.4 q3.6 -2.4 7.2 0"/>' +
+          '<ellipse class="m-yawn" cx="60" cy="59" rx="3" ry="3.4"/>' +
           '<path class="m-whisker" d="M33.5 53.2 l-10 -1.6 M34 56.6 l-9.4 2 M86.5 53.2 l10 -1.6 M86 56.6 l9.4 2"/>' +
         '</g></g>' +
+        // paws up over the eyes (the login screen, while you type a password)
+        '<g class="m-cover">' +
+          '<g class="m-cover-l"><path class="m-arm" d="M47 76 Q 41 62 46.5 50"/><ellipse class="m-paw" cx="47" cy="47.5" rx="8.4" ry="6.6"/><path class="m-toes" d="M43.4 42.4 v3 M47 41.4 v3 M50.6 42.4 v3"/></g>' +
+          '<g class="m-cover-r"><path class="m-arm" d="M73 76 Q 79 62 73.5 50"/><ellipse class="m-paw" cx="73" cy="47.5" rx="8.4" ry="6.6"/><path class="m-toes" d="M69.4 42.4 v3 M73 41.4 v3 M76.6 42.4 v3"/></g>' +
+        '</g>' +
       '</g>' +
     '</g>' +
     // curled up asleep, like the cat on the bed by the rainy window
@@ -184,7 +193,9 @@ var G = {
   taskDone: null,
   habitsDone: null,
   ticker: null,
-  greeted: false
+  greeted: false,
+  gazeFrame: 0,
+  pointer: null
 };
 
 function hidden() { return document.visibilityState === "hidden"; }
@@ -329,6 +340,24 @@ function onVisibility() {
   }
 }
 
+/* the eyes follow the pointer around the page (mouse and pen; a tap is a
+   short glance). One listener for every cat, at most once a frame. */
+function onPointer(e) {
+  if (e.pointerType === "touch" && e.type === "pointermove") return;
+  G.pointer = { x: e.clientX, y: e.clientY, at: Date.now() };
+  if (G.gazeFrame) return;
+  G.gazeFrame = requestAnimationFrame(function () {
+    G.gazeFrame = 0;
+    each(function (m) { m.gaze(G.pointer); });
+  });
+}
+
+function onPointerOut(e) {
+  if (e.relatedTarget) return;
+  G.pointer = null;
+  each(function (m) { m.gaze(null); });
+}
+
 function startTicker() {
   if (G.ticker || hidden() || !instances.length) return;
   G.ticker = setInterval(function () {
@@ -354,6 +383,11 @@ function wire() {
   document.addEventListener("click", onClickCapture, true);
   document.addEventListener("input", onInput, true);
   document.addEventListener("visibilitychange", onVisibility);
+  if (!reduceMotion()) {
+    document.addEventListener("pointermove", onPointer, { passive: true });
+    document.addEventListener("pointerdown", onPointer, { passive: true });
+    document.addEventListener("pointerout", onPointerOut, { passive: true });
+  }
   ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (t) {
     document.addEventListener(t, activity, { passive: true, capture: true });
   });
@@ -377,7 +411,7 @@ function firstVisitToday() {
 export function mountMascot(container, opts) {
   opts = opts || {};
   var size = { sm: 1, md: 1, lg: 1 }[opts.size] ? opts.size : "md";
-  var place = { dash: 1, focus: 1, corner: 1 }[opts.place] ? opts.place : "corner";
+  var place = { dash: 1, focus: 1, corner: 1, lock: 1, splash: 1 }[opts.place] ? opts.place : "corner";
   wire();
 
   // one cat per container: remounting replaces the old one
@@ -389,8 +423,9 @@ export function mountMascot(container, opts) {
   if (container) container.appendChild(el);
 
   var parts = null;          // { btn, svg, bubble, text, liveRegion }
-  var timers = { bubble: null, leave: null, attend: null, wake: null, mood: null, greet: null };
-  var forced = null;         // sleep(true/false) from the outside; null = automatic
+  var timers = { bubble: null, leave: null, attend: null, wake: null, mood: null, greet: null, act: null, glance: null };
+  var forced = opts.awake ? false : null;   // sleep(true/false) from the outside; null = automatic
+  var pets = [];             // recent pets, for "that's a lot of pets"
   var wakeUntil = 0;
   var lastLineAt = 0;
   var lastLineLow = false;   // a passing remark (picking a mood) that a real moment may replace
@@ -419,6 +454,41 @@ export function mountMascot(container, opts) {
     parts.btn.addEventListener("click", pet);
     label();
     update();
+    scheduleAct();
+  }
+
+  /* now and then, while awake and nothing else is going on: a look around,
+     a yawn, an ear flick, a swish of the tail */
+  var ACTS = { look: 2200, yawn: 1900, ears: 900, tail: 1400, stretch: 1600 };
+  function scheduleAct() {
+    clear("act");
+    if (reduceMotion() || hidden()) return;
+    timers.act = setTimeout(function () {
+      if (parts && !asleep && !el.matches(".is-shy, .is-sad, .is-happy, .is-pet, .is-attentive")) {
+        var names = Object.keys(ACTS);
+        if (lateNight()) names.push("yawn", "yawn");
+        var name = names[Math.floor(Math.random() * names.length)];
+        flash("act-" + name, ACTS[name]);
+      }
+      scheduleAct();
+    }, 14000 + Math.random() * 22000);
+  }
+
+  function gaze(p) {
+    if (!parts || asleep || el.classList.contains("is-attentive")) return;
+    if (!p) {
+      el.style.setProperty("--gaze-x", "0");
+      el.style.setProperty("--gaze-y", "0");
+      return;
+    }
+    var b = parts.btn.getBoundingClientRect();
+    if (!b.width) return;
+    var dx = p.x - (b.left + b.width / 2), dy = p.y - (b.top + b.height * 0.42);
+    var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    var reach = Math.min(1, dist / 260);          // close by: eyes move less far
+    el.style.setProperty("--gaze-x", (dx / dist * reach).toFixed(2));
+    el.style.setProperty("--gaze-y", (dy / dist * reach).toFixed(2));
+    el.classList.toggle("is-near", dist < b.width * 0.9);
   }
 
   function label() {
@@ -519,9 +589,19 @@ export function mountMascot(container, opts) {
 
   function pet() {
     activity();
+    var now = Date.now();
+    pets = pets.filter(function (t) { return now - t < 3000; });
+    pets.push(now);
+    if (pets.length === 5 || pets.length === 10) {
+      wakeBriefly();
+      flash("is-happy", 800);
+      fx("both");
+      say(pick("petMany"), true);
+      return;
+    }
     var wasAsleep = asleep;
     var pool = gentleToday() ? "petGentle" : "pet";
-    if (wasAsleep) pool = G.focusRunning ? "petFocus" : lateNight() ? "petLate" : "petSleepy";
+    if (wasAsleep) pool = G.focusRunning ? "petFocus" : lateNight() ? "petLate" : Math.random() < 0.5 ? "wake" : "petSleepy";
     else if (lateNight() && Math.random() < 0.4) pool = "petLate";
     else if (!gentleToday() && Math.random() < 0.25) pool = partOfDay();
     wakeBriefly();
@@ -537,6 +617,10 @@ export function mountMascot(container, opts) {
     if (kind === "attentive") return attend(null);
     if (kind === "sleep") { forced = null; wakeUntil = 0; return update(); }
     if (kind === "wake") return wakeBriefly();
+    if (kind === "shy" || kind === "unshy") { el.classList.toggle("is-shy", kind === "shy"); if (kind === "unshy") el.classList.remove("is-peek"); return; }
+    if (kind === "peek" || kind === "unpeek") { el.classList.toggle("is-peek", kind === "peek"); return; }
+    if (kind === "sad") { el.classList.remove("is-happy"); flash("is-sad", 2600); return; }
+    if (kind === "cheer") { el.classList.remove("is-shy", "is-peek", "is-sad"); wakeBriefly(); flash("is-happy", 800); fx("both"); return; }
     if (!r) return;
     if (r.gentle) {
       // no hop: just turn toward you
@@ -573,13 +657,14 @@ export function mountMascot(container, opts) {
   function pause() {
     clearAll();
     el.classList.add("is-paused");
-    el.classList.remove("is-attentive", "is-happy", "is-pet", "is-fx", "is-soft");
+    el.classList.remove("is-attentive", "is-happy", "is-pet", "is-fx", "is-soft", "is-sad");
     if (parts) { parts.bubble.hidden = true; parts.bubble.classList.remove("is-leaving"); }
   }
 
   function resume() {
     el.classList.remove("is-paused");
     update();
+    scheduleAct();
   }
 
   function teardown() {
@@ -606,7 +691,7 @@ export function mountMascot(container, opts) {
 
   instances.push({
     el: el, container: container, api: api,
-    update: update, sync: sync, react: react, attend: attend,
+    update: update, sync: sync, react: react, attend: attend, gaze: gaze,
     pause: pause, resume: resume, teardown: teardown
   });
 
@@ -615,7 +700,7 @@ export function mountMascot(container, opts) {
   startTicker();
 
   // the first time the cat sees you today, it says hello
-  if (parts && !G.greeted && !hidden()) {
+  if (parts && !opts.quiet && !G.greeted && !hidden()) {
     G.greeted = true;
     if (firstVisitToday()) {
       var pod = partOfDay();
