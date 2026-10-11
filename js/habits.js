@@ -128,7 +128,7 @@ function render() {
       '<form class="habit-add" autocomplete="off">' +
         '<input type="hidden" name="icon" value="' + escapeHtml(pickedIcon) + '">' +
         '<button type="button" class="icon-pick" data-icon-pick aria-expanded="' + pickerOpen + '" aria-label="Choose an icon" title="Choose an icon">' + (pickedIcon ? icon(pickedIcon) : icon("sparkle")) + "</button>" +
-        '<input class="text-input" name="name" maxlength="80" placeholder="New habit" aria-label="New habit" required>' +
+        '<input class="text-input" name="name" maxlength="80" placeholder="New habit" aria-label="New habit" enterkeyhint="done" required>' +
         '<select class="select-input" name="category" aria-label="Life area">' + categoryOptions("", "Area") + "</select>" +
         '<button type="submit" class="tool-btn tool-btn--add">' + icon("plus") + "<span>Add</span></button>" +
       "</form>" +
@@ -181,14 +181,15 @@ async function save(id, day, next) {
   }
 }
 
-async function create(values) {
+async function create(values, fromForm) {
   try {
     var h = await apiCreateHabit(values);
     habits.push(h);
     render();
     emitChange("habits");
+    // typing one habit after another keeps the cursor; a tapped suggestion doesn't pop the keyboard
     var input = document.querySelector('#habitsSection .habit-add [name="name"]');
-    if (input) input.focus();
+    if (input && fromForm) input.focus();
   } catch (e) {
     toast("Couldn't add the habit: " + (e.detail || e.message), "error");
   }
@@ -254,7 +255,7 @@ function wire(el) {
     var chosen = f.icon.value.trim();
     pickedIcon = "";
     pickerOpen = false;
-    create({ name: name, icon: chosen, category: f.category.value || null });
+    create({ name: name, icon: chosen, category: f.category.value || null }, true);
   });
 }
 

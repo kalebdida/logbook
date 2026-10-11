@@ -1,4 +1,4 @@
-import { apiListGoals, apiCreateGoal, apiUpdateGoal, apiDeleteGoal } from "./api.js";
+import { apiListGoals, apiCreateGoal, apiUpdateGoal, apiDeleteGoal, apiRestoreBackup } from "./api.js";
 import { icon } from "./icons.js";
 import { dateKey } from "./dayRecord.js";
 import { escapeHtml } from "./utils.js";
@@ -66,6 +66,8 @@ function copyGoal(goal) {
 
 function renderGoalsShell() {
   var stats = buildGoalStats(state.goals);
+  // with nothing to count or search yet, the numbers and filters are just noise
+  var hasGoals = state.goals.length > 0;
 
   return `
     <section class="goals-card" aria-label="Goals">
@@ -74,8 +76,7 @@ function renderGoalsShell() {
         <button class="primary-btn goals-add-button" type="button" data-goal-action="add">${icon("plus")}<span>New goal</span></button>
       </div>
 
-      ${renderSummary(stats)}
-      ${renderControls()}
+      ${hasGoals ? renderSummary(stats) + renderControls() : ""}
       ${renderEditor()}
       <div class="goals-list" id="goalsList">${renderGoalListMarkup()}</div>
     </section>
@@ -116,10 +117,10 @@ function renderControls() {
       </select>
 
       <select id="goalSort" class="goals-select" aria-label="Sort goals">
-        <option value="priority"${selected(state.sort, "priority")}>Priority</option>
-        <option value="due-date"${selected(state.sort, "due-date")}>Due date</option>
-        <option value="progress"${selected(state.sort, "progress")}>Progress</option>
-        <option value="newest"${selected(state.sort, "newest")}>Newest</option>
+        <option value="priority"${selected(state.sort, "priority")}>By priority</option>
+        <option value="due-date"${selected(state.sort, "due-date")}>By due date</option>
+        <option value="progress"${selected(state.sort, "progress")}>By progress</option>
+        <option value="newest"${selected(state.sort, "newest")}>Newest first</option>
       </select>
 
       <label class="goals-collapse-control">
@@ -153,7 +154,7 @@ function renderEditor() {
 
       <label class="goals-field goals-field--wide">
         <span>Title</span>
-        <input name="title" type="text" value="${escapeHtml(goal.title)}" maxlength="120" required autofocus />
+        <input name="title" type="text" value="${escapeHtml(goal.title)}" maxlength="120" required />
       </label>
 
       <label class="goals-field goals-field--wide">
@@ -179,13 +180,13 @@ function renderEditor() {
         </select>
       </label>
 
-      <label class="goals-field">
+      <label class="goals-field goals-field--phone-wide">
         <span>Target date <em>Optional</em></span>
         <input name="targetDate" type="date" value="${escapeHtml(goal.targetDate || "")}" />
       </label>
 
-      <label class="goals-field">
-        <span>Life area <em>Shows on the density map when done</em></span>
+      <label class="goals-field goals-field--phone-wide" title="When it's done, it counts toward this area on the Life areas map">
+        <span>Life area <em>Optional</em></span>
         <select name="activityCategory">${categoryOptions(goal.activityCategory || "", "None")}</select>
       </label>
 
@@ -195,6 +196,7 @@ function renderEditor() {
       </label>
 
       <div class="goals-editor-actions">
+        ${existingGoal ? `<button class="tool-btn danger-btn goals-delete-button" type="button" data-goal-action="delete" data-goal-id="${escapeHtml(existingGoal.id)}">${icon("trash-2")}<span>Delete</span></button>` : ""}
         <button class="tool-btn" type="button" data-goal-action="cancel">Cancel</button>
         <button class="primary-btn goals-save-button" type="submit">${icon("check")}<span>${existingGoal ? "Save changes" : "Create goal"}</span></button>
       </div>
@@ -206,6 +208,8 @@ function renderGoalListMarkup() {
   var goals = visibleGoals();
 
   if (goals.length === 0) {
+    // writing the first goal: the editor says it all
+    if (state.editingId === "new" && state.goals.length === 0) return "";
     return renderEmptyState();
   }
 
@@ -218,11 +222,11 @@ function renderEmptyState() {
     ? "No goals match. Try another search or filter."
     : "No goals yet. What's one thing worth moving toward?";
 
+  // the "New goal" button above is the one way in, so no second button here
   return `
     <div class="goals-empty">
       ${icon(hasGoals ? "search" : "mountain-snow")}
       <p>${message}</p>
-      ${hasGoals ? "" : '<button class="primary-btn" type="button" data-goal-action="add">' + icon("plus") + "<span>Add your first goal</span></button>"}
     </div>
   `;
 }
@@ -237,14 +241,14 @@ function renderGoalCard(goal) {
   return `
     <article class="${classes.join(" ")}" data-goal-id="${escapeHtml(goal.id)}">
       <div class="goal-card-topline">
-        <span class="goal-category">${categoryLabel(goal.category)}${areaTag(goal)}</span>
+        <span class="goal-tags">
+          <span class="goal-category">${categoryLabel(goal.category)}${areaTag(goal)}</span>
+          ${renderGoalBadges(goal, overdue, almostDone)}
+        </span>
         <span class="goal-priority goal-priority--${goal.priority}">${capitalize(goal.priority)}</span>
       </div>
 
-      <div class="goal-title-row">
-        <h3 class="goal-title">${escapeHtml(goal.title)}</h3>
-        ${renderGoalBadges(goal, overdue, almostDone)}
-      </div>
+      <h3 class="goal-title"><button class="goal-open" type="button" data-goal-action="edit" data-goal-id="${escapeHtml(goal.id)}" title="Edit this goal">${escapeHtml(goal.title)}</button></h3>
 
       ${goal.description ? `<p class="goal-description">${escapeHtml(goal.description)}</p>` : ""}
 
@@ -260,11 +264,7 @@ function renderGoalCard(goal) {
 
       <div class="goal-footer">
         <span class="goal-target">${renderTargetDate(goal, overdue)}</span>
-        <div class="goal-actions">
-          <button class="icon-btn" type="button" data-goal-action="edit" data-goal-id="${escapeHtml(goal.id)}" aria-label="Edit" title="Edit">${icon("pencil")}</button>
-          <button class="icon-btn goal-delete-button" type="button" data-goal-action="delete" data-goal-id="${escapeHtml(goal.id)}" aria-label="Delete" title="Delete">${icon("trash-2")}</button>
-          <button class="tool-btn goal-complete-button" type="button" data-goal-action="complete" data-goal-id="${escapeHtml(goal.id)}">${goal.completed ? icon("rotate-ccw") + "<span>Reopen</span>" : icon("check") + "<span>Done</span>"}</button>
-        </div>
+        <button class="tool-btn goal-complete-button" type="button" data-goal-action="complete" data-goal-id="${escapeHtml(goal.id)}">${goal.completed ? icon("rotate-ccw") + "<span>Reopen</span>" : icon("check") + "<span>Done</span>"}</button>
       </div>
     </article>
   `;
@@ -279,27 +279,43 @@ function renderGoalBadges(goal, overdue, almostDone) {
   var badges = [];
   if (goal.completed) badges.push('<span class="goal-badge goal-badge--complete">Complete</span>');
   if (almostDone) badges.push('<span class="goal-badge goal-badge--almost">Almost done</span>');
-  if (overdue) badges.push('<span class="goal-badge goal-badge--overdue">Overdue</span>');
+  // overdue needs no badge: the red date line and border already say it
   return badges.join("");
 }
 
 function renderTargetDate(goal, overdue) {
-  if (!goal.targetDate) return "<span>No date</span>";
+  if (!goal.targetDate) return "";
   return icon(overdue ? "triangle-alert" : "calendar-days") + "<span>" + (overdue ? "Was due " : "By ") + formatDate(goal.targetDate) + "</span>";
 }
 
 async function handleClick(event) {
   var button = event.target.closest("[data-goal-action]");
-  if (!button) return;
+  if (!button) {
+    // the card itself is the way in: a tap anywhere but the slider opens it
+    var card = event.target.closest(".goal-card[data-goal-id]");
+    if (card && !event.target.closest("input, button, a") && !hasSelection()) await openEditor(card.getAttribute("data-goal-id"));
+    return;
+  }
 
   var action = button.getAttribute("data-goal-action");
   var goalId = button.getAttribute("data-goal-id");
 
-  if (action === "add") await openEditor("new");
-  if (action === "edit") await openEditor(goalId);
-  if (action === "cancel") await closeEditor();
-  if (action === "complete") await toggleCompletion(goalId);
-  if (action === "delete") await deleteGoal(goalId);
+  try {
+    if (action === "add") await openEditor("new");
+    if (action === "edit") await openEditor(goalId);
+    if (action === "cancel") await closeEditor();
+    if (action === "complete") await toggleCompletion(goalId);
+    if (action === "delete") await deleteGoal(goalId);
+  } catch (e) {
+    console.warn(e);
+    toast("Couldn't save that. Check your connection and try again.", "error");
+  }
+}
+
+/* selecting text in a card shouldn't open it */
+function hasSelection() {
+  var sel = window.getSelection && window.getSelection();
+  return Boolean(sel && String(sel).trim());
 }
 
 function handleInput(event) {
@@ -371,18 +387,27 @@ async function handleSubmit(event) {
   var resultGoal;
   var action;
   var wasCompleted = false;
+  var saveButton = form.querySelector(".goals-save-button");
+  if (saveButton) saveButton.disabled = true;
 
-  if (state.editingId === "new") {
-    resultGoal = await apiCreateGoal(values);
-    state.goals.unshift(resultGoal);
-    action = "created";
-  } else {
-    var existing = findGoal(state.editingId);
-    wasCompleted = existing ? existing.completed : false;
-    resultGoal = await apiUpdateGoal(state.editingId, values);
-    var idx = state.goals.findIndex(function (g) { return g.id === state.editingId; });
-    if (idx >= 0) state.goals[idx] = resultGoal;
-    action = "updated";
+  try {
+    if (state.editingId === "new") {
+      resultGoal = await apiCreateGoal(values);
+      state.goals.unshift(resultGoal);
+      action = "created";
+    } else {
+      var existing = findGoal(state.editingId);
+      wasCompleted = existing ? existing.completed : false;
+      resultGoal = await apiUpdateGoal(state.editingId, values);
+      var idx = state.goals.findIndex(function (g) { return g.id === state.editingId; });
+      if (idx >= 0) state.goals[idx] = resultGoal;
+      action = "updated";
+    }
+  } catch (e) {
+    console.warn(e);
+    if (saveButton) saveButton.disabled = false;
+    toast("Couldn't save the goal. Check your connection and try again.", "error");
+    return;
   }
 
   var justCompleted = resultGoal.completed && !wasCompleted;
@@ -397,8 +422,12 @@ async function openEditor(goalId) {
   state.editingId = goalId;
   await renderGoals();
 
-  var title = document.querySelector("#goalEditor input[name='title']");
-  if (title) title.focus();
+  var editor = document.getElementById("goalEditor");
+  var title = editor && editor.querySelector("input[name='title']");
+  if (!editor) return;
+  editor.scrollIntoView({ block: "start" });
+  // on a phone the keyboard would cover half the form: only jump into the title on a fresh goal
+  if (title && (goalId === "new" || !window.matchMedia("(pointer: coarse)").matches)) title.focus({ preventScroll: true });
 }
 
 async function closeEditor() {
@@ -423,13 +452,30 @@ async function saveProgress(goalId, value) {
 
   var wasCompleted = goal.completed;
   var progress = clampProgress(value);
-  var updated = await apiUpdateGoal(goalId, { progress: progress });
+  if (progress === goal.progress) return;
+  var hadFocus = document.activeElement && document.activeElement.getAttribute("data-goal-progress") === goalId;
+  var updated;
+  try {
+    updated = await apiUpdateGoal(goalId, { progress: progress });
+  } catch (e) {
+    console.warn(e);
+    toast("Couldn't save the progress. Check your connection and try again.", "error");
+    await renderGoals();
+    return;
+  }
   var idx = state.goals.findIndex(function (g) { return g.id === goalId; });
   if (idx >= 0) state.goals[idx] = updated;
 
-  await persistGoals(updated.completed && !wasCompleted ? "completed" : "progress-updated", updated);
+  var completedNow = updated.completed && !wasCompleted;
+  await persistGoals(completedNow ? "completed" : (wasCompleted && !updated.completed ? "reopened" : "progress-updated"), updated, goal.progress);
   await renderGoals();
-  if (updated.completed && !wasCompleted) triggerCelebration(updated.id);
+  // arrow keys keep working: the slider stays focused through the redraw
+  if (hadFocus) {
+    var slider = findGoalCard(goalId);
+    slider = slider && slider.querySelector("[data-goal-progress]");
+    if (slider) slider.focus({ preventScroll: true });
+  }
+  if (completedNow) triggerCelebration(updated.id);
 }
 
 async function toggleCompletion(goalId) {
@@ -442,7 +488,7 @@ async function toggleCompletion(goalId) {
   var idx = state.goals.findIndex(function (g) { return g.id === goalId; });
   if (idx >= 0) state.goals[idx] = updated;
 
-  await persistGoals(completing ? "completed" : "reopened", updated);
+  await persistGoals(completing ? "completed" : "reopened", updated, goal.progress);
   await renderGoals();
   if (completing) triggerCelebration(updated.id);
 }
@@ -451,25 +497,53 @@ async function deleteGoal(goalId) {
   var goal = findGoal(goalId);
   if (!goal) return;
 
-  if (window.confirm && !window.confirm("Delete this goal?")) return;
-
+  // no "are you sure?": it goes right away and the toast can bring it back
   await apiDeleteGoal(goalId);
   state.goals = state.goals.filter(function (item) { return item.id !== goalId; });
   if (state.editingId === goalId) state.editingId = null;
-  await persistGoals("deleted", goal);
+  await notifyGoalsChanged("deleted", goal);
+  emitChange("goals", { action: "deleted" });
   await renderGoals();
+  toast("Goal deleted", "ok", {
+    duration: 6000,
+    action: {
+      label: "Undo",
+      run: async function () {
+        try {
+          // the same id, dates and progress as before, through the additive restore
+          await apiRestoreBackup({ goals: [{
+            id: goal.id, title: goal.title, description: goal.description || "", category: goal.category,
+            priority: goal.priority, progress: goal.progress, target_date: goal.targetDate || null,
+            activity_category: goal.activityCategory || null, created_at: goal.createdAt,
+            updated_at: goal.updatedAt, completed_at: goal.completedAt
+          }] });
+          state.goals = await apiListGoals();
+          emitChange("goals", { action: "restored" });
+          await renderGoals();
+        } catch (e) {
+          toast("Couldn't bring the goal back", "error");
+        }
+      }
+    }
+  });
 }
 
 // the backend already persisted the write by the time this runs (every
 // caller awaits an api* call first), so this is just the change
 // notification now, kept in case something downstream (the companion,
 // eventually) wants to listen for "logbook:goals-changed"
-async function persistGoals(action, goal) {
+async function persistGoals(action, goal, progressBefore) {
   await notifyGoalsChanged(action, goal);
   emitChange("goals", { action: action });
-  if (action === "completed") toast("Goal complete: " + goal.title);
+  if (action === "completed") {
+    // a slip of the finger on the slider shouldn't finish a goal for good
+    var undo = typeof progressBefore === "number" && progressBefore < 100
+      ? { label: "Undo", run: function () { saveProgress(goal.id, progressBefore).catch(function () {}); } }
+      : null;
+    toast("Goal complete: " + goal.title, "ok", undo ? { action: undo, duration: 5000 } : undefined);
+  }
   else if (action === "created") toast("Goal created");
-  else if (action === "deleted") toast("Goal deleted");
+  else if (action === "updated") toast("Goal saved");
 }
 
 /* Re-fetch on the next render, used after an import. */

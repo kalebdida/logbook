@@ -92,7 +92,7 @@ export async function renderDailyPage() {
         : "") +
       '<label class="focus-line" for="mainFocus">' +
         '<span class="section-label">The one thing that would make today count</span>' +
-        '<textarea id="mainFocus" rows="1" placeholder="Finish the essay draft, call grandma, rest properly…"></textarea>' +
+        '<textarea id="mainFocus" rows="1" enterkeyhint="next" placeholder="Finish the essay draft, call grandma, rest properly…"></textarea>' +
       "</label>" +
       (legacy("morningIntention") ? field("morningIntention", "Intention", 1, "") : "") +
       '<div id="dailyTasks" class="day-tasks"></div>' +
@@ -176,8 +176,8 @@ export async function renderDailyPage() {
   await Promise.all([
     renderTasks(document.getElementById("dailyTasks"), today, { key: "today", empty: "Nothing yet. What needs doing today?" }),
     renderTasks(document.getElementById("tomorrowTasks"), dateKey(tomorrow), {
-      key: "tomorrow", carry: false, progress: false, placeholder: "Add something for tomorrow", label: "New task for tomorrow",
-      empty: "Tomorrow's list is empty. Add one or two things so the morning starts easy."
+      key: "tomorrow", carry: false, progress: false, placeholder: "Add a task", label: "New task for tomorrow",
+      empty: "Nothing planned yet. One or two things make the morning easier."
     }),
     renderActivities(document.getElementById("dailyActivities"), today)
   ]);

@@ -406,6 +406,10 @@ html[data-background="rooftop"] .hero-body {
 }
 /* every scene keeps the clock in the text color (themes.css colors it for plain cards) */
 html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"])[data-background] .hero-body .console-clock { color: var(--text); }
+/* a soft halo of the sky color keeps the words readable over a bright moon or lit windows */
+html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"]) :is(.console-date, .console-greeting) {
+  text-shadow: 0 1px 2px rgb(var(--bg-rgb) / 0.35), 0 0 18px rgb(var(--bg-rgb) / 0.6);
+}
 
 .console-date { color: var(--text-2); font-size: 14.5px; font-weight: 500; letter-spacing: 0.01em; }
 .console-greeting {
@@ -549,7 +553,7 @@ html[data-background="window"] .lock-scene .scene { filter: blur(1.4px) saturate
 
 /* ---------- small screens ---------- */
 @media (max-width: 760px) {
-  .today-hero { min-height: 0; margin: -6px -4px 20px; border-radius: var(--r-lg); }
+  .today-hero { min-height: 0; margin: 0 0 18px; border-radius: var(--r-lg); }
   .hero-body { gap: 14px; min-height: 380px; padding: 22px 18px 18px; }
   html:is([data-background="night"], [data-background="window"], [data-background="bluehour"], [data-background="city"], [data-background="room"], [data-background="torii"], [data-background="mist"], [data-background="rooftop"]) .hero-body {
     background: linear-gradient(180deg, rgb(var(--bg-rgb) / 0.5) 0%, rgb(var(--bg-rgb) / 0.08) 45%, rgb(var(--bg-rgb) / 0.55) 100%);

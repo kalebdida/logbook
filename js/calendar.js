@@ -133,9 +133,11 @@ function renderMonthView(container, entries, dayEntryMap, now) {
     if (dayEntry) logged++;
     var classes = "cal-cell" + (isToday ? " cal-cell-today" : "") + (isFuture ? " cal-cell-future" : "") + (s ? " cal-cell--" + dayEntry.mood : "");
     var snippet = dayEntry && dayEntry.text ? escapeHtml(dayEntry.text.replace(/\s+/g, " ").slice(0, 90)) : "";
-    var more = dayCounts[key] > 1 ? '<span class="cal-more">+' + (dayCounts[key] - 1) + "</span>" : "";
+    var more = dayCounts[key] > 1 ? '<span class="cal-more">+' + (dayCounts[key] - 1) + " more</span>" : "";
+    var spoken = new Date(year, month, day).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) +
+      (s ? ", " + s.label + ", " + dayCounts[key] + (dayCounts[key] === 1 ? " entry" : " entries") : "") + (isToday ? ", today" : "");
     cells +=
-      '<button type="button" class="' + classes + '" data-date="' + key + '" aria-label="' + key + (s ? ", " + s.label : "") + '">' +
+      '<button type="button" class="' + classes + '" data-date="' + key + '" aria-label="' + spoken + '"' + (isToday ? ' aria-current="date"' : "") + ">" +
         '<span class="cal-cell-top"><span class="cal-daynum">' + day + "</span>" + (s ? '<span class="cal-mood">' + icon(s.icon) + "</span>" : "") + "</span>" +
         (snippet ? '<span class="cal-snippet">' + snippet + "</span>" : "") +
         more +
@@ -210,9 +212,8 @@ function renderYearView(container, entries, dayEntryMap, now) {
       var classes = "heat-cell";
       if (isToday) classes += " heat-cell-today";
       if (s) classes += " heat-cell--" + dayEntry.mood;
-      var title = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      heatCells +=
-        '<div class="' + classes + '" data-date="' + key + '" title="' + title + '"></div>';
+      // no title: the tooltip below shows the date, mood and a preview on hover
+      heatCells += '<div class="' + classes + '" data-date="' + key + '"></div>';
     });
   });
 
@@ -251,6 +252,9 @@ export async function renderCalendar() {
 
   if (viewMode === "year") {
     renderYearView(container, entries, dayEntryMap, now);
+    // the newest weeks are on the right: start there when the year scrolls (phones)
+    var yearScroll = container.querySelector(".cal-year-scroll");
+    if (yearScroll) yearScroll.scrollLeft = yearScroll.scrollWidth;
   } else {
     renderMonthView(container, entries, dayEntryMap, now);
   }
@@ -259,6 +263,7 @@ export async function renderCalendar() {
     container.addEventListener("click", function (e) {
       var modeBtn = e.target.closest(".cal-mode-btn");
       if (modeBtn) {
+        hideTooltip();
         viewMode = modeBtn.getAttribute("data-mode");
         renderCalendar();
         return;
@@ -273,6 +278,7 @@ export async function renderCalendar() {
       }
       var cell = e.target.closest("[data-date]");
       if (!cell) return;
+      hideTooltip();
       openDayViewer(cell.getAttribute("data-date"));
     });
 

@@ -41,9 +41,9 @@ function readout() {
 
   // each number is also the way in: tap it to go where it's made
   var cells = [
-    { k: "Streak", i: "flame", v: streak + (streak === 1 ? " day" : " days"), warn: atRisk, hint: atRisk ? "Write today to keep it" : "Days in a row with an entry", cmd: "write" },
-    { k: "Tasks", i: "list-checks", v: tasks.length ? done + " of " + tasks.length : "None yet", hint: "Go to today's tasks", cmd: "add-task" },
-    { k: "Focus", i: "timer", v: focusMin + " min", live: focus.running && focus.mode === "focus", hint: "Open the focus space", nav: "focus" }
+    { k: "Streak", i: "flame", v: streak ? streak + (streak === 1 ? " day" : " days") : "Start today", warn: atRisk, hint: atRisk ? "Write today to keep it" : "Days in a row with an entry", cmd: "write" },
+    { k: "Tasks", i: "list-checks", v: tasks.length ? done + " of " + tasks.length : "None yet", hint: "Go to today's tasks", cmd: "tasks" },
+    { k: "Focus", i: "timer", v: minutesLabel(focusMin), live: focus.running && focus.mode === "focus", hint: "Open the focus space", nav: "focus" }
   ];
   if (latest && STATUS[latest.mood]) cells.push({ k: "Today felt", i: STATUS[latest.mood].icon, v: cap(STATUS[latest.mood].label), mood: latest.mood, hint: "Open the journal", nav: "journal" });
   else cells.push({ k: "Entries", i: "feather", v: todays.length ? String(todays.length) : "None yet", hint: "Open the journal", nav: "journal" });
@@ -61,6 +61,17 @@ function cap(s) {
   return String(s || "").charAt(0).toUpperCase() + String(s || "").slice(1);
 }
 
+function minutesLabel(m) {
+  if (m < 60) return m + " min";
+  return Math.floor(m / 60) + "h" + (m % 60 ? " " + (m % 60) + "m" : "");
+}
+
+/* "friend" stands in when no name is set; it reads as a word, not a name */
+function who() {
+  var name = displayName();
+  return name === "Friend" && !String(getPrefs().name || "").trim() ? "friend" : name;
+}
+
 function tickClock() {
   var now = new Date();
   var hm = document.getElementById("consoleClock");
@@ -71,7 +82,7 @@ function tickClock() {
   var ampm = document.getElementById("consoleAmPm");
   if (ampm) ampm.textContent = h24 ? "" : (now.getHours() < 12 ? "AM" : "PM");
   if (hm.textContent !== text) hm.textContent = text;
-  var g = greeting(now) + ", " + displayName();
+  var g = greeting(now) + ", " + who();
   if (greet.textContent !== g) greet.textContent = g;
 }
 

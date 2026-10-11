@@ -71,12 +71,13 @@
 <div id="palette" class="overlay" hidden>
   <div class="palette-backdrop"></div>
   <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search and commands">
-    <label class="palette-prompt">
+    <div class="palette-prompt">
       <span class="palette-prompt-icon" data-icon="search"></span>
-      <input id="paletteInput" type="text" placeholder="Search your entries or type a command" autocomplete="off" spellcheck="false"
-             role="combobox" aria-expanded="false" aria-controls="paletteList" aria-autocomplete="list" />
-      <kbd>Esc</kbd>
-    </label>
+      <input id="paletteInput" type="text" placeholder="Search entries and commands" autocomplete="off" spellcheck="false"
+             role="combobox" aria-label="Search entries and commands" aria-expanded="false" aria-controls="paletteList" aria-autocomplete="list" enterkeyhint="go" />
+      <kbd class="palette-esc">Esc</kbd>
+      <button type="button" class="icon-btn palette-close" aria-label="Close"><span data-icon="x"></span></button>
+    </div>
     <ul id="paletteList" role="listbox" aria-label="Results"></ul>
     <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> Move</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Close</span></div>
   </div>

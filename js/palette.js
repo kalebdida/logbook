@@ -28,13 +28,47 @@ function scrollFocus(selector) {
   });
 }
 
+/* the Tasks number on the dashboard: show the list (no keyboard popping up
+   on a phone); only an empty list goes straight to "add a task" */
+function showTasks() {
+  afterNav(function () {
+    var card = document.querySelector(".day-card--plan");
+    if (!card) return;
+    if (!card.querySelector(".task-list")) {
+      var input = card.querySelector('#dailyTasks input[name="title"]');
+      if (input) {
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+        input.focus({ preventScroll: true });
+      }
+      return;
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("is-flash");
+    setTimeout(function () { card.classList.remove("is-flash"); }, 1100);
+  });
+}
+
+/* touch screens have no keyboard shortcuts to show */
+function isTouch() {
+  try { return window.matchMedia("(hover: none) and (pointer: coarse)").matches; } catch (e) { return false; }
+}
+
+function keyLabel(key) {
+  return key.length === 1 ? key.toUpperCase() : key;
+}
+
 var COMMANDS = [
   { id: "write", title: "Write an entry", keys: "journal new log", key: "n", run: function () { navigateTo("journal"); afterNav(function () { focusComposer(); }); } },
   { id: "write-good", title: "Write a good-day entry", keys: "good mood sun", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("good"); }); } },
   { id: "write-okay", title: "Write an okay-day entry", keys: "okay mood cloud", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("okay"); }); } },
   { id: "write-rough", title: "Write a rough-day entry", keys: "rough bad mood rain", run: function () { navigateTo("journal"); afterNav(function () { focusComposer("rough"); }); } },
   { id: "add-task", title: "Add a task for today", keys: "todo checklist", key: "t", run: function () { navigateTo("dashboard"); scrollFocus('#dailyTasks input[name="title"]'); } },
-  { id: "log-activity", title: "Log an activity", keys: "minutes area density", run: function () { navigateTo("dashboard"); scrollFocus("#dailyActivities .area-chip"); } },
+  { id: "tasks", title: "Show today's tasks", keys: "", hidden: true, run: function () { navigateTo("dashboard"); showTasks(); } },
+  { id: "log-activity", title: "Log an activity", keys: "minutes area density time", run: function () {
+      navigateTo("dashboard");
+      afterNav(function () { var fold = document.getElementById("logCard"); if (fold) fold.open = true; });
+      scrollFocus("#dailyActivities .area-chip");
+    } },
   { id: "focus-toggle", title: "Start or pause focus timer", keys: "pomodoro timer lock-in", key: "f", run: function () {
       var r = toggleFocusFromAnywhere();
       toast(r === "paused" ? "Focus paused" : "Focus started");
@@ -130,7 +164,8 @@ function score(query, text) {
 
 function buildItems(query) {
   query = query.trim().toLowerCase();
-  var cmds = COMMANDS.filter(function (c) { return !c.hidden; })
+  var touch = isTouch();
+  var cmds = COMMANDS.filter(function (c) { return !c.hidden && !(touch && c.id === "shortcuts"); })
     .map(function (c) { return { type: "cmd", cmd: c, s: Math.max(score(query, c.title) * 2, score(query, c.keys)) }; })
     .filter(function (x) { return x.s > 0; })
     .sort(function (a, b) { return b.s - a.s; });
@@ -168,7 +203,7 @@ function drawList() {
     var active = i === pal.index ? " is-active" : "";
     if (it.type === "cmd") {
       return head + '<li class="palette-item' + active + '" role="option" id="pal-' + i + '" data-index="' + i + '" aria-selected="' + (i === pal.index) + '">' +
-        '<span class="palette-icon">' + cmdIcon(it.cmd) + '</span><span class="palette-title">' + escapeHtml(it.cmd.title) + "</span>" + (it.cmd.key ? "<kbd>" + escapeHtml(it.cmd.key) + "</kbd>" : "") + "</li>";
+        '<span class="palette-icon">' + cmdIcon(it.cmd) + '</span><span class="palette-title">' + escapeHtml(it.cmd.title) + "</span>" + (it.cmd.key ? "<kbd>" + escapeHtml(keyLabel(it.cmd.key)) + "</kbd>" : "") + "</li>";
     }
     var st = STATUS[it.entry.mood];
     return head + '<li class="palette-item palette-entry' + active + '" role="option" id="pal-' + i + '" data-index="' + i + '" aria-selected="' + (i === pal.index) + '">' +
@@ -222,13 +257,22 @@ export function closePalette(skipRefocus) {
 
 /* ---------- help ---------- */
 
+/* grouped so the list reads at a glance: what works anywhere, what writes,
+   what moves between pages */
 function shortcutRows() {
-  var rows = [["Ctrl K", "Search and commands"], ["Ctrl Enter", "Save the entry you're writing"]];
-  COMMANDS.forEach(function (c) { if (c.key) rows.push([c.key.length === 1 ? c.key.toUpperCase() : c.key, c.title]); });
-  rows.push(["← →", "Previous / next day in the day view"], ["Esc", "Close whatever is open"]);
-  return '<dl class="shortcut-list">' + rows.map(function (r) {
-    return "<div><dt>" + r[0].split(" ").map(function (k) { return "<kbd>" + escapeHtml(k) + "</kbd>"; }).join("") + "</dt><dd>" + escapeHtml(r[1]) + "</dd></div>";
-  }).join("") + "</dl>";
+  var pages = COMMANDS.filter(function (c) { return c.id.indexOf("go-") === 0; });
+  var groups = [
+    ["Anywhere", [["Ctrl K", "Search and commands"], ["?", "Show this list"], ["Esc", "Close whatever is open"]]],
+    ["Write and plan", [["N", "Write an entry"], ["Ctrl Enter", "Save the entry"], ["T", "Add a task for today"], ["G", "Create a goal"], ["/", "Search entries"], ["D", "Open today's record"]]],
+    ["Focus and music", [["F", "Start or pause focus"], ["M", "Play or pause music"]]],
+    ["Pages", pages.map(function (c) { return [c.key, c.title.replace(/^Go to /, "")]; })],
+    ["Day view", [["← →", "Previous or next day"]]]
+  ];
+  return groups.map(function (g) {
+    return '<section class="shortcut-group"><h3 class="shortcut-group-title">' + g[0] + '</h3><dl class="shortcut-list">' + g[1].map(function (r) {
+      return "<div><dt>" + r[0].split(" ").map(function (k) { return "<kbd>" + escapeHtml(k) + "</kbd>"; }).join("") + "</dt><dd>" + escapeHtml(r[1]) + "</dd></div>";
+    }).join("") + "</dl></section>";
+  }).join("");
 }
 
 function openHelp() {
@@ -267,6 +311,8 @@ export function initPalette() {
     if (li) choose(Number(li.getAttribute("data-index")));
   });
   document.querySelector("#palette .palette-backdrop").addEventListener("click", function () { closePalette(); });
+  var paletteClose = document.querySelector("#palette .palette-close");
+  if (paletteClose) paletteClose.addEventListener("click", function () { closePalette(); });
   document.querySelector("#shortcutHelp .viewer-close").addEventListener("click", closeHelp);
   document.querySelector("#shortcutHelp .viewer-backdrop").addEventListener("click", closeHelp);
 

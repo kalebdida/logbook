@@ -101,7 +101,7 @@ export async function openDayViewer(dateStr) {
   var activitiesHtml = activities.length
     ? '<ul class="viewer-list">' + activities.map(function (a) {
         var cat = categoryById(a.activityCategory);
-        return "<li>" + (cat ? icon(cat.icon) : icon("activity")) + "<span>" + escapeHtml(a.title) + "</span>" + (a.durationMinutes ? ' <span class="viewer-dim">' + a.durationMinutes + " min</span>" : "") + "</li>";
+        return "<li>" + (cat ? icon(cat.icon) : icon("activity")) + "<span>" + escapeHtml(a.title) + "</span>" + (a.durationMinutes ? ' <span class="viewer-dim">' + minutes(a.durationMinutes * 60000) + "</span>" : "") + "</li>";
       }).join("") + "</ul>"
     : "";
 
@@ -120,19 +120,31 @@ export async function openDayViewer(dateStr) {
     block("Tomorrow's plan", text(n.tomorrowPlan)) +
     block("Brain dump", text(day.brainDump));
 
-  var isFuture = dateStr > dateKey(new Date());
+  var todayKey = dateKey(new Date());
+  var isFuture = dateStr > todayKey;
+  var day0 = parseKey(dateStr);
+  var yesterdayKey = shiftKey(todayKey, -1);
+  // "Today" or the weekday on top, the date below it; the year only when it isn't this year
+  var eyebrow = dateStr === todayKey ? "Today" : dateStr === yesterdayKey ? "Yesterday" : day0.toLocaleDateString("en-US", { weekday: "long" });
+  var dateLine = day0.toLocaleDateString("en-US", { month: "long", day: "numeric", year: day0.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
   var panel = overlay.querySelector(".viewer-panel");
+  panel.setAttribute("aria-label", day0.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }));
   panel.innerHTML =
     '<header class="viewer-header">' +
       '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="-1" aria-label="Previous day">' + icon("chevron-left") + "</button>" +
       '<div class="viewer-heading">' +
-        '<div class="viewer-date">' + parseKey(dateStr).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + "</div>" +
-        (stats.length ? '<div class="viewer-stats">' + stats.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
+        '<div class="viewer-eyebrow">' + eyebrow + "</div>" +
+        '<h2 class="viewer-date">' + dateLine + "</h2>" +
       "</div>" +
       '<button type="button" class="viewer-nav icon-btn" data-viewer-shift="1" aria-label="Next day"' + (isFuture ? " disabled" : "") + ">" + icon("chevron-right") + "</button>" +
       '<button type="button" class="viewer-close icon-btn" id="dayViewerClose" aria-label="Close">' + icon("x") + "</button>" +
     "</header>" +
-    moodHtml +
+    (stats.length || moodHtml
+      ? '<div class="viewer-summary">' +
+          (stats.length ? '<div class="viewer-stats">' + stats.map(function (x) { return "<span>" + x + "</span>"; }).join("") + "</div>" : "") +
+          moodHtml +
+        "</div>"
+      : "") +
     (body || '<p class="viewer-empty">Nothing recorded on this day.</p>');
 
   overlay.querySelector(".viewer-backdrop").onclick = closeDayViewer;

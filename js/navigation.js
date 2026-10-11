@@ -69,7 +69,7 @@ function openMore() {
   var sheet = document.getElementById("moreSheet");
   if (!sheet) return;
   sheet.hidden = false;
-  document.body.classList.add("has-overlay");
+  document.body.classList.add("has-overlay", "is-more-open");
   var btn = document.querySelector(".nav-more");
   if (btn) btn.setAttribute("aria-expanded", "true");
   var first = sheet.querySelector(".sheet-item");
@@ -80,7 +80,7 @@ export function closeMore() {
   var sheet = document.getElementById("moreSheet");
   if (!sheet || sheet.hidden) return;
   sheet.hidden = true;
-  document.body.classList.remove("has-overlay");
+  document.body.classList.remove("has-overlay", "is-more-open");
   var btn = document.querySelector(".nav-more");
   if (btn) btn.setAttribute("aria-expanded", "false");
 }

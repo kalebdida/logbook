@@ -132,8 +132,8 @@ with sync_playwright() as p:
     page.wait_for_timeout(400)
     check("checking a task completes it in the backend", any(t["completed"] for t in api(f"/tasks/?day_date={today}") if t["title"] == "write tests"))
     page.click('#dailyTasks .task-row:has-text("old unfinished") [data-task-action="delete"]')
-    page.wait_for_selector(".toast-action")
-    page.click(".toast-action")
+    page.wait_for_selector(".toast:has-text(\"deleted\") .toast-action")
+    page.click(".toast:has-text(\"deleted\") .toast-action")
     page.wait_for_function("document.querySelectorAll('#dailyTasks .task-row').length === 2")
     check("task delete can be undone", len(api(f"/tasks/?day_date={today}")) == 2)
 

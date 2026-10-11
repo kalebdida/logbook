@@ -109,6 +109,14 @@ export async function renderDensityMap() {
 
   container.innerHTML = renderMap(density, stats);
   container.onclick = handleClick;
+  // the newest days are on the right: start there when the grid scrolls (phones)
+  var scroller = container.querySelector(".density-grid-scroll");
+  if (scroller) scroller.scrollLeft = scroller.scrollWidth;
+}
+
+/* the dates a period covers ("weekly", "monthly", "yearly"), for callers like the companion */
+export function periodDates(view) {
+  return getViewDates(view);
 }
 
 function renderMap(density, stats) {
@@ -134,22 +142,30 @@ function renderMap(density, stats) {
 function renderContent(density, stats) {
   var dayByDate = mapDays(density.days);
   var categories = stats.rankedCategories.slice(0, MAX_VISIBLE_CATEGORIES);
+  // a year of single days is too wide to read: the year view shows months
+  var columns = state.view === "yearly" ? monthColumns(stats.dates, dayByDate) : dayColumns(stats.dates, dayByDate);
 
   return `
-    <div class="density-summary" aria-label="Density summary">
-      ${summaryItem("Tracked days", stats.trackedDays)}
-      ${summaryItem("Strongest", icon(stats.strongestCategory.icon) + "<span>" + stats.strongestCategory.label + "</span>")}
-      ${summaryItem("Recorded activity", formatNumber(stats.totalActivity))}
+    <div class="density-summary" aria-label="Summary">
+      ${summaryItem("Days logged",stats.trackedDays + " of " + stats.dates.length)}
+      ${summaryItem("Things logged", Math.round(stats.totalActivity))}
     </div>
 
     <div class="density-period-label">${periodLabel(state.view)}</div>
-    <div class="density-grid-scroll">
-      <div class="density-grid" style="--density-days: ${stats.dates.length}">
-        <div class="density-grid-header density-category-label">Area</div>
-        ${stats.dates.map(renderDayHeader).join("")}
+    <div class="density-board">
+      <div class="density-labels">
+        <div class="density-grid-header">Area</div>
         ${categories.map(function (category) {
-          return renderCategoryRow(category, stats.dates, dayByDate);
+          return `<div class="density-category-label" title="${category.label}">${icon(category.icon)}<span>${category.label}</span></div>`;
         }).join("")}
+      </div>
+      <div class="density-grid-scroll">
+        <div class="density-grid${state.view === "yearly" ? " density-grid--months" : ""}" style="--density-days: ${columns.length}">
+          ${columns.map(function (col) { return col.header; }).join("")}
+          ${categories.map(function (category) {
+            return renderCategoryRow(category, columns);
+          }).join("")}
+        </div>
       </div>
     </div>
 
@@ -172,33 +188,56 @@ function renderEmptyState() {
   `;
 }
 
-function renderCategoryRow(category, dates, dayByDate) {
-  var peak = Math.max.apply(null, dates.map(function (date) {
+/* one column per day: { header, label, date, values: {category: value} } */
+function dayColumns(dates, dayByDate) {
+  return dates.map(function (date) {
+    var day = new Date(date + "T12:00:00");
+    var label = formatDateLabel(date);
+    return {
+      header: `<div class="density-day-header" title="${label}"><span>${day.toLocaleDateString(undefined, { weekday: "narrow" })}</span>${day.getDate()}</div>`,
+      label: label,
+      date: date,
+      values: dayByDate[date] ? dayByDate[date].categories : {}
+    };
+  });
+}
+
+/* one column per calendar month, each the sum of its days */
+function monthColumns(dates, dayByDate) {
+  var order = [];
+  var byMonth = {};
+  dates.forEach(function (date) {
+    var key = date.slice(0, 7);
+    if (!byMonth[key]) { byMonth[key] = emptyCategories(); order.push(key); }
     var day = dayByDate[date];
-    return day ? day.categories[category.id] : 0;
-  }).concat([0]));
-
-  return `
-    <div class="density-category-label" title="${category.label}">${icon(category.icon)}<span>${category.label}</span></div>
-    ${dates.map(function (date) {
-      var day = dayByDate[date];
-      var value = day ? day.categories[category.id] : 0;
-      return renderDensityCell(date, category, value, peak);
-    }).join("")}
-  `;
+    if (day) Object.keys(day.categories).forEach(function (c) { byMonth[key][c] += day.categories[c]; });
+  });
+  return order.map(function (key) {
+    var first = new Date(key + "-01T12:00:00");
+    var label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    return {
+      header: `<div class="density-day-header" title="${label}"><b class="dh-long">${first.toLocaleDateString(undefined, { month: "short" })}</b><b class="dh-short" aria-hidden="true">${first.toLocaleDateString(undefined, { month: "narrow" })}</b></div>`,
+      label: label,
+      date: null,
+      values: byMonth[key]
+    };
+  });
 }
 
-function renderDayHeader(date) {
-  var day = new Date(date + "T12:00:00");
-  var shortDay = day.toLocaleDateString(undefined, { weekday: "narrow" });
-  var dayNumber = day.getDate();
-  return `<div class="density-day-header" title="${formatDateLabel(date)}"><span>${shortDay}</span>${dayNumber}</div>`;
+function renderCategoryRow(category, columns) {
+  var peak = Math.max.apply(null, columns.map(function (col) { return col.values[category.id] || 0; }).concat([0]));
+  return columns.map(function (col) {
+    return renderDensityCell(col, category, col.values[category.id] || 0, peak);
+  }).join("");
 }
 
-function renderDensityCell(date, category, value, peak) {
+function renderDensityCell(col, category, value, peak) {
   var level = densityLevel(value, peak);
-  var label = category.label + ", " + formatDateLabel(date) + ": " + (value ? formatNumber(value) + " logged" : "nothing logged");
-  return `<button type="button" class="density-cell density-level-${level}" data-date="${date}" title="${label}" aria-label="${label}"></button>`;
+  var label = category.label + ", " + col.label + ": " + (value ? formatNumber(value) + " logged" : "nothing logged");
+  // a day opens that day; a month is a summary, so it's just a cell
+  return col.date
+    ? `<button type="button" class="density-cell density-level-${level}" data-date="${col.date}" title="${label}" aria-label="${label}"></button>`
+    : `<span class="density-cell density-level-${level}" role="img" title="${label}" aria-label="${label}"></span>`;
 }
 
 function renderInsights(stats) {
@@ -343,8 +382,8 @@ function getViewDates(view) {
     return datesBetween(start, today);
   }
   if (view === "yearly") {
-    start = new Date(today);
-    start.setDate(start.getDate() - 364);
+    // the last 12 calendar months, this one included
+    start = new Date(today.getFullYear(), today.getMonth() - 11, 1, 12);
     return datesBetween(start, today);
   }
   start = new Date(today.getFullYear(), today.getMonth(), 1, 12);
@@ -398,8 +437,8 @@ function densityLevel(value, peak) {
 }
 
 function periodLabel(view) {
-  if (view === "weekly") return "Current week";
-  if (view === "yearly") return "Last 365 days";
+  if (view === "weekly") return "This week";
+  if (view === "yearly") return "The last 12 months";
   return new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" });
 }
 

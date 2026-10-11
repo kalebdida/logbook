@@ -45,14 +45,39 @@ export async function addTodayTasks(titles) {
   return made.length;
 }
 
+function norm(title) {
+  return String(title || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/* What "Bring to today" would bring: one copy per title (the newest), and
+   nothing that is already on today's list. Older copies stay on their own
+   days, unfinished, which is what really happened on those days. */
+function carryCandidates(list) {
+  var have = {};
+  list.tasks.forEach(function (t) { have[norm(t.title)] = true; });
+  var picked = [];
+  list.carry.slice()
+    .sort(function (a, b) { return a.dayDate < b.dayDate ? 1 : a.dayDate > b.dayDate ? -1 : 0; })
+    .forEach(function (t) {
+      var k = norm(t.title);
+      if (have[k]) return;
+      have[k] = true;
+      picked.push(t);
+    });
+  return picked;
+}
+
 function draw(list) {
   var done = list.tasks.filter(function (t) { return t.completed; }).length;
   var total = list.tasks.length;
   var o = list.opts;
 
-  var carry = list.carry.length
+  var bring = carryCandidates(list);
+  var preview = bring.slice(0, 3).map(function (t) { return escapeHtml(t.title); }).join(", ") + (bring.length > 3 ? " and " + (bring.length - 3) + " more" : "");
+  var carry = bring.length
     ? '<div class="carry-hint carry-hint--tasks">' + icon("history") +
-        "<span>" + list.carry.length + " unfinished from earlier</span>" +
+        '<span class="carry-text"><span class="carry-count">' + bring.length + " unfinished from earlier</span>" +
+        '<span class="carry-preview">' + preview + "</span></span>" +
         '<button type="button" class="link-btn" data-task-action="carry">Bring to today</button>' +
       "</div>"
     : "";
@@ -63,12 +88,14 @@ function draw(list) {
 
   list.container.innerHTML =
     carry +
-    (total && o.progress !== false ? '<div class="task-progress" aria-label="' + done + " of " + total + ' done"><span style="width:' + Math.round((done / total) * 100) + '%"></span></div>' : "") +
+    (total && o.progress !== false
+      ? '<div class="task-progress" role="progressbar" aria-label="Tasks done" aria-valuemin="0" aria-valuemax="' + total + '" aria-valuenow="' + done + '"><span style="width:' + Math.round((done / total) * 100) + '%"></span></div>'
+      : "") +
     items +
     '<form class="inline-form task-add" data-form="task" autocomplete="off">' +
       '<span class="task-add-icon" aria-hidden="true">' + icon("plus") + "</span>" +
-      '<input class="text-input" name="title" maxlength="300" placeholder="' + (o.placeholder || "Add a task") + '" aria-label="' + (o.label || "New task") + '" required>' +
-      '<select class="select-input" name="category" aria-label="Life area">' + categoryOptions("", "No area") + "</select>" +
+      '<input class="text-input" name="title" maxlength="300" placeholder="' + (o.placeholder || "Add a task") + '" aria-label="' + (o.label || "New task") + '" enterkeyhint="done" required>' +
+      '<select class="select-input" name="category" aria-label="Life area">' + categoryOptions("", "Area") + "</select>" +
       '<button type="submit" class="sr-only">Add</button>' +
     "</form>";
 }
@@ -80,10 +107,12 @@ function taskRow(t) {
       '<label class="task-check">' +
         '<input type="checkbox" class="check" data-task-toggle="' + t.id + '"' + (t.completed ? " checked" : "") + ">" +
         '<span class="check-box" aria-hidden="true">' + icon("check") + "</span>" +
-        '<span class="task-title">' + escapeHtml(t.title) + "</span>" +
+        '<span class="task-text">' +
+          '<span class="task-title"><span class="task-title-text">' + escapeHtml(t.title) + "</span></span>" +
+          (cat ? '<span class="area-tag" title="' + cat.label + '">' + categoryIcon(cat) + "<span>" + cat.label + "</span></span>" : "") +
+        "</span>" +
       "</label>" +
-      (cat ? '<span class="area-tag" title="' + cat.label + '">' + categoryIcon(cat) + "<span>" + cat.label + "</span></span>" : "") +
-      '<button type="button" class="icon-btn icon-btn--quiet" data-task-action="delete" data-task-id="' + t.id + '" aria-label="Delete task">' + icon("x") + "</button>" +
+      '<button type="button" class="icon-btn icon-btn--quiet task-del" data-task-action="delete" data-task-id="' + t.id + '" aria-label="Delete ' + escapeHtml(t.title) + '">' + icon("x") + "</button>" +
     "</li>"
   );
 }
@@ -135,7 +164,10 @@ async function handleClick(list, e) {
 
   if (action === "delete") {
     var id = Number(btn.getAttribute("data-task-id"));
-    var removed = list.tasks.find(function (t) { return t.id === id; });
+    var at = list.tasks.findIndex(function (t) { return t.id === id; });
+    var removed = list.tasks[at];
+    if (!removed) return;
+    btn.disabled = true;
     try {
       await apiDeleteTask(id);
       list.tasks = list.tasks.filter(function (t) { return t.id !== id; });
@@ -145,28 +177,53 @@ async function handleClick(list, e) {
         action: {
           label: "Undo",
           run: async function () {
-            var back = await apiCreateTask({ dayDate: removed.dayDate, title: removed.title, activityCategory: removed.activityCategory, completed: removed.completed });
-            if (removed.completed) back = await apiUpdateTask(back.id, { completed: true });
-            list.tasks.push(back);
-            draw(list);
-            emitChange("tasks");
+            try {
+              var back = await apiCreateTask({ dayDate: removed.dayDate, title: removed.title, activityCategory: removed.activityCategory, completed: removed.completed });
+              if (removed.completed && !back.completed) back = await apiUpdateTask(back.id, { completed: true });
+              // back where it was, not at the end of the list
+              list.tasks.splice(Math.min(at, list.tasks.length), 0, back);
+              draw(list);
+              emitChange("tasks");
+            } catch (err) {
+              toast("Couldn't bring the task back", "error");
+            }
           }
         }
       });
     } catch (err) {
+      btn.disabled = false;
       toast("Couldn't delete the task", "error");
     }
   }
 
   if (action === "carry") {
+    var bring = carryCandidates(list);
+    if (!bring.length) return;
     btn.disabled = true;
     try {
-      var moved = await Promise.all(list.carry.map(function (t) { return apiUpdateTask(t.id, { dayDate: list.day }); }));
+      var from = {};
+      bring.forEach(function (t) { from[t.id] = t.dayDate; });
+      var moved = await Promise.all(bring.map(function (t) { return apiUpdateTask(t.id, { dayDate: list.day }); }));
       list.tasks = list.tasks.concat(moved);
-      list.carry = [];
+      list.carry = list.carry.filter(function (t) { return !from[t.id]; });
       draw(list);
       emitChange("tasks");
-      toast("Moved " + moved.length + " task" + (moved.length === 1 ? "" : "s") + " to today");
+      toast("Moved " + moved.length + " task" + (moved.length === 1 ? "" : "s") + " to today", "ok", {
+        action: {
+          label: "Undo",
+          run: async function () {
+            try {
+              var back = await Promise.all(moved.map(function (t) { return apiUpdateTask(t.id, { dayDate: from[t.id] }); }));
+              list.tasks = list.tasks.filter(function (t) { return !from[t.id]; });
+              list.carry = list.carry.concat(back.filter(function (t) { return !t.completed; }));
+              draw(list);
+              emitChange("tasks");
+            } catch (err) {
+              toast("Couldn't move them back", "error");
+            }
+          }
+        }
+      });
     } catch (err) {
       btn.disabled = false;
       toast("Couldn't move the tasks", "error");

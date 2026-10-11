@@ -8,7 +8,8 @@ import { formatDate } from './utils.js';
 
 /* The journal page: write entries, search and filter them, edit or delete
    them. Owns the in-memory list of entries other views read from. */
-var state = { entries: [], mood: null, query: "", filterStatus: null, expandedId: null, editingId: null, editMood: null };
+var PAGE = 30;   // entries shown before "Show older entries"
+var state = { entries: [], mood: null, query: "", filterStatus: null, expandedId: null, editingId: null, editMood: null, limit: PAGE };
 
 export function getEntries() {
   return state.entries;
@@ -25,12 +26,18 @@ function draw(animateId) {
     filterStatus: state.filterStatus,
     expandedId: state.expandedId,
     editingId: state.editingId,
-    animateId: animateId
+    animateId: animateId,
+    limit: state.limit
   });
 }
 
+function stampDate() {
+  var el = document.getElementById("todayDate");
+  if (el) el.textContent = formatDate(new Date().toISOString());
+}
+
 export function renderJournal() {
-  document.getElementById("todayDate").textContent = formatDate(new Date().toISOString());
+  stampDate();
   draw();
 }
 
@@ -147,13 +154,19 @@ export function wireJournal() {
 
   document.getElementById("searchInput").addEventListener("input", function (e) {
     state.query = e.target.value;
+    state.limit = PAGE;
     draw();
   });
+
+  // the date over the composer is the time the entry will carry; keep it current
+  document.addEventListener("logbook:navigated", function (e) { if (e.detail.page === "journal") stampDate(); });
+  textEl.addEventListener("focus", stampDate);
 
   Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (chip) {
     chip.addEventListener("click", function () {
       var s = chip.getAttribute("data-status");
       state.filterStatus = state.filterStatus === s ? null : s;
+      state.limit = PAGE;
       Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (c) {
         var on = c.getAttribute("data-status") === state.filterStatus;
         c.classList.toggle("active", on);
@@ -165,6 +178,11 @@ export function wireJournal() {
 
   var list = document.getElementById("entriesList");
   list.addEventListener("click", function (e) {
+    if (e.target.closest("[data-entries-more]")) {
+      state.limit += PAGE;
+      draw();
+      return;
+    }
     var card = e.target.closest(".entry-card");
     if (!card) return;
     var id = card.getAttribute("data-id");
@@ -226,7 +244,11 @@ export function revealEntry(id) {
   state.query = "";
   state.filterStatus = null;
   document.getElementById("searchInput").value = "";
-  Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (c) { c.classList.remove("active"); });
+  Array.prototype.forEach.call(document.querySelectorAll(".filter-chip"), function (c) { c.classList.remove("active"); c.setAttribute("aria-pressed", "false"); });
+  // make sure an older entry is within what the list shows
+  var newestFirst = state.entries.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
+  var at = newestFirst.findIndex(function (e) { return e.id === id; });
+  if (at >= state.limit) state.limit = Math.ceil((at + 1) / PAGE) * PAGE;
   state.expandedId = id;
   state.editingId = null;
   draw(id);

@@ -2,7 +2,7 @@ import { getEntries } from './journal.js';
 import { getTodayTasks } from './tasks.js';
 import { getTodayFocus } from './pomodoro.js';
 import { getGoals } from './goals.js';
-import { getDensityData, calculateDensityStats } from './densityMap.js';
+import { getDensityData, calculateDensityStats, periodDates } from './densityMap.js';
 import { apiGetDay } from './api.js';
 import { calcStreak } from './stats.js';
 import { dateKey } from './dayRecord.js';
@@ -18,7 +18,7 @@ var MARKS = { hello: "sparkles", ok: "circle-check", warn: "bell", care: "heart"
 
 /* Companion. The daily brief is local: plain rules over your own data
    (where today stands, what needs attention, a memory, a question), no AI,
-   nothing sent anywhere. "ask your logbook" (companionChat.js) adds an AI
+   nothing sent anywhere. "Ask your logbook" (companionChat.js) adds an AI
    chat when you connect one. */
 
 var PROMPTS = [
@@ -26,7 +26,7 @@ var PROMPTS = [
   "Where did you see God at work today, even in something small?",
   "What would make tomorrow 1% better than today?",
   "What are you avoiding, and what's the smallest step toward it?",
-  "Who helped you recently? have you thanked them?",
+  "Who helped you recently? Have you thanked them?",
   "What did you learn today that you didn't know yesterday?",
   "What are you grateful for that you didn't earn?",
   "If this week had a title, what would it be?",
@@ -42,6 +42,20 @@ function promptOfTheDay() {
   var d = new Date();
   var dayNumber = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   return PROMPTS[dayNumber % PROMPTS.length];
+}
+
+/* "Sep 20" from "2026-09-20" (the year only when it isn't this one) */
+function niceDate(key) {
+  var d = new Date(key + "T12:00:00");
+  var opts = { month: "short", day: "numeric" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("en-US", opts);
+}
+
+/* the name in the greeting; the stand-in "friend" stays lowercase mid-sentence */
+function greetName() {
+  var n = displayName();
+  return n === "Friend" && !String(getPrefs().name || "").trim() ? "friend" : n;
 }
 
 function plural(n, one, many) {
@@ -61,12 +75,12 @@ async function buildBrief() {
 
   var results = await Promise.all([
     getGoals().catch(function () { return []; }),
-    getDensityData().then(function (d) { return calculateDensityStats(d); }).catch(function () { return null; }),
+    getDensityData().then(function (d) { return calculateDensityStats(d, periodDates("monthly")); }).catch(function () { return null; }),
     apiGetDay(dateKey(yesterday)).catch(function () { return null; })
   ]);
   var goals = results[0], density = results[1], yesterdayRecord = results[2];
 
-  lines.push({ kind: "hello", text: greeting() + ", " + displayName() + "." });
+  lines.push({ kind: "hello", text: greeting() + ", " + greetName() + "." });
 
   // today
   if (todays.length) {
@@ -109,8 +123,8 @@ async function buildBrief() {
   var soonStr = dateKey(soon);
   goals.forEach(function (g) {
     if (g.completed || !g.targetDate) return;
-    if (g.targetDate < todayStr) lines.push({ kind: "warn", text: "Goal “" + g.title + "” was due " + g.targetDate + " and sits at " + g.progress + "%." });
-    else if (g.targetDate <= soonStr) lines.push({ kind: "info", text: "Goal “" + g.title + "” is due " + (g.targetDate === todayStr ? "today" : g.targetDate) + ", " + g.progress + "% done." });
+    if (g.targetDate < todayStr) lines.push({ kind: "warn", text: "Goal “" + g.title + "” was due " + niceDate(g.targetDate) + " and sits at " + g.progress + "%." });
+    else if (g.targetDate <= soonStr) lines.push({ kind: "info", text: "Goal “" + g.title + "” is due " + (g.targetDate === todayStr ? "today" : niceDate(g.targetDate)) + ", " + g.progress + "% done." });
   });
   var almost = goals.filter(function (g) { return !g.completed && g.progress >= 80; });
   if (almost.length) lines.push({ kind: "ok", text: "“" + almost[0].title + "” is " + almost[0].progress + "% done. Close it out?" });
@@ -169,7 +183,6 @@ export async function renderCompanion(force) {
       '<div class="companion-card">' +
         '<header class="companion-head">' +
           '<h3 class="daily-section-title">' + icon("sparkles") + "<span>Today's brief</span></h3>" +
-          '<span class="companion-mode" title="Built from your own entries, tasks, goals, and focus time. Nothing is sent anywhere.">' + icon("shield-check") + "<span>Stays on your side</span></span>" +
           '<button type="button" class="icon-btn" id="companionRefresh" aria-label="Refresh the brief" title="Refresh">' + icon("refresh-cw") + "</button>" +
         "</header>" +
         '<ol class="brief">' + lines.map(function (l, i) {
@@ -178,6 +191,7 @@ export async function renderCompanion(force) {
             : "";
           return '<li class="brief-line brief-line--' + l.kind + '" style="--i:' + i + '"><span class="brief-mark" aria-hidden="true">' + icon(MARKS[l.kind] || "info") + "</span><span>" + escapeHtml(l.text) + action + "</span></li>";
         }).join("") + "</ol>" +
+        '<p class="companion-note">' + icon("shield-check") + "<span>Made on your side from your own entries, tasks, goals and focus time. Nothing is sent anywhere.</span></p>" +
       "</div>" +
     "</div>" +
     '<div class="companion-card chat-card" id="companionChat"></div>';

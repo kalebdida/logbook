@@ -130,7 +130,7 @@ function timeOf(iso) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-/* opts: { query, filterStatus, expandedId, editingId, animateId } */
+/* opts: { query, filterStatus, expandedId, editingId, animateId, limit } */
 export function renderEntries(entries, opts) {
   opts = opts || {};
   var container = document.getElementById("entriesList");
@@ -152,13 +152,22 @@ export function renderEntries(entries, opts) {
 
   if (entries.length === 0 || filtered.length === 0) {
     container.innerHTML = "";
+    var moodWord = opts.filterStatus && STATUS[opts.filterStatus] ? STATUS[opts.filterStatus].label.toLowerCase() : "";
+    var shownQuery = (opts.query || "").trim();
     emptyMsg.textContent = entries.length === 0
       ? "Nothing here yet. Your first entry will show up here."
-      : "No entries match that search.";
+      : shownQuery
+        ? "No " + (moodWord ? moodWord + " " : "") + "entries match “" + shownQuery + "”."
+        : "No " + moodWord + " days yet.";
     emptyMsg.hidden = false;
     return;
   }
   emptyMsg.hidden = true;
+
+  // a long journal shows the newest first and the rest on request
+  var limit = opts.limit || filtered.length;
+  var hiddenCount = Math.max(0, filtered.length - limit);
+  if (hiddenCount) filtered = filtered.slice(0, limit);
 
   var html = "";
   var lastKey = null;
@@ -172,6 +181,10 @@ export function renderEntries(entries, opts) {
     html += entryCard(e, opts, q);
   });
   html += "</div>";
+  if (hiddenCount) {
+    html += '<div class="entries-more"><button type="button" class="tool-btn" data-entries-more>' + icon("history") + "<span>Show older entries</span></button>" +
+      '<span class="entries-more-count">' + hiddenCount + " more</span></div>";
+  }
   container.innerHTML = html;
 
   if (opts.animateId) {
@@ -222,7 +235,7 @@ function entryCard(e, opts, q) {
 
   var actions = isOpen
     ? '<div class="entry-actions">' +
-        '<button type="button" class="tool-btn" data-entry-action="day">' + icon("calendar-days") + "<span>View day</span></button>" +
+        '<button type="button" class="tool-btn entry-day-btn" data-entry-action="day">' + icon("calendar-days") + "<span>View day</span></button>" +
         '<button type="button" class="tool-btn" data-entry-action="edit">' + icon("pencil") + "<span>Edit</span></button>" +
         '<button type="button" class="tool-btn danger-btn" data-entry-action="delete">' + icon("trash-2") + "<span>Delete</span></button>" +
       "</div>"

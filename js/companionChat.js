@@ -143,8 +143,9 @@ function systemPrompt(context) {
 function format(text) {
   var html = "";
   escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").split(/\n/).forEach(function (line) {
-    var m = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
-    if (m) html += '<span class="chat-bullet">' + m[1] + "</span>";
+    var m = line.match(/^\s*([-*•]|\d+[.)])\s+(.*)$/);
+    if (m && /\d/.test(m[1])) html += '<span class="chat-bullet chat-bullet--num" data-n="' + m[1].replace(")", ".") + '">' + m[2] + "</span>";
+    else if (m) html += '<span class="chat-bullet">' + m[2] + "</span>";
     else if (!line.trim()) html += '<span class="chat-gap"></span>';
     else html += '<span class="chat-line">' + line + "</span>";
   });
@@ -156,10 +157,10 @@ function messagesHtml() {
     return '<p class="chat-empty">Ask anything about your days. It reads a summary of the last two weeks.</p>';
   }
   return history.map(function (m, i) {
-    return '<div class="chat-msg chat-msg--' + m.role + '">' +
+    return '<div class="chat-msg chat-msg--' + m.role + (m.error ? " chat-msg--error" : "") + '">' +
       '<span class="chat-who">' + (m.role === "user" ? "You" : "Companion") + "</span>" +
       '<div class="chat-text">' + format(m.content) + "</div>" +
-      (m.role === "assistant" ? '<button type="button" class="link-btn chat-copy" data-chat-copy="' + i + '">Copy</button>' : "") +
+      (m.role === "assistant" && !m.error ? '<button type="button" class="chat-copy" data-chat-copy="' + i + '">' + icon("copy") + "<span>Copy</span></button>" : "") +
     "</div>";
   }).join("");
 }
@@ -202,10 +203,15 @@ async function send(el, text) {
 function draw(el, thinking) {
   var box = el.querySelector(".chat-log");
   if (!box) return;
-  box.innerHTML = messagesHtml() + (thinking ? '<div class="chat-msg chat-msg--assistant chat-thinking"><span class="chat-who">Companion</span><div class="chat-text"><span class="chat-dots"><i></i><i></i><i></i></span></div></div>' : "");
-  box.scrollTop = box.scrollHeight;
+  box.innerHTML = messagesHtml() + (thinking ? '<div class="chat-msg chat-msg--assistant chat-thinking"><span class="chat-who">Companion</span><div class="chat-text"><span class="chat-dots" role="img" aria-label="Thinking"><i></i><i></i><i></i></span></div></div>' : "");
+  // a long answer is read from its first line: show your question and the start of the reply
+  var users = box.querySelectorAll(".chat-msg--user");
+  var lastQuestion = users[users.length - 1];
+  if (!thinking && lastQuestion && lastQuestion !== box.lastElementChild) box.scrollTop = Math.max(0, box.scrollTop + lastQuestion.getBoundingClientRect().top - box.getBoundingClientRect().top - 14);
+  else box.scrollTop = box.scrollHeight;
   var btn = el.querySelector(".chat-form button[type=submit]");
   if (btn) btn.disabled = thinking;
+  el.querySelectorAll("[data-chat-quick]").forEach(function (chip) { chip.disabled = thinking; });
   var clear = el.querySelector("[data-chat-clear]");
   if (clear) clear.hidden = !history.length;
 }
@@ -218,11 +224,11 @@ export async function renderChatCard(el) {
       '<h3 class="daily-section-title">' + icon("message-circle") + "<span>Ask your logbook</span></h3>" +
       '<div class="chat-off-art" aria-hidden="true">' + icon("message-circle") + "</div>" +
       '<p class="chat-off">Connect an AI and you can talk to your logbook: weekly reviews, planning tomorrow, spotting patterns. ' +
-        "Use Claude or OpenAI with your own key, or a free model that runs on your own computer (Ollama). It's off until you turn it on.</p>" +
-      '<button type="button" class="primary-btn" data-chat-setup>' + icon("sparkles") + "<span>Set up AI</span></button>";
+        "Gemini works with a free key; Claude, OpenAI, or a model on your own computer (Ollama) work too. It's off until you turn it on.</p>" +
+      '<button type="button" class="tool-btn" data-chat-setup>' + icon("sparkles") + "<span>Set up AI</span></button>";
     el.querySelector("[data-chat-setup]").addEventListener("click", function () {
       navigateTo("settings");
-      setTimeout(function () { var c = document.getElementById("settingsAI"); if (c) c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 80);
+      setTimeout(function () { var c = document.getElementById("set-ai") || document.getElementById("settingsAI"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
     });
     return;
   }
@@ -230,15 +236,15 @@ export async function renderChatCard(el) {
   el.innerHTML =
     '<header class="companion-head">' +
       '<h3 class="daily-section-title">' + icon("message-circle") + "<span>Ask your logbook</span></h3>" +
-      '<span class="companion-mode" title="' + escapeHtml(status.via === "server" ? "Through your server" : "From this device") + '">' + escapeHtml(status.model || status.provider) + "</span>" +
     "</header>" +
     '<div class="chat-quick">' + QUICK.map(function (q, i) { return '<button type="button" class="chip" data-chat-quick="' + i + '">' + q.label + "</button>"; }).join("") + "</div>" +
     '<div class="chat-log" aria-live="polite"></div>' +
     '<form class="chat-form" autocomplete="off">' +
-      '<textarea class="text-input chat-input" name="q" rows="1" maxlength="2000" placeholder="Ask about your week, your goals, anything"></textarea>' +
+      '<textarea class="text-input chat-input" name="q" rows="1" maxlength="2000" enterkeyhint="send" aria-label="Your question" placeholder="Ask about your days"></textarea>' +
       '<button type="submit" class="primary-btn chat-send" aria-label="Send">' + icon("send") + "</button>" +
     "</form>" +
-    '<p class="chat-privacy">Sends ' + (share ? "a summary of the last 2 weeks <strong>including what you wrote</strong>" : "<strong>numbers only</strong> (no text you wrote)") +
+    '<p class="chat-privacy">Using <span class="chat-model" title="' + escapeHtml(status.via === "server" ? "Through your server" : "From this device") + '">' + escapeHtml(status.model || status.provider || "AI") + "</span>. " +
+      "Sends " + (share ? "a summary of the last 2 weeks <strong>including what you wrote</strong>" : "<strong>numbers only</strong> (no text you wrote)") +
       ' when you ask. <button type="button" class="link-btn" data-chat-privacy>Change</button>' +
       ' <button type="button" class="link-btn" data-chat-clear' + (history.length ? "" : " hidden") + ">Clear chat</button></p>";
   draw(el, sending);

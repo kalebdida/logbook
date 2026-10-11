@@ -126,9 +126,10 @@ html.has-backdrop-image body::before {
 #boot .boot-granted { color: var(--warm); }
 
 /* ---------- shell ---------- */
+/* no z-index here on purpose: the sidebar and the main column stack on
+   their own, so the phone tab bar can rise above the More sheet */
 #appShell {
   position: relative;
-  z-index: 2;
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
@@ -487,13 +488,14 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 @media (max-width: 760px) {
   #appShell { display: block; }
 
+  /* the tab bar sits under dialogs (z 50) but over the More sheet it opens */
   .sidebar-nav {
     position: fixed;
     top: auto;
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 60;
+    z-index: 45;
     flex-direction: row;
     gap: 0;
     height: calc(var(--bar-h) + var(--safe-bottom));
@@ -501,8 +503,12 @@ body[data-page="dashboard"] #pageHeader { display: none; }
     overflow: visible;
     border-top: 1px solid rgb(var(--ink-rgb) / 0.08);
     border-right: none;
-    background: rgb(var(--bg-rgb) / 0.82);
+    background: rgb(var(--bg-rgb) / 0.92);
   }
+  /* light themes: paper, opaque enough that text scrolling under the labels never shows through */
+  html[data-theme-mode="light"] #sidebarNav { background: rgb(var(--surface-rgb) / 0.94); }
+  body.is-more-open .sidebar-nav { z-index: 55; }
+  .nav-more[aria-expanded="true"] .nav-icon { color: var(--accent); }
   .sidebar-nav-brand, .sidebar-foot, .nav-key, .nav-extra { display: none; }
   .nav-list { flex: 1; flex-direction: row; gap: 2px; }
   .sidebar-nav-item,
@@ -524,16 +530,20 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   .sidebar-nav-item:hover { background: transparent; }
 
   #app { padding: 22px 16px calc(var(--bar-h) + var(--safe-bottom) + 34px); }
-  #pageHeader { min-height: 40px; margin-bottom: 16px; }
+  #pageHeader { min-height: 44px; margin-bottom: 18px; }
   .header-cmd > span:nth-child(2), .header-cmd kbd { display: none; }
-  .header-cmd { width: 40px; padding: 0; justify-content: center; font-size: 17px; }
+  .header-cmd { width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; font-size: 18px; }
 
+  /* one rhythm between every card on the Today page */
+  .dash-grid { gap: 18px; }
   .dash-side { grid-template-columns: minmax(0, 1fr); }
   .dash-side #habitsSection { grid-row: auto; }
+  .journal-grid { gap: 26px; }
   .settings-grid { grid-template-columns: minmax(0, 1fr); }
 
-  #dayViewer, .overlay:not(.sheet) { align-items: flex-start; padding: 12px 10px calc(var(--bar-h) + var(--safe-bottom) + 10px); }
-  .viewer-panel { padding: 20px 18px; }
+  /* dialogs cover the tab bar, so they can use the whole height */
+  #dayViewer, .overlay:not(.sheet) { align-items: flex-start; padding: max(12px, env(safe-area-inset-top)) 10px calc(var(--safe-bottom) + 12px); }
+  .viewer-panel { max-height: calc(100dvh - 24px - var(--safe-bottom)); padding: 20px 18px; }
   #toasts { right: 12px; bottom: calc(var(--bar-h) + var(--safe-bottom) + 12px) !important; left: 12px; align-items: center; max-width: none; }
 
   .card,
