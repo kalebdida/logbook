@@ -1,6 +1,6 @@
 /* Habits: small things you want to do every day. One tap to check today,
-   the last seven days as dots (tap a dot to fix a missed check-in), and a
-   streak. A habit with a life area also counts in the density map. */
+   the last seven days as dots (only yesterday's can still be fixed, for the
+   nights you forgot to tap; older days are history), and a streak. A habit with a life area also counts in the density map. */
 import { apiListHabits, apiCreateHabit, apiUpdateHabit, apiDeleteHabit, apiHabitLogs, apiSetHabitDay } from './api.js';
 import { dateKey } from './dayRecord.js';
 import { categoryOptions, categoryById, habitIcon, HABIT_ICONS } from './categories.js';
@@ -93,8 +93,9 @@ function rowHtml(h, days, today) {
       '<span class="habit-main">' +
         '<span class="habit-name">' + escapeHtml(h.name) + "</span>" +
         '<span class="habit-week" role="group" aria-label="Last ' + DAYS_SHOWN + ' days">' +
-          days.map(function (d) {
+          days.map(function (d, i) {
             var on = has(h.id, d);
+            if (i < days.length - 2) return '<span class="habit-dot is-past' + (on ? " is-on" : "") + '" title="' + dayLabel(d) + (on ? ", done" : ", missed") + '"></span>';
             return '<button type="button" class="habit-dot' + (on ? " is-on" : "") + (d === today ? " is-today" : "") + '" data-habit-toggle="' + d + '" aria-pressed="' + on + '" title="' + dayLabel(d) + '" aria-label="' + escapeHtml(h.name) + ", " + dayLabel(d) + '"></button>';
           }).join("") +
         "</span>" +

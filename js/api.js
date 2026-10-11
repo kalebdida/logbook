@@ -311,10 +311,10 @@ export async function apiDeleteGoal(id) {
 
 // ---------- pomodoro ----------
 
-export async function apiRecordPomodoroSession(dateStr, focusMs) {
+export async function apiRecordPomodoroSession(dateStr, focusMs, partial) {
   return request(
     "/pomodoro/" + dateStr + "/sessions",
-    Object.assign({ method: "POST" }, jsonBody({ focus_ms: focusMs }))
+    Object.assign({ method: "POST" }, jsonBody({ focus_ms: focusMs, partial: Boolean(partial) }))
   );
 }
 

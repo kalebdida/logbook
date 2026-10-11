@@ -11,6 +11,10 @@ from app.models.user import Invite
 
 ADMIN_PW = "admin password 123"
 
+import datetime as _dt
+TODAY = _dt.date.today().isoformat()
+YDAY = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
+
 
 @pytest.fixture()
 def server(client):
@@ -62,7 +66,7 @@ def fill(c, token, tag):
     goal = c.post("/goals/", json={"title": f"{tag} goal"}, headers=H).json()
     c.post("/pomodoro/2026-10-01/sessions", json={"focus_ms": 60000}, headers=H)
     habit = c.post("/habits/", json={"name": f"{tag} habit"}, headers=H).json()
-    c.put(f"/habits/{habit['id']}/days/2026-10-01", headers=H)
+    c.put(f"/habits/{habit['id']}/days/{YDAY}", headers=H)
     deadline = c.post("/deadlines/", json={"title": f"{tag} deadline", "due_date": "2026-11-01"}, headers=H).json()
     prayer = c.post("/prayers/", json={"text": f"{tag} prayer"}, headers=H).json()
     c.put("/profile", json={"pet_name": f"{tag} cat", "birthday": "2008-03-04"}, headers=H)
@@ -115,8 +119,8 @@ def test_cannot_touch_another_accounts_rows_by_id(server):
         ("delete", f"/goals/{a['goal']['id']}", None),
         ("patch", f"/habits/{a['habit']['id']}", {"name": "hacked"}),
         ("delete", f"/habits/{a['habit']['id']}", None),
-        ("put", f"/habits/{a['habit']['id']}/days/2026-10-02", None),
-        ("delete", f"/habits/{a['habit']['id']}/days/2026-10-01", None),
+        ("put", f"/habits/{a['habit']['id']}/days/{TODAY}", None),
+        ("delete", f"/habits/{a['habit']['id']}/days/{YDAY}", None),
         ("patch", f"/deadlines/{a['deadline']['id']}", {"title": "hacked"}),
         ("delete", f"/deadlines/{a['deadline']['id']}", None),
         ("patch", f"/prayers/{a['prayer']['id']}", {"answered": True}),

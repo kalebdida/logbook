@@ -407,7 +407,7 @@ route("POST", "/pomodoro/{date}/sessions", async function (p, q, body) {
   var ms = Number(body.focus_ms);
   if (!Number.isFinite(ms) || ms < 0) fail(422, "Focus time must be 0 or more");
   var row = copy(mem.pomodoro_days.get(date) || { date: date, sessions: 0, focus_ms: 0 });
-  row.sessions += 1;
+  if (!body.partial) row.sessions += 1;
   row.focus_ms += Math.round(ms);
   await commit([put("pomodoro_days", row)]);
   return copy(row);
@@ -470,6 +470,8 @@ route("PUT", "/habits/{id}/days/{date}", async function (p) {
   var id = Number(p.id);
   get("habits", id, "Habit");
   var date = dateArg(p.date, "date");
+  var gap = (new Date(date + "T12:00:00") - new Date(new Date().toDateString() + " 12:00")) / 86400000;
+  if (gap < -1.5 || gap > 0.5) fail(400, "Only today or yesterday can be checked.");
   var key = id + "|" + date;
   if (!mem.habit_logs.has(key)) await commit([put("habit_logs", { key: key, habit_id: id, date: date })]);
   return { habit_id: id, date: date };

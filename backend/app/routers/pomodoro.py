@@ -25,7 +25,8 @@ def record_session(session_date: date_type, payload: PomodoroSessionComplete, ui
         day = PomodoroDay(user_id=uid, date=session_date, sessions=0, focus_ms=0)
         db.add(day)
 
-    day.sessions += 1
+    if not payload.partial:
+        day.sessions += 1
     day.focus_ms += payload.focus_ms
 
     db.commit()

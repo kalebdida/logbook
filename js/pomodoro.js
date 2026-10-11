@@ -398,6 +398,14 @@ function pauseTimer() {
 
 function resetTimer(reason) {
   var previousMode = state.timer.mode;
+  if (previousMode === "focus" && (!reason || reason === "manual") && state.timer.durationMs) {
+    var spent = state.timer.durationMs - remainingMs();
+    if (spent >= 60000 && spent < state.timer.durationMs) {
+      var mins = Math.round(spent / 60000);
+      recordFocus(dateKey(new Date()), mins * 60000, true);
+      toast("Counted the " + mins + " min you actually focused.");
+    }
+  }
   stopTicking();
   state.timer = createTimer(previousMode, state.settings);
   saveState();
@@ -428,28 +436,40 @@ function skipBreak() {
   updateView();
 }
 
+/* Local state stays the source of truth for "sessions today" and the live
+   timer (instant, offline); the backend report is fire-and-forget on top. */
+function recordFocus(day, ms, partial) {
+  var stats = dayStats(day);
+  if (!partial) { stats.sessions++; state.totals.sessions++; }
+  stats.focusMs += ms;
+  state.totals.focusMs += ms;
+  saveState();
+  updateView();
+  apiRecordPomodoroSession(day, ms, partial).then(function (row) {
+    if (row) backendDays[row.date] = { sessions: row.sessions, focusMs: row.focus_ms };
+    emitChange("pomodoro");
+  }).catch(function (e) {
+    console.warn("logbook: failed to report pomodoro session to backend", e);
+  });
+}
+
 function completeTimer(completedAt, recovered, skipped) {
   var completedMode = state.timer.mode;
   stopTicking();
 
   if (completedMode === "focus") {
     var completedDay = dateKey(new Date(completedAt));
-    var stats = dayStats(completedDay);
-    stats.sessions++;
-    stats.focusMs += state.timer.durationMs;
-    state.totals.sessions++;
-    state.totals.focusMs += state.timer.durationMs;
-
-    // Local state above stays the source of truth for "sessions today"
-    // and the live timer, both of which need to work instantly and
-    // offline. This is a fire-and-forget report to the backend on top of
-    // that, not a replacement for it, a failed request here shouldn't
-    // interrupt a running timer.
-    apiRecordPomodoroSession(completedDay, state.timer.durationMs).then(function (row) {
-      if (row) backendDays[row.date] = { sessions: row.sessions, focusMs: row.focus_ms };
-    }).catch(function (e) {
-      console.warn("logbook: failed to report pomodoro session to backend", e);
-    });
+    var fullMs = state.timer.durationMs;
+    // Honest minutes: a timer that ran out while you were away isn't
+    // counted unless you say you were really focusing.
+    if (recovered && Date.now() - completedAt > 120000) {
+      toast("Your focus timer ran out while you were away, so it wasn't counted.", "ok", {
+        duration: 15000,
+        action: { label: "I was focusing", run: function () { recordFocus(completedDay, fullMs, false); } }
+      });
+    } else {
+      recordFocus(completedDay, fullMs, false);
+    }
 
     var nextBreak = state.totals.sessions % LONG_BREAK_EVERY === 0 ? "longBreak" : "shortBreak";
     state.timer = createTimer(nextBreak, state.settings);

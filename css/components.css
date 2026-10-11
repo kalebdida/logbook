@@ -350,6 +350,8 @@
 .habit-dot::before { content: ""; position: absolute; inset: -7px -4px; }
 .habit-dot:hover { transform: scale(1.3); border-color: var(--accent); }
 .habit-dot.is-on { border-color: rgb(var(--accent-rgb) / 0.8); background: rgb(var(--accent-rgb) / 0.75); }
+.habit-dot.is-past { opacity: 0.55; cursor: default; }
+.habit-dot.is-past:hover { transform: none; border-color: inherit; }
 .habit-dot.is-today { box-shadow: 0 0 0 2px rgb(var(--accent2-rgb) / 0.55); }
 .habit-streak { display: inline-flex; align-items: center; gap: 3px; min-width: 30px; justify-content: flex-end; color: var(--faint); font-size: 13px; font-variant-numeric: tabular-nums; }
 .habit-streak .i { font-size: 14px; }

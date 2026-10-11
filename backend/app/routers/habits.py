@@ -1,6 +1,6 @@
 """Daily habits and their check-offs."""
 
-from datetime import date as date_type
+from datetime import date as date_type, datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -70,6 +70,11 @@ def delete_habit(habit_id: int, uid: int = Depends(current_user_id), db: Session
 
 @router.put("/{habit_id}/days/{day}", response_model=HabitLogResponse)
 def check_habit(habit_id: int, day: date_type, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+    # honest check-ins: today, or yesterday if you forgot to tap before bed. Day keys
+    # are the browser's local date, so leave a day either side for time zones.
+    today = datetime.now(timezone.utc).date()
+    if not (today - timedelta(days=2) <= day <= today + timedelta(days=1)):
+        raise HTTPException(status_code=400, detail="Only today or yesterday can be checked.")
     _get(uid, habit_id, db)
     log = db.get(HabitLog, (habit_id, day))
     if log is None:

@@ -1,4 +1,4 @@
-import { apiListSleep, apiSaveSleep } from './api.js';
+import { apiListSleep, apiSaveSleep, apiDeleteSleep } from './api.js';
 import { getEntries } from './journal.js';
 import { dateKey } from './dayRecord.js';
 import { icon } from './icons.js';
@@ -98,13 +98,14 @@ function draw() {
     ? '<button type="button" class="tool-btn sleep-btn" data-sleep="bed">' + icon("moon") + "<span>Going to bed</span></button>"
     : st.kind === "wake"
       ? '<button type="button" class="tool-btn sleep-btn" data-sleep="wake">' + icon("sun") + "<span>I'm up</span></button>"
-      : '<button type="button" class="link-btn" data-sleep="edit">' + (last ? "Change last night" : "Log last night") + "</button>";
+      : '<button type="button" class="link-btn" data-sleep="edit">' + (editing ? "Cancel" : last ? "Change last night" : "Log last night") + "</button>";
   var bed = st.kind === "wake" ? new Date(st.night.bedAt) : null;
   el.innerHTML =
     '<div class="card sleep-card">' +
       '<div class="habits-head"><h3 class="daily-section-title">' + icon("moon-star") + "<span>Sleep</span></h3>" + action + "</div>" +
       (st.kind === "wake"
-        ? '<p class="sleep-now"><b>In bed since ' + bed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + "</b><span>Tap when you're up</span></p>"
+        ? '<p class="sleep-now"><b>In bed since ' + bed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + "</b><span>Tap when you're up · " +
+            '<button type="button" class="link-btn" data-sleep="undo">Not going to bed yet</button></span></p>"
         : '<p class="sleep-now">' + (last ? "<b>" + hm(last.minutes) + "</b><span>last night</span>" : "<b>No night yet</b><span>" + (st.kind === "bed" ? "Tap when you go to bed" : "Log how you slept") + "</span>") + "</p>") +
       '<div class="night-strip" aria-label="The last two weeks of sleep">' + strip + "</div>" +
       '<div class="night-axis"><span>2 weeks ago</span><span>' + (avg != null ? "Average " + hm(avg) + " this week" : "") + "</span></div>" +
@@ -114,6 +115,7 @@ function draw() {
             '<label><span>Went to bed</span><input class="text-input" type="time" name="bed" value="' + (last && last.bedAt ? timeOf(last.bedAt) : "23:00") + '" required></label>' +
             '<label><span>Woke up</span><input class="text-input" type="time" name="wake" value="' + (last && last.wakeAt ? timeOf(last.wakeAt) : "07:00") + '" required></label>' +
             '<button type="submit" class="tool-btn">' + icon("check") + "<span>Save</span></button>" +
+            (last ? '<button type="button" class="link-btn sleep-clear" data-sleep="clear">Remove last night</button>' : "") +
           "</form>"
         : "") +
     "</div>";
@@ -133,6 +135,18 @@ async function onClick(e) {
   if (!b) return;
   var what = b.getAttribute("data-sleep");
   if (what === "edit") { editing = !editing; return draw(); }
+  if (what === "undo" || what === "clear") {
+    var day = what === "undo" ? state().night.date : dateKey(new Date());
+    try {
+      await apiDeleteSleep(day);
+      nights = nights.filter(function (x) { return x.date !== day; });
+      editing = false;
+      emitChange("sleep");
+      draw();
+      toast(what === "undo" ? "Okay, not in bed yet." : "Removed last night.");
+    } catch (err) { toast(err.detail || "Couldn't change that", "error"); }
+    return;
+  }
   b.disabled = true;
   try {
     if (what === "bed") {
@@ -143,6 +157,11 @@ async function onClick(e) {
       setTimeout(function () { document.body.classList.remove("is-dimming"); }, 2600);
       mascotReact("nap");
       mascotSay("Goodnight. Phone down soon?");
+      var bedDay = state().night ? state().night.date : null;
+      toast("Goodnight. Logged you going to bed.", "ok", { duration: 8000, action: { label: "Undo", run: function () {
+        if (!bedDay) return;
+        apiDeleteSleep(bedDay).then(function () { nights = nights.filter(function (x) { return x.date !== bedDay; }); emitChange("sleep"); draw(); });
+      } } });
     } else if (what === "wake") {
       var n = state().night;
       var saved = await apiSaveSleep(n.date, { wakeAt: new Date().toISOString() });

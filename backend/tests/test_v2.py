@@ -9,6 +9,10 @@ from app.config import settings
 from app.database import Base, engine, run_migrations
 from tests.conftest import reset_database
 
+import datetime as _dt
+TODAY = _dt.date.today().isoformat()
+YDAY = (_dt.date.today() - _dt.timedelta(days=1)).isoformat()
+
 
 # ---------- login ----------
 
@@ -58,19 +62,19 @@ def test_tampered_token_rejected(client):
 def test_habits_check_and_uncheck(client):
     h = client.post("/habits/", json={"name": "pray", "icon": "🙏", "activity_category": "faith"}).json()
     assert h["sort"] == 0
-    client.put(f"/habits/{h['id']}/days/2026-10-08")
-    client.put(f"/habits/{h['id']}/days/2026-10-08")      # idempotent
-    client.put(f"/habits/{h['id']}/days/2026-10-09")
-    logs = client.get("/habits/logs", params={"start": "2026-10-01", "end": "2026-10-31"}).json()
-    assert [l["date"] for l in logs] == ["2026-10-08", "2026-10-09"]
-    assert client.delete(f"/habits/{h['id']}/days/2026-10-09").status_code == 204
+    client.put(f"/habits/{h['id']}/days/{YDAY}")
+    client.put(f"/habits/{h['id']}/days/{YDAY}")      # idempotent
+    client.put(f"/habits/{h['id']}/days/{TODAY}")
+    logs = client.get("/habits/logs", params={"start": YDAY, "end": TODAY}).json()
+    assert [l["date"] for l in logs] == [YDAY, TODAY]
+    assert client.delete(f"/habits/{h['id']}/days/{TODAY}").status_code == 204
     assert len(client.get("/habits/logs").json()) == 1
 
 
 def test_archived_habits_hidden_and_delete_removes_logs(client):
     a = client.post("/habits/", json={"name": "read"}).json()
     b = client.post("/habits/", json={"name": "gym"}).json()
-    client.put(f"/habits/{b['id']}/days/2026-10-08")
+    client.put(f"/habits/{b['id']}/days/{YDAY}")
     client.patch(f"/habits/{a['id']}", json={"archived": True})
     assert [h["name"] for h in client.get("/habits/").json()] == ["gym"]
     assert len(client.get("/habits/", params={"include_archived": True}).json()) == 2
@@ -80,7 +84,7 @@ def test_archived_habits_hidden_and_delete_removes_logs(client):
 
 def test_habits_survive_backup_into_another_database(client):
     h = client.post("/habits/", json={"name": "Pray"}).json()
-    client.put(f"/habits/{h['id']}/days/2026-10-08")
+    client.put(f"/habits/{h['id']}/days/{YDAY}")
     backup = client.get("/backup").json()
     reset_database()
     run_migrations()
@@ -88,7 +92,7 @@ def test_habits_survive_backup_into_another_database(client):
     result = client.post("/backup/restore", json=backup).json()
     assert result["habits"]["added"] == 1 and result["habit_logs"]["added"] == 1
     pray = [x for x in client.get("/habits/").json() if x["name"] == "Pray"][0]
-    assert client.get("/habits/logs").json() == [{"habit_id": pray["id"], "date": "2026-10-08"}]
+    assert client.get("/habits/logs").json() == [{"habit_id": pray["id"], "date": YDAY}]
     again = client.post("/backup/restore", json=backup).json()
     assert again["habits"]["added"] == 0 and again["habit_logs"]["added"] == 0
 
@@ -381,7 +385,7 @@ def test_concurrent_check_ins_dont_fail(client):
     habit = client.post("/habits/", json={"name": "read"}).json()
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(4) as pool:
-        codes = list(pool.map(lambda _: client.put(f"/habits/{habit['id']}/days/2026-10-01").status_code, range(8)))
+        codes = list(pool.map(lambda _: client.put(f"/habits/{habit['id']}/days/{YDAY}").status_code, range(8)))
     assert set(codes) == {200}
     assert len(client.get("/habits/logs").json()) == 1
 
@@ -527,3 +531,12 @@ def test_monthly_letter_is_written_once_and_only_for_past_months(client):
     assert client.post("/letters/2999-01").status_code == 409
     assert client.post("/letters/nope").status_code == 422
     assert [x["month"] for x in client.get("/letters/").json()] == ["2026-09"]
+
+
+def test_habits_only_today_or_yesterday(client):
+    h = client.post("/habits/", json={"name": "read"}).json()
+    old = (_dt.date.today() - _dt.timedelta(days=6)).isoformat()
+    later = (_dt.date.today() + _dt.timedelta(days=5)).isoformat()
+    assert client.put(f"/habits/{h['id']}/days/{old}").status_code == 400
+    assert client.put(f"/habits/{h['id']}/days/{later}").status_code == 400
+    assert client.put(f"/habits/{h['id']}/days/{TODAY}").status_code == 200
