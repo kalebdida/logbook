@@ -293,8 +293,13 @@ def authenticate(request: Request, db: Session, username: str, password: str) ->
     check_not_locked(request, name)
     user = None
     if name == normalize_username(settings.admin_username):
+        # the admin: LOGBOOK_PASSWORD always works; a password set with a
+        # Telegram reset code works too
+        boss = owner(db)
         if hmac.compare_digest(password.encode(), settings.password.encode()):
-            user = owner(db)
+            user = boss
+        elif boss.password_hash and verify_password(password, boss.password_hash):
+            user = boss
         else:
             _dummy_verify(password)
     else:

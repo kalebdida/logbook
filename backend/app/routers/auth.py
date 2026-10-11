@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+import app.auth as _auth
 from app.auth import (
     authenticate, auth_required, check_not_locked, clear_failures, current_user, display_name,
     hash_password, make_token, normalize_username, optional_user, password_problem, record_failure,
@@ -97,6 +98,10 @@ class ResetRequest(BaseModel):
     password: str = Field(..., max_length=500)
 
 
+class ForgotRequest(BaseModel):
+    username: str = Field(..., max_length=64)
+
+
 class PasswordChange(BaseModel):
     current: str = Field(..., max_length=500)
     new: str = Field(..., max_length=500)
@@ -162,14 +167,41 @@ def signup(body: SignupRequest, request: Request, db: Session = Depends(get_db))
     return _token_json(user)
 
 
+@router.post("/forgot")
+async def forgot_password(body: ForgotRequest, request: Request, db: Session = Depends(get_db)):
+    """Forgot your password: a reset code goes to the Telegram chat connected
+    to that account. The answer is the same whether or not the account exists
+    or has Telegram, so nobody learns anything by trying names."""
+    from app import telegram as bot
+    from app.models import TelegramLink
+
+    name = normalize_username(body.username)
+    check_not_locked(request, name)
+    record_failure(request, name, login=False)       # counts toward the same limits as wrong codes
+    if name == normalize_username(settings.admin_username):
+        user = db.get(User, OWNER_ID)
+    else:
+        user = db.query(User).filter(User.username == name).first()
+    link = db.get(TelegramLink, user.id) if user else None
+    if user is not None and link is not None and bot.load_token(db):
+        db.query(Invite).filter(Invite.kind == "reset", Invite.for_user_id == user.id, Invite.used_at.is_(None)).delete()
+        made = _make_code(db, "reset", "telegram", 1, for_user_id=user.id)
+        await bot.send(link.chat_id,
+                       "🔑 Someone asked to reset your Logbook password. Hopefully you.\n\n"
+                       f"Your code: <code>{made['code']}</code>\n\n"
+                       "Open Logbook → Reset, and use it within 24 hours. If this wasn't you, ignore it; your password stays as it is.")
+    return {"ok": True}
+
+
 @router.post("/reset")
 def reset_password(body: ResetRequest, request: Request, db: Session = Depends(get_db)):
-    """Set a new password with a one-time reset code from the admin."""
+    """Set a new password with a one-time reset code: from the admin, or sent
+    to your own Telegram (the only way the admin's own account can reset)."""
     name = normalize_username(body.username)
     check_not_locked(request, name)
     invite = _usable_code(db, body.code, "reset")
     user = db.get(User, invite.for_user_id) if invite and invite.for_user_id else None
-    if user is None or user.username != name or user.id == OWNER_ID:
+    if user is None or _auth.display_name(user) != name or (user.id == OWNER_ID and invite.note != "telegram"):
         record_failure(request, name, login=False)
         _bad_request("That reset code doesn't work for that username.")
     problem = password_problem(body.password)

@@ -404,6 +404,10 @@ export async function apiResetPassword(base, username, code, password) {
   return serverRequest(base, "", "/auth/reset", Object.assign({ method: "POST" }, jsonBody({ username: username, code: code, password: password })));
 }
 
+export async function apiForgotPassword(base, username) {
+  return serverRequest(base, "", "/auth/forgot", Object.assign({ method: "POST" }, jsonBody({ username: username })));
+}
+
 export async function apiMe() {
   return request("/auth/me");
 }

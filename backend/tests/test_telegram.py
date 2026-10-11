@@ -368,3 +368,33 @@ def test_reminders_for_deadlines_and_the_streak(server, tg):
     run(message(12, "/nudges off"))
     bot.nudges_sent.clear()
     assert asyncio.run(bot.nudge_tick(datetime(2026, 11, 2, 18, 4, tzinfo=timezone.utc))) == 0
+
+
+def test_forgot_password_sends_a_code_to_telegram(server, tg):
+    import re
+    c = server
+    admin = admin_token(c)
+    amen = make_user(c, admin, "amen")
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=h(admin))
+    connect(c, h(amen), chat=21)
+    connect(c, h(admin), chat=22)
+    before = len(tg.sent())
+
+    # someone without Telegram, or nobody at all: the same answer, nothing sent
+    assert c.post("/auth/forgot", json={"username": "nobody"}).json() == {"ok": True}
+    assert len(tg.sent()) == before
+
+    assert c.post("/auth/forgot", json={"username": "amen"}).json() == {"ok": True}
+    msg = tg.sent()[-1]
+    assert msg["chat_id"] == 21 and "reset your Logbook password" in msg["text"]
+    code = re.search(r"<code>([^<]+)</code>", msg["text"]).group(1)
+    assert c.post("/auth/reset", json={"username": "amen", "code": code, "password": "a brand new password 1"}).status_code == 200
+    assert c.post("/auth/login", json={"username": "amen", "password": "a brand new password 1"}).status_code == 200
+
+    # the admin too: a Telegram code sets a password that works next to LOGBOOK_PASSWORD
+    c.post("/auth/forgot", json={"username": "kal"})
+    assert tg.sent()[-1]["chat_id"] == 22
+    code = re.search(r"<code>([^<]+)</code>", tg.sent()[-1]["text"]).group(1)
+    assert c.post("/auth/reset", json={"username": "kal", "code": code, "password": "kal forgot it once"}).status_code == 200
+    assert c.post("/auth/login", json={"username": "kal", "password": "kal forgot it once"}).status_code == 200
+    assert c.post("/auth/login", json={"username": "kal", "password": settings.password}).status_code == 200

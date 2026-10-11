@@ -1,6 +1,6 @@
 /* Login screen for a server with accounts: log in, join with an invite
    code, or set a new password with a reset code from the admin. */
-import { apiLogin, apiSignup, apiResetPassword } from './api.js';
+import { apiLogin, apiSignup, apiResetPassword, apiForgotPassword } from './api.js';
 import { getConnection, setConnection, serverBase, describeConnection } from './connection.js';
 import { escapeHtml } from './utils.js';
 import { icon } from './icons.js';
@@ -26,7 +26,7 @@ function wait(ms) { return new Promise(function (r) { setTimeout(r, reduceMotion
 var MODES = {
   login: { line: "Log in to open your logbook.", button: "Log in" },
   join: { line: "Got an invite? Make your account. Your logbook is yours alone.", button: "Create account" },
-  reset: { line: "Got a reset code? Set a new password.", button: "Set new password" }
+  reset: { line: "Forgot it? Get a code on Telegram (or from the admin), then set a new password.", button: "Set new password" }
 };
 
 function field(label, name, type, autocomplete, iconName, extra) {
@@ -84,8 +84,13 @@ export function showLock(reason) {
           field("Password again", "password2", "password", "new-password", "lock", "") +
         "</div>" +
         '<p class="lock-hint" data-hint="new">At least 10 characters. Nobody else can read your logbook, the admin included.</p>' +
+        '<div class="lock-forgot" data-hint="forgot" hidden>' +
+          '<button type="button" class="tool-btn" data-lock="tg-code">' + icon("send") + "<span>Send me a code on Telegram</span></button>" +
+          '<p class="lock-hint">Works if you connected Telegram in Settings. No Telegram? Ask the admin for a reset code.</p>' +
+        "</div>" +
         '<p class="lock-error" role="alert"></p>' +
         '<button type="submit" class="primary-btn"></button>' +
+        '<button type="button" class="link-btn lock-forgot-link" data-lock="forgot">Forgot your password?</button>' +
         '<footer class="lock-foot">' +
           '<span class="lock-server" title="Where your logbook lives">' + icon("server") + "<span>" + escapeHtml(describeConnection()) + "</span></span>" +
           '<span class="lock-foot-links">' +
@@ -168,6 +173,9 @@ export function showLock(reason) {
       form.querySelector('[data-field="code"]').hidden = mode !== "reset";
       form.querySelector('[data-field="password2"]').hidden = !isNew;
       form.querySelector('[data-hint="new"]').hidden = !isNew;
+      form.querySelector('[data-hint="forgot"]').hidden = mode !== "reset";
+      var forgotLink = form.querySelector('[data-lock="forgot"]');
+      if (forgotLink) forgotLink.hidden = mode !== "login";
       f.password.setAttribute("autocomplete", isNew ? "new-password" : "current-password");
       form.querySelector('[data-field="password"] > span').textContent = isNew ? "New password" : "Password";
       err.textContent = "";
@@ -242,6 +250,24 @@ export function showLock(reason) {
         else if (!ex.status) catSay("The server's still yawning. Give it a moment.");
       } finally {
         btn.disabled = false;
+      }
+    });
+    form.querySelector('[data-lock="forgot"]').addEventListener("click", function () { setMode("reset"); });
+    form.querySelector('[data-lock="tg-code"]').addEventListener("click", async function (e) {
+      var btn = e.currentTarget;
+      var username = f.username.value.trim().toLowerCase();
+      if (!username) { err.textContent = "Type your username first."; return f.username.focus(); }
+      btn.disabled = true;
+      try {
+        await apiForgotPassword(serverBase(), username);
+        err.textContent = "";
+        form.querySelector(".lock-line").textContent = "If that account has Telegram connected, a code is on its way. Paste it below.";
+        catSay("Check Telegram. I sent it there.");
+        f.code.focus();
+      } catch (ex) {
+        err.textContent = ex.status === 429 ? ex.detail : "Can't reach the server. Try again in a moment.";
+      } finally {
+        setTimeout(function () { btn.disabled = false; }, 20000);   // one code at a time
       }
     });
     form.querySelector('[data-lock="demo"]').addEventListener("click", function () {

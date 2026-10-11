@@ -2679,3 +2679,8 @@ body.is-dimming::after {
 .yr-stat span { color: var(--text-3); font-size: 13px; }
 .yr-sign { margin-top: 20px; color: var(--text-2); font-family: var(--serif); font-size: 18px; line-height: 1.7; animation: fadeUp 0.8s var(--ease-out) 9s both; }
 @media (prefers-reduced-motion: reduce) { .yr-star { opacity: 1; } .yr-line { stroke-dashoffset: 0; } }
+
+/* lock screen: forgot password */
+.lock-forgot-link { justify-self: center; align-self: center; margin-top: -6px; font-size: 13px; }
+.lock-forgot { display: grid; gap: 6px; }
+.lock-forgot .tool-btn { justify-content: center; }
