@@ -26,7 +26,7 @@ export var DEFAULT_PREFS = {
   clock24: true,
   focusScene: true,          // the focus space fills the screen with the scene
   autoBreak: false,          // start the break by itself when focus ends
-  dash: { deadlines: true, age: true, sleep: true, gratitude: true, photo: true, habits: true, prayers: true, brainDump: true, replay: true, log: true, night: true }
+  dash: { deadlines: true, age: true, sleep: true, gratitude: true, photo: true, habits: false, prayers: true, brainDump: true, replay: true, log: false, night: true }
 };
 
 var cache = null;
@@ -38,6 +38,12 @@ export function getPrefs() {
     stored = JSON.parse(localStorage.getItem(KEY) || "{}") || {};
   } catch (e) {}
   cache = Object.assign({}, DEFAULT_PREFS, stored);
+  // Oct 2026: the time log and habits left the Today page (one toggle in settings brings each back)
+  if (!cache.cut2610) {
+    cache.dash = Object.assign({}, DEFAULT_PREFS.dash, cache.dash || {}, { habits: false, log: false });
+    cache.cut2610 = true;
+    try { localStorage.setItem(KEY, JSON.stringify(cache)); } catch (e) {}
+  }
   return cache;
 }
 
