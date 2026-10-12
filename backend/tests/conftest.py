@@ -42,7 +42,6 @@ def client():
     ai.last_check.update(ok=None, detail="")
     bot.forget_state()
     bot.codes.clear()
-    bot.history.clear()
     bot.links_cache = None
     with TestClient(app) as c:  # runs the lifespan: migrations
         yield c

@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from app import ai, verses
 from app.config import settings
 from app.database import SessionLocal
-from app.models import (Activity, AppSetting, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
+from app.models import (Activity, AppSetting, CompanionMessage, CompanionNotes, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
                         SleepLog, Task, TelegramLink, User)
 
 log = logging.getLogger("logbook")
@@ -91,6 +91,7 @@ HELP = (
     "/sleep  ·  /wake  ·  /grateful family dinner  ·  /nudges\n\n"
     "I'll remind you about deadlines (the day before, and 2 hours before) and your streak at 21:00.\n"
     "Send a photo and it becomes today's photo. Send a PDF or Word file (an essay, a CV, a school list) and I'll read it and tell you what I think.\n"
+    "I remember what you tell me (schools, scores, plans). /memory shows it, /forget drops something.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
     "(and friends like #study #gym #church).\n\n"
@@ -118,7 +119,6 @@ def set_setting(db: Session, key: str, value: str) -> None:
 
 
 codes: dict[str, tuple[int, int, float]] = {}       # link code -> (user id, tz minutes, expires)
-history: dict[int, deque] = {}                      # chat -> recent companion turns
 ai_calls: dict[int, deque] = {}                     # chat -> times of recent AI replies
 links_cache: dict[int, dict] | None = None          # user id -> {chat, tz, hour, last}
 _tasks: set = set()
@@ -729,6 +729,73 @@ def allowed_ai(user: User) -> bool:
     return ai.configured() and (user.is_admin or settings.ai_for_everyone)
 
 
+HISTORY_TURNS = 40          # messages the companion rereads each time (about 20 back-and-forths)
+NOTES_CHARS = 8000          # the notes stay this size at most; the oldest lines go first
+MEMORY_TAG = re.compile(r"\[(remember|forget):\s*(.+?)\]", re.I | re.S)
+
+
+def load_turns(db: Session, uid: int) -> list[dict]:
+    rows = (db.query(CompanionMessage).filter(CompanionMessage.user_id == uid)
+            .order_by(CompanionMessage.id.desc()).limit(HISTORY_TURNS).all())
+    turns = [{"role": r.role, "content": r.content} for r in reversed(rows)]
+    while turns and turns[0]["role"] != "user":      # providers want the user first
+        turns.pop(0)
+    # two of the same role in a row (a failed reply in between): keep the later one
+    clean = []
+    for t in turns:
+        if clean and clean[-1]["role"] == t["role"]:
+            clean[-1] = t
+        else:
+            clean.append(t)
+    return clean
+
+
+def save_turn(db: Session, uid: int, role: str, content: str) -> None:
+    db.add(CompanionMessage(user_id=uid, role=role, content=content[:12000]))
+    db.commit()
+    # keep the table small: only the last few hundred messages per account
+    old = (db.query(CompanionMessage.id).filter(CompanionMessage.user_id == uid)
+           .order_by(CompanionMessage.id.desc()).offset(400).first())
+    if old:
+        db.query(CompanionMessage).filter(CompanionMessage.user_id == uid, CompanionMessage.id <= old[0]).delete()
+        db.commit()
+
+
+def get_notes(db: Session, uid: int) -> str:
+    row = db.get(CompanionNotes, uid)
+    return row.notes if row else ""
+
+
+def set_notes(db: Session, uid: int, notes: str) -> None:
+    lines = [l for l in notes.splitlines() if l.strip()]
+    while lines and len("\n".join(lines)) > NOTES_CHARS:
+        lines.pop(0)
+    row = db.get(CompanionNotes, uid)
+    if row is None:
+        db.add(CompanionNotes(user_id=uid, notes="\n".join(lines)))
+    else:
+        row.notes = "\n".join(lines)
+    db.commit()
+
+
+def apply_memory(db: Session, uid: int, reply: str, today: date) -> str:
+    """Pull [remember: ...] / [forget: ...] out of a reply into the notes; returns the reply without them."""
+    found = MEMORY_TAG.findall(reply)
+    if found:
+        lines = [l for l in get_notes(db, uid).splitlines() if l.strip()]
+        for kind, what in found:
+            what = " ".join(what.split())[:300]
+            if not what:
+                continue
+            if kind.lower() == "forget":
+                low = what.lower()
+                lines = [l for l in lines if low not in l.lower()]
+            elif not any(what.lower() in l.lower() for l in lines):
+                lines.append(f"{today.isoformat()}: {what}")
+        set_notes(db, uid, "\n".join(lines))
+    return MEMORY_TAG.sub("", reply).strip()
+
+
 async def companion_reply(db: Session, user: User, link: TelegramLink, text: str, file_text: str = "", file_name: str = "") -> str:
     if not allowed_ai(user):
         return "I can't really chat yet, the AI isn't switched on for your account 😿 I can still save things for you though. /help shows how."
@@ -739,13 +806,17 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
     if len(recent) >= 30:
         return "Let's take a breath. I can answer again in a little while."
     recent.append(now)
-    turns = history.setdefault(link.chat_id, deque(maxlen=20))
+    turns = load_turns(db, user.id)
     if file_text:
-        # the whole file goes in this turn; history keeps a shorter copy so later turns stay light
+        # the whole file goes in this turn; the saved copy is a short note so later turns stay light
         full = f"[I sent you a file: {file_name}]\n\n--- file start ---\n{file_text[:FILE_CHARS]}\n--- file end ---\n\n{text or 'Have a look at this and tell me what you think.'}"
-        turns.append({"role": "user", "content": full})
+        said = f"[I sent you a file: {file_name}]\n{text}".strip()
     else:
-        turns.append({"role": "user", "content": text[:4000]})
+        full = said = text[:4000]
+    if turns and turns[-1]["role"] == "user":
+        turns.pop()
+    turns.append({"role": "user", "content": full})
+    notes = get_notes(db, user.id)
     name = pet_name(db, user.id)
     system = (
         f"You are {name}, the little cat who lives in Logbook, {user.username}'s private journal app, and their close friend. "
@@ -773,18 +844,25 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
         "but you can suggest lines and rewrite a sentence or two to show the idea. "
         "When they send a file (essay draft, CV, activities list, transcript, school list), read it properly and react to what's actually in it.\n"
         "Use what you know about their day below and mention it naturally when it fits; never invent facts about them. "
-        "If they want to save something, mention the command casually: /log, /task, /j, /pray, /due.\n\n"
+        "If they want to save something, mention the command casually: /log, /task, /j, /pray, /due.\n"
+        "Your memory: you keep notes about them that last forever (below). Use them naturally, like a friend who remembers: "
+        "their schools, scores, deadlines, major, essay ideas, people, worries, wins. Never say 'according to my notes'. "
+        "When you learn something worth keeping for weeks or months (a fact about them, their plans, a school added or dropped, "
+        "a score, a decision, an essay topic, something important in their life), add it at the very end of your reply as "
+        "[remember: one short fact in third person]. One tag per fact, only new facts, never things already in the notes. "
+        "If something in the notes stops being true, add [forget: a few words from that line] and, if needed, [remember: the new fact]. "
+        "Don't save small talk or moods that pass. The tags are hidden from them.\n\n"
+        "What you remember about them:\n" + (notes or "(nothing yet: you're just getting to know them)") + "\n\n"
         + brief_for_ai(db, user, link.tz_minutes)
     )
     try:
-        reply = await ai.chat(list(turns), system, 2400 if file_text else 1500)
+        reply = await ai.chat(turns, system, 2400 if file_text else 1500)
     except ai.AIError as exc:
-        turns.pop()
         log.warning("logbook: telegram companion failed: %s", str(exc)[:200])
         return "My brain blanked for a sec 😅 try me again in a minute?"
-    if file_text:
-        turns[-1] = {"role": "user", "content": f"[I sent you a file: {file_name}; you read it and replied below]\n{text}"[:2000]}
-    turns.append({"role": "assistant", "content": reply})
+    save_turn(db, user.id, "user", said)
+    reply = apply_memory(db, user.id, reply, local_today(link.tz_minutes))
+    save_turn(db, user.id, "assistant", reply)
     return esc(reply.replace("**", ""))
 
 
@@ -796,6 +874,33 @@ async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, 
 
     if cmd in ("help", "start"):
         await send(chat, HELP)
+        return
+
+    if cmd == "memory":
+        notes = get_notes(db, uid)
+        if not notes:
+            await send(chat, "I don't have anything saved about you yet 🌱 Tell me about your schools, scores and plans and I'll keep them.")
+        else:
+            lines = [l.split(": ", 1)[-1] for l in notes.splitlines() if l.strip()]
+            await send_long(chat, "🧠 <b>What I remember about you</b>\n\n" + "\n".join("• " + esc(l) for l in lines) +
+                            "\n\n/forget <i>words</i> drops a line, /forget everything wipes it all.")
+        return
+
+    if cmd == "forget":
+        if not arg:
+            await send(chat, "What should I forget? /forget <i>a few words from the line</i>, or /forget everything.")
+            return
+        if arg.lower() in ("everything", "all"):
+            set_notes(db, uid, "")
+            db.query(CompanionMessage).filter(CompanionMessage.user_id == uid).delete()
+            db.commit()
+            await send(chat, "Done, clean slate 🫧 I forgot everything and our chat history.")
+            return
+        lines = [l for l in get_notes(db, uid).splitlines() if l.strip()]
+        keep = [l for l in lines if arg.lower() not in l.lower()]
+        set_notes(db, uid, "\n".join(keep))
+        gone = len(lines) - len(keep)
+        await send(chat, f"Forgot {gone} thing{'s' if gone != 1 else ''} ✨" if gone else "I couldn't find that in what I remember 🤔 /memory shows it all.")
         return
 
     if cmd == "log":

@@ -28,3 +28,27 @@ class TelegramLink(Base):
     morning_hour: Mapped[int | None] = mapped_column(Integer, default=7)
     last_morning: Mapped[date_type | None] = mapped_column(Date, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CompanionMessage(Base):
+    """What the user and the companion said to each other, so the companion
+    keeps the thread across restarts. Files are stored as a short note, not their text."""
+
+    __tablename__ = "companion_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CompanionNotes(Base):
+    """What the companion has learned about the user (one fact per line):
+    their schools, scores, plans, people, what they're working on."""
+
+    __tablename__ = "companion_notes"
+
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

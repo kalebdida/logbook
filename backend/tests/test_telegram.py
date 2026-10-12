@@ -421,7 +421,10 @@ def test_a_sent_file_is_read_and_talked_about(server, tg, monkeypatch):
         assert "grandmother taught me" in sent and "essay.txt" in sent and "thoughts?" in sent
         assert "college counselor" in seen["system"] and seen["max"] >= 2000
         assert tg.last_text() == "Love this opening ✨"          # no raw markdown
-        assert "grandmother" not in bot.history[21][-2]["content"]   # history keeps a short copy
+        from app.database import SessionLocal
+        with SessionLocal() as db:
+            said = [t["content"] for t in bot.load_turns(db, 1)]
+        assert "grandmother" not in " ".join(said) and "essay.txt" in said[0]   # history keeps a short copy
 
         tg.file_bytes = b"\x00\x01binary"
         run({"message": {"chat": {"id": 21, "type": "private"},
@@ -436,3 +439,43 @@ def test_long_replies_split_between_paragraphs():
     parts = bot.split_text(text)
     assert len(parts) > 1 and all(len(p) <= 3900 for p in parts)
     assert "".join(parts).replace(" ", "").replace("\n", "") == text.replace(" ", "").replace("\n", "")
+
+
+def test_the_companion_remembers_across_restarts(server, tg, monkeypatch):
+    seen = {}
+    replies = iter([
+        "Nice, MIT and Toronto are a solid start 🎯 What's your SAT?\n[remember: applying to MIT and University of Toronto]",
+        "1450 is strong ✨\n[remember: SAT score 1450] [forget: Toronto] [remember: applying to MIT and McGill]",
+        "Of course I remember 😊",
+    ])
+
+    async def fake_chat(messages, system, max_tokens, transport=None):
+        seen["messages"], seen["system"] = list(messages), system
+        return next(replies)
+    c = server
+    admin = admin_token(c)
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=h(admin))
+    connect(c, h(admin), chat=31)
+    settings.ai_provider, settings.ai_api_key = "anthropic", "test-key"
+    monkeypatch.setattr(bot.ai, "chat", fake_chat)
+    try:
+        run(message(31, "I'm applying to MIT and Toronto"))
+        assert "[remember" not in tg.last_text() and "MIT and Toronto are a solid start" in tg.last_text()
+        run(message(31, "got 1450 on the SAT, also swapping Toronto for McGill"))
+        bot.forget_state(); bot.links_cache = None           # a restart: nothing kept in memory
+        c.post("/telegram/setup", json={"token": TOKEN}, headers=h(admin))
+        run(message(31, "do you remember my schools?"))
+        assert "SAT score 1450" in seen["system"] and "MIT and McGill" in seen["system"] and "Toronto" not in seen["system"]
+        assert [t["role"] for t in seen["messages"]] == ["user", "assistant", "user", "assistant", "user"]
+        assert seen["messages"][0]["content"] == "I'm applying to MIT and Toronto"
+
+        run(message(31, "/memory"))
+        assert "SAT score 1450" in tg.last_text()
+        run(message(31, "/forget SAT"))
+        assert "Forgot 1 thing" in tg.last_text()
+        run(message(31, "/forget everything"))
+        from app.database import SessionLocal
+        with SessionLocal() as db:
+            assert bot.get_notes(db, 1) == "" and bot.load_turns(db, 1) == []
+    finally:
+        settings.ai_provider, settings.ai_api_key = "", ""
