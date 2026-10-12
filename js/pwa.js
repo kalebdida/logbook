@@ -43,29 +43,24 @@ export function startPWA() {
   // only a copy bundled inside the app (served from localhost) skips this
   if (!("serviceWorker" in navigator) || (window.Capacitor && location.hostname === "localhost") || !/^https?:$/.test(location.protocol)) return;
   if (location.protocol === "http:" && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return; // needs https
-  navigator.serviceWorker.register("sw.js").then(function (reg) {
-    reg.addEventListener("updatefound", function () {
-      var worker = reg.installing;
-      if (!worker) return;
-      worker.addEventListener("statechange", function () {
-        if (worker.state === "installed" && navigator.serviceWorker.controller) {
-          toast("A new version of Logbook is ready", "ok", {
-            duration: 15000,
-            action: { label: "Reload", run: function () { worker.postMessage("skip-waiting"); } }
-          });
-        }
-      });
-    });
-  }).catch(function (e) { console.warn("logbook: offline mode unavailable", e); });
+  navigator.serviceWorker.register("sw.js").catch(function (e) { console.warn("logbook: offline mode unavailable", e); });
   var reloading = false;
+  var openedAt = Date.now();
   // a first visit gets its first worker without a reload (it would wipe
-  // whatever was typed meanwhile, like a half-filled login); only an update
-  // that replaces a running worker reloads
+  // whatever was typed meanwhile, like a half-filled login). An update (a new
+  // worker with the whole new copy saved) reloads straight away if the app
+  // only just opened and nothing is being typed; otherwise it asks.
   var hadController = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", function () {
     if (!hadController) { hadController = true; return; }
     if (reloading) return;
-    reloading = true;
-    location.reload();
+    var el = document.activeElement;
+    var typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    if (Date.now() - openedAt < 20000 && !typing) {
+      reloading = true;
+      location.reload();
+      return;
+    }
+    toast("Logbook updated", "ok", { duration: 15000, action: { label: "Reload", run: function () { reloading = true; location.reload(); } } });
   });
 }

@@ -42,7 +42,11 @@ def main():
 
     # a new cache name for every build, so installed copies pick up changes
     sw = DIST / "sw.js"
-    sw.write_text(re.sub(r'var VERSION = "[^"]*";', f'var VERSION = "{version}";', sw.read_text()))
+    files = sorted(p.relative_to(DIST).as_posix() for p in DIST.rglob("*")
+                   if p.is_file() and p.name not in ("sw.js", "config.js") and not p.name.startswith("."))
+    text = re.sub(r'var VERSION = "[^"]*";', f'var VERSION = "{version}";', sw.read_text())
+    text = re.sub(r'var FILES = \[[^\]]*\];', "var FILES = " + json.dumps(files) + ";", text)
+    sw.write_text(text)
     (DIST / ".nojekyll").write_text("")
     (DIST / "build.json").write_text(json.dumps({"version": version}) + "\n")
 
