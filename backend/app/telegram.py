@@ -90,7 +90,7 @@ HELP = (
     "/morning 7 (or off)  ·  /backup\n"
     "/sleep  ·  /wake  ·  /grateful family dinner  ·  /nudges\n\n"
     "I'll remind you about deadlines (the day before, and 2 hours before) and your streak at 21:00.\n"
-    "Send a photo and it becomes today's photo.\n"
+    "Send a photo and it becomes today's photo. Send a PDF or Word file (an essay, a CV, a school list) and I'll read it and tell you what I think.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
     "(and friends like #study #gym #church).\n\n"
@@ -176,6 +176,28 @@ async def call(token: str, method: str, payload: dict | None = None, timeout: fl
     return data.get("result")
 
 
+def split_text(text: str, limit: int = 3900) -> list[str]:
+    """Telegram takes up to 4096 characters a message: long replies go in parts, cut between paragraphs."""
+    parts = []
+    while len(text) > limit:
+        cut = text.rfind("\n\n", 0, limit)
+        if cut < limit // 2:
+            cut = text.rfind("\n", 0, limit)
+        if cut < limit // 2:
+            cut = text.rfind(" ", 0, limit)
+        if cut <= 0:
+            cut = limit
+        parts.append(text[:cut].rstrip())
+        text = text[cut:].lstrip()
+    parts.append(text)
+    return [p for p in parts if p]
+
+
+async def send_long(chat_id: int, text: str) -> None:
+    for part in split_text(text):
+        await send(chat_id, part)
+
+
 async def send(chat_id: int, text: str, buttons: list | None = None) -> dict | None:
     token = state["token"]
     if not token:
@@ -229,6 +251,69 @@ async def download(file_id: str, limit: int = 20_000_000) -> bytes | None:
         return res.content if res.status_code == 200 else None
     except (TelegramError, httpx.HTTPError):
         return None
+
+
+FILE_CHARS = 60_000   # about 15k words: a long essay, CV or school list fits easily
+FILE_BYTES = 15_000_000
+
+
+def file_text(name: str, mime: str, data: bytes) -> str | None:
+    """The readable text of a sent file (PDF, Word, plain text), or None if it can't be read."""
+    low = (name or "").lower()
+    try:
+        if low.endswith(".pdf") or mime == "application/pdf":
+            from io import BytesIO
+            from pypdf import PdfReader
+            reader = PdfReader(BytesIO(data))
+            return "\n\n".join((page.extract_text() or "") for page in reader.pages[:60]).strip()
+        if low.endswith(".docx") or "wordprocessingml" in (mime or ""):
+            import zipfile
+            from io import BytesIO
+            from xml.etree import ElementTree
+            ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+            with zipfile.ZipFile(BytesIO(data)) as z:
+                root = ElementTree.fromstring(z.read("word/document.xml"))
+            paras = ["".join(t.text or "" for t in p.iter(ns + "t")) for p in root.iter(ns + "p")]
+            return "\n".join(paras).strip()
+        if (mime or "").startswith("text/") or low.endswith((".txt", ".md", ".csv", ".rtf", ".json")):
+            return data.decode("utf-8", errors="replace").strip()
+    except Exception:  # a broken or locked file
+        return None
+    return None
+
+
+async def handle_document(db: Session, user: User, link: TelegramLink, msg: dict) -> None:
+    """A file sent to the bot: read it and talk about it (essays, CVs, school lists)."""
+    chat = link.chat_id
+    doc = msg["document"]
+    name, mime = doc.get("file_name") or "file", doc.get("mime_type") or ""
+    if (mime or "").startswith("image/"):
+        await send(chat, "That's an image sent as a file 🖼️ Send it as a normal photo and I'll keep it as today's photo. "
+                         "If it's an essay or a document, a PDF or Word file works best for me to read ✨")
+        return
+    if not allowed_ai(user):
+        await send(chat, "I can't read files yet, the AI isn't switched on for your account 😿")
+        return
+    if doc.get("file_size", 0) > FILE_BYTES:
+        await send(chat, "That file's a bit too big for me 😅 Anything under 15 MB works. A PDF or Word copy of just the text is perfect.")
+        return
+    try:
+        await call(state["token"], "sendChatAction", {"chat_id": chat, "action": "typing"})
+    except TelegramError:
+        pass
+    data = await download(doc["file_id"], FILE_BYTES)
+    if not data:
+        await send(chat, "Couldn't get that file from Telegram. Try sending it again?")
+        return
+    text = file_text(name, mime, data)
+    if text is None:
+        await send(chat, "I can't open that kind of file yet 🙈 PDF, Word (.docx) or a plain text file all work.")
+        return
+    if len(text) < 20:
+        await send(chat, "I opened it but there's barely any text inside 🤔 If it's a scanned PDF, try sending the Word version or paste the text here.")
+        return
+    note = "" if len(text) <= FILE_CHARS else "\n\n<i>(It's long, so I read the first part.)</i>"
+    await send_long(chat, await companion_reply(db, user, link, (msg.get("caption") or "").strip(), text, name) + note)
 
 
 async def handle_media(db: Session, user: User, link: TelegramLink, msg: dict) -> None:
@@ -644,7 +729,7 @@ def allowed_ai(user: User) -> bool:
     return ai.configured() and (user.is_admin or settings.ai_for_everyone)
 
 
-async def companion_reply(db: Session, user: User, link: TelegramLink, text: str) -> str:
+async def companion_reply(db: Session, user: User, link: TelegramLink, text: str, file_text: str = "", file_name: str = "") -> str:
     if not allowed_ai(user):
         return "I can't really chat yet, the AI isn't switched on for your account 😿 I can still save things for you though. /help shows how."
     now = time.time()
@@ -654,32 +739,53 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
     if len(recent) >= 30:
         return "Let's take a breath. I can answer again in a little while."
     recent.append(now)
-    turns = history.setdefault(link.chat_id, deque(maxlen=12))
-    turns.append({"role": "user", "content": text[:4000]})
+    turns = history.setdefault(link.chat_id, deque(maxlen=20))
+    if file_text:
+        # the whole file goes in this turn; history keeps a shorter copy so later turns stay light
+        full = f"[I sent you a file: {file_name}]\n\n--- file start ---\n{file_text[:FILE_CHARS]}\n--- file end ---\n\n{text or 'Have a look at this and tell me what you think.'}"
+        turns.append({"role": "user", "content": full})
+    else:
+        turns.append({"role": "user", "content": text[:4000]})
     name = pet_name(db, user.id)
     system = (
         f"You are {name}, the little cat who lives in Logbook, {user.username}'s private journal app, and their close friend. "
         f"You're texting on Telegram. If asked, your name is {name}.\n"
         "How you talk: like a real friend texting, never like an assistant or a customer-support bot. Warm, sweet, a bit playful, "
-        "casual and human. Short messages (usually 1 to 4 sentences, under 90 words unless they ask for more). "
-        "No lists, no headings, no 'Great question', no 'I'm here to help', no 'As an AI'. An emoji now and then is fine, not every line. "
-        "Match their energy and language: if they write casually, be casual back.\n"
+        "casual and human. Match their energy and language: if they write casually, be casual back. "
+        "No 'Great question', no 'I'm here to help', no 'As an AI'.\n"
+        "Length: give real, full answers. Small talk gets a few warm sentences (around 60 to 120 words). Anything that needs "
+        "thinking (advice, plans, college questions, feedback on a file or an essay) gets a proper answer: usually 150 to 400 words, "
+        "longer when they send a whole essay or document. Short paragraphs; a few '•' bullets are fine for options, steps or feedback points. "
+        "No markdown symbols (no **, no #), Telegram shows them raw.\n"
+        "Emojis: friendly but light, about 1 to 3 per message where they fit (✨ 🌙 💪 📚 🎯 😊), never one on every line.\n"
         "What you do: notice how they're doing and say it. Cheer their wins, even small ones, specifically. When they're down, "
-        "be gentle first, then (if it fits) one small practical step. When they ask for advice, give real, honest advice like a "
-        "friend who cares, not a lecture; it's fine to disagree kindly. Sometimes end with one easy question back so it feels "
-        "like a conversation. If they bring up their faith, meet them there warmly.\n"
-        "Use what you know about their day below and mention it naturally; never invent facts about them. "
+        "be gentle first, then (if it fits) one small practical step. Give real, honest advice like a friend who cares; "
+        "it's fine to disagree kindly. Often end with one easy question back so it feels like a conversation. "
+        "If they bring up their faith, meet them there warmly.\n"
+        "You're also their college counselor and guide, like a good school counselor who's also a friend. You know international "
+        "admissions well: US (Common App, essays, supplements, financial aid for international students, need-blind vs need-aware, "
+        "CSS Profile, SAT/ACT and test-optional), UK (UCAS, personal statement), Canada, Europe and Asia, scholarships, "
+        "English tests (TOEFL, IELTS, Duolingo), recommendation letters, activities lists, deadlines (ED, EA, RD), interviews and choosing between offers. "
+        "Give your honest view: say when a school is a reach, target or likely for them, and why. Be realistic about odds and money, "
+        "never fake numbers; if you're not sure of a current figure or deadline, say so and tell them to check the school's site. "
+        "For essays: help brainstorm by asking about real moments and pulling out the story; give specific feedback (what works, "
+        "what's vague, what to cut, a stronger opening) and keep their voice; never write the whole essay for them to submit as theirs, "
+        "but you can suggest lines and rewrite a sentence or two to show the idea. "
+        "When they send a file (essay draft, CV, activities list, transcript, school list), read it properly and react to what's actually in it.\n"
+        "Use what you know about their day below and mention it naturally when it fits; never invent facts about them. "
         "If they want to save something, mention the command casually: /log, /task, /j, /pray, /due.\n\n"
         + brief_for_ai(db, user, link.tz_minutes)
     )
     try:
-        reply = await ai.chat(list(turns), system, 700)
+        reply = await ai.chat(list(turns), system, 2400 if file_text else 1500)
     except ai.AIError as exc:
         turns.pop()
         log.warning("logbook: telegram companion failed: %s", str(exc)[:200])
         return "My brain blanked for a sec 😅 try me again in a minute?"
+    if file_text:
+        turns[-1] = {"role": "user", "content": f"[I sent you a file: {file_name}; you read it and replied below]\n{text}"[:2000]}
     turns.append({"role": "assistant", "content": reply})
-    return esc(reply)
+    return esc(reply.replace("**", ""))
 
 
 async def handle_command(db: Session, user: User, link: TelegramLink, cmd: str, arg: str) -> None:
@@ -1009,7 +1115,7 @@ async def process(update: dict) -> None:
 
             msg = update.get("message") or {}
             chat = msg.get("chat") or {}
-            media = msg.get("photo")
+            media = msg.get("photo") or msg.get("document")
             if chat.get("type") != "private" or ("text" not in msg and not media):
                 return
             chat_id = chat["id"]
@@ -1042,6 +1148,9 @@ async def process(update: dict) -> None:
             user = db.get(User, link.user_id)
             if user is None:
                 return
+            if msg.get("document"):
+                await handle_document(db, user, link, msg)
+                return
             if media:
                 await handle_media(db, user, link, msg)
                 return
@@ -1052,7 +1161,7 @@ async def process(update: dict) -> None:
                     await call(state["token"], "sendChatAction", {"chat_id": chat_id, "action": "typing"})
                 except TelegramError:
                     pass
-                await send(chat_id, await companion_reply(db, user, link, text))
+                await send_long(chat_id, await companion_reply(db, user, link, text))
     except Exception:  # one bad update must never take the server down
         log.exception("logbook: telegram update failed")
 

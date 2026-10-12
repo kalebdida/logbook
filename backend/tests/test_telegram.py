@@ -17,10 +17,11 @@ PNG_BYTES = __import__("base64").b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYA
 class FakeTelegram:
     def __init__(self):
         self.calls = []
+        self.file_bytes = PNG_BYTES
 
     def __call__(self, request: httpx.Request):
         if "/file/bot" in request.url.path:       # downloading something the user sent
-            return httpx.Response(200, content=PNG_BYTES)
+            return httpx.Response(200, content=self.file_bytes)
         method = request.url.path.rsplit("/", 1)[-1]
         try:
             body = json.loads(request.content or b"{}")
@@ -398,3 +399,40 @@ def test_forgot_password_sends_a_code_to_telegram(server, tg):
     assert c.post("/auth/reset", json={"username": "kal", "code": code, "password": "kal forgot it once"}).status_code == 200
     assert c.post("/auth/login", json={"username": "kal", "password": "kal forgot it once"}).status_code == 200
     assert c.post("/auth/login", json={"username": "kal", "password": settings.password}).status_code == 200
+
+
+def test_a_sent_file_is_read_and_talked_about(server, tg, monkeypatch):
+    seen = {}
+
+    async def fake_chat(messages, system, max_tokens, transport=None):
+        seen["messages"], seen["system"], seen["max"] = list(messages), system, max_tokens
+        return "**Love** this opening ✨"
+    c = server
+    admin = admin_token(c)
+    c.post("/telegram/setup", json={"token": TOKEN}, headers=h(admin))
+    connect(c, h(admin), chat=21)
+    settings.ai_provider, settings.ai_api_key = "anthropic", "test-key"
+    monkeypatch.setattr(bot.ai, "chat", fake_chat)
+    try:
+        tg.file_bytes = b"The morning my grandmother taught me to bake bread, I learned patience."
+        run({"message": {"chat": {"id": 21, "type": "private"}, "caption": "my common app draft, thoughts?",
+                         "document": {"file_id": "d1", "file_name": "essay.txt", "mime_type": "text/plain", "file_size": 80}}})
+        sent = seen["messages"][-1]["content"]
+        assert "grandmother taught me" in sent and "essay.txt" in sent and "thoughts?" in sent
+        assert "college counselor" in seen["system"] and seen["max"] >= 2000
+        assert tg.last_text() == "Love this opening ✨"          # no raw markdown
+        assert "grandmother" not in bot.history[21][-2]["content"]   # history keeps a short copy
+
+        tg.file_bytes = b"\x00\x01binary"
+        run({"message": {"chat": {"id": 21, "type": "private"},
+                         "document": {"file_id": "d2", "file_name": "thing.zip", "mime_type": "application/zip", "file_size": 9}}})
+        assert "can't open that kind of file" in tg.last_text()
+    finally:
+        settings.ai_provider, settings.ai_api_key = "", ""
+
+
+def test_long_replies_split_between_paragraphs():
+    text = ("word " * 500 + "\n\n") * 4
+    parts = bot.split_text(text)
+    assert len(parts) > 1 and all(len(p) <= 3900 for p in parts)
+    assert "".join(parts).replace(" ", "").replace("\n", "") == text.replace(" ", "").replace("\n", "")
