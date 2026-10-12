@@ -42,7 +42,9 @@ function isAppFile(req) {
 self.addEventListener("fetch", function (event) {
   var req = event.request;
   if (!isAppFile(req)) return;
-  var fresh = /\/config\.js$/.test(new URL(req.url).pathname) ? new Request(req, { cache: "no-cache" }) : req;
+  // always ask the host whether a file changed (a quick "not modified" when it
+  // didn't), so an update shows up on the next open instead of 10 minutes later
+  var fresh = req.mode === "navigate" ? new Request(req.url, { cache: "no-cache", credentials: "same-origin" }) : new Request(req, { cache: "no-cache" });
   event.respondWith(
     fetch(fresh).then(function (res) {
       if (res && res.ok && res.type === "basic") {

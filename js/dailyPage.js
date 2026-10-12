@@ -98,14 +98,16 @@ export async function renderDailyPage() {
     fold("logCard", "activity", "Time log", "", prefs.foldLog !== false,
       '<div id="dailyActivities"></div>') +
 
-    fold("nightCard", "moon", "Tonight", "Close the day", nightHasText || now.getHours() >= 17,
+    // Tonight comes out in the evening (5 pm to 4 am), or any time it already holds something
+    (!(nightHasText || now.getHours() >= 17 || now.getHours() < 4) ? "" :
+    fold("nightCard", "moon", "Tonight", "Close the day", true,
       (legacy("dailyJournal") ? field("dailyJournal", "Notes", 3, "") : "") +
       '<div class="night-grid">' +
         field("nightWins", "A win", 2, "Something that went right") +
         field("nightLessons", "A lesson", 2, "What you'd do differently") +
         field("nightGratitude", "Grateful for", 2, "Someone or something") +
       "</div>" +
-      field("nightTomorrowPlan", "Tomorrow's one thing", 1, "It becomes tomorrow's focus line", "tomorrow-line"));
+      field("nightTomorrowPlan", "Tomorrow's one thing", 1, "It becomes tomorrow's focus line", "tomorrow-line")));
 
   // the brain dump lives in the side column
   var dump = document.getElementById("brainDumpSection");
@@ -167,7 +169,14 @@ export async function renderDailyPage() {
     renderActivities(document.getElementById("dailyActivities"), today)
   ]);
   updateLogMeta();
+  // open during the day: bring Tonight out at 5 pm
+  if (!document.getElementById("nightCard") && now.getHours() < 17 && now.getHours() >= 4) {
+    clearTimeout(eveningTimer);
+    var five = new Date(now); five.setHours(17, 0, 5, 0);
+    eveningTimer = setTimeout(function () { if (currentDay === dateKey(new Date())) renderDailyPage(); }, five - now);
+  }
 }
+var eveningTimer = null;
 
 function updateLogMeta() {
   var meta = document.querySelector("#logCard [data-fold-meta]");

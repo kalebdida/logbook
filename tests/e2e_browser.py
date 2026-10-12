@@ -66,6 +66,8 @@ yesterday = today - timedelta(days=1)
 # seed: an unfinished task from yesterday and yesterday's plan
 api("/tasks/", "POST", {"day_date": str(yesterday), "title": "old unfinished"})
 api(f"/days/{yesterday}", "PUT", {"reflection_tomorrow_plan": "be patient"})
+# Tonight only shows in the evening or once it holds something: give it something, whatever the hour
+api(f"/days/{today}", "PUT", {"reflection_wins": "seeded win"})
 api("/entries/", "POST", {"mood": "good", "text": "a week ago entry", "occurred_at": f"{today - timedelta(days=7)}T10:00:00Z"})
 
 with sync_playwright() as p:

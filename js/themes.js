@@ -42,7 +42,7 @@ var MINCHO = '"Shippori Mincho", "Iowan Old Style", "Palatino Linotype", Georgia
 var DISPLAY = { lexend: FONTS.lexend, maru: MINCHO, serif: FONTS.serif, mono: FONTS.mono, sans: FONTS.sans, rounded: FONTS.rounded };
 
 export var BUILT_IN = [
-  { id: "night", name: "Night", note: "Fuji under the stars. Deep blue, warm windows, a slow sky.", mode: "dark",
+  { id: "night", name: "Fuji", note: "Fuji under the stars. Deep blue, warm windows, a slow sky.", mode: "dark",
     colors: { bg: "#0a1430", surface: "#121e3d", text: "#edf0fa", text2: "#bcc5df", muted: "#8792b5", accent: "#f4c56c", accent2: "#8ec8ff", warm: "#f5ad7a", danger: "#ec8f95" },
     font: "lexend", background: "night", glyphs: "dots", scanlines: false, glow: false, roundness: "round" },
   { id: "window", name: "Rainy window", note: "A small apartment, rain on the glass, the city blurred behind it.", mode: "dark",
