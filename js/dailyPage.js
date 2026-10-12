@@ -78,7 +78,6 @@ export async function renderDailyPage() {
   var drafted = function (id) { return Boolean(draft && draft.date === today && draft.values && has(draft.values[id])); };
   var legacy = function (id) { return has(readPath(record, FIELDS[id])) || drafted(id); };
   var night = record.nightReflection || {};
-  var nightHasText = has(night.wins) || has(night.lessons) || has(night.gratitude) || legacy("nightTomorrowPlan");
   var prefs = getPrefs();
 
   container.innerHTML =
@@ -98,8 +97,8 @@ export async function renderDailyPage() {
     fold("logCard", "activity", "Time log", "", prefs.foldLog !== false,
       '<div id="dailyActivities"></div>') +
 
-    // Tonight comes out in the evening (5 pm to 4 am), or any time it already holds something
-    (!(nightHasText || now.getHours() >= 17 || now.getHours() < 4) ? "" :
+    // Tonight is off by default (body[data-hide~="night"]); Settings → Today page brings it back
+    (
     fold("nightCard", "moon", "Tonight", "Close the day", true,
       (legacy("dailyJournal") ? field("dailyJournal", "Notes", 3, "") : "") +
       '<div class="night-grid">' +
@@ -169,14 +168,7 @@ export async function renderDailyPage() {
     renderActivities(document.getElementById("dailyActivities"), today)
   ]);
   updateLogMeta();
-  // open during the day: bring Tonight out at 5 pm
-  if (!document.getElementById("nightCard") && now.getHours() < 17 && now.getHours() >= 4) {
-    clearTimeout(eveningTimer);
-    var five = new Date(now); five.setHours(17, 0, 5, 0);
-    eveningTimer = setTimeout(function () { if (currentDay === dateKey(new Date())) renderDailyPage(); }, five - now);
-  }
 }
-var eveningTimer = null;
 
 function updateLogMeta() {
   var meta = document.querySelector("#logCard [data-fold-meta]");

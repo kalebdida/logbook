@@ -74,7 +74,7 @@ with sync_playwright() as p:
     browser = p.chromium.launch()
     ctx = browser.new_context(viewport={"width": 1366, "height": 900}, accept_downloads=True, timezone_id="Africa/Addis_Ababa")
     # these suites still test the time log and habits, which are hidden by default now
-    ctx.add_init_script("""try { var k='logbook-prefs', p=JSON.parse(localStorage.getItem(k)||'{}'); if(!p.cut2610){ p.cut2610=true; p.dash=Object.assign({}, p.dash||{}, {log:true, habits:true}); localStorage.setItem(k, JSON.stringify(p)); } } catch(e){}""")
+    ctx.add_init_script("""try { var k='logbook-prefs', p=JSON.parse(localStorage.getItem(k)||'{}'); if(!p.cut2612){ p.cut2610=true; p.cut2612=true; p.dash=Object.assign({}, p.dash||{}, {log:true, habits:true, night:true}); localStorage.setItem(k, JSON.stringify(p)); } } catch(e){}""")
     page = ctx.new_page()
     page.on("console", lambda m: m.type == "error" and errors.append(m.text))
     page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))

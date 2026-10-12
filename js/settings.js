@@ -93,7 +93,7 @@ var DASH_CARDS = [
   ["prayers", "Prayers", "What you're praying for, and the answers"],
   ["brainDump", "Brain dump", "A scratchpad to empty your head"],
   ["log", "Time log", "What you did, by life area"],
-  ["night", "Tonight", "Shows up in the evening: win, lesson, gratitude, tomorrow's one thing"],
+  ["night", "Tonight", "Close the day: a win, a lesson, gratitude, tomorrow's one thing"],
   ["replay", "On this day", "An entry from a week or more ago"]
 ];
 
