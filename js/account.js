@@ -2,6 +2,7 @@
    password, and, for the admin, invites and the list of people. The admin
    sees names and join dates only; there's nothing here (or on the server)
    that shows anyone else's logbook. */
+import { shareText } from './shareSheet.js';
 import { icon } from './icons.js';
 import {
   apiAuthStatus, apiMe, apiChangePassword, apiLogoutEverywhere, apiDeleteAccount,
@@ -218,12 +219,7 @@ export async function renderAccountCard(el) {
   people.addEventListener("click", async function (e) {
     var t = e.target;
     var box = t.closest(".code-box");
-    if (t.closest("[data-share-message]") && box) {
-      // the phone's share sheet (Telegram, WhatsApp, SMS...), or copy where there isn't one
-      var msg = box.getAttribute("data-message");
-      if (navigator.share) return navigator.share({ text: msg }).catch(function (err) { if (err && err.name !== "AbortError") copy(msg); });
-      return copy(msg);
-    }
+    if (t.closest("[data-share-message]") && box) return shareText(box.getAttribute("data-message"), "Logbook invite");
     if (t.closest("[data-copy-code]") && box) return copy(box.querySelector("code").textContent);
 
     var inviteRowEl = t.closest("[data-invite]");
