@@ -85,7 +85,7 @@ try { activeGroup = sessionStorage.getItem("logbook-settings-tab") || "you"; } c
 
 var DASH_CARDS = [
   ["deadlines", "Coming up", "Deadlines and exams, counting down"],
-  ["age", "Your clock", "Your age to the second, and the birthday countdown"],
+  ["age", "Your clock", "Your age to the second and the birthday countdown, on the Calendar page"],
   ["sleep", "Sleep", "Going to bed, getting up, two weeks of nights"],
   ["photo", "Photo of the day", "One picture a day, kept like a polaroid"],
   ["gratitude", "Gratitude jar", "Every thank-you becomes a firefly"],

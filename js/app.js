@@ -145,6 +145,7 @@ async function init() {
   Promise.resolve(safe("music", startMusic)).catch(warn);
   safe("settings", renderSettings);
   safe("pickers", startPickers);
+  safe("typing", watchTyping);
   safe("journal", wireJournal);
 
   // open at once from the last copy of this account's data, if there is one,
@@ -280,4 +281,29 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
   init();
+}
+
+/* Phones: while a text field has focus the keyboard is up, so hide the tab bar
+   (data-typing on <html>, see layout.css) and keep the field in view. */
+function watchTyping() {
+  if (!window.matchMedia("(pointer: coarse)").matches) return;
+  var off = null;
+  function isText(el) {
+    if (!el || el.disabled || el.readOnly) return false;
+    if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+    return el.tagName === "INPUT" && /^(text|search|email|url|tel|password|number)$/.test(el.type || "text");
+  }
+  document.addEventListener("focusin", function (e) {
+    if (!isText(e.target)) return;
+    clearTimeout(off);
+    document.documentElement.setAttribute("data-typing", "");
+    var el = e.target;
+    setTimeout(function () { el.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300);
+  });
+  document.addEventListener("focusout", function () {
+    clearTimeout(off);
+    off = setTimeout(function () {
+      if (!isText(document.activeElement)) document.documentElement.removeAttribute("data-typing");
+    }, 120);
+  });
 }

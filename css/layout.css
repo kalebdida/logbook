@@ -343,6 +343,7 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 .journal-list { min-width: 0; }
 
 .patterns { display: grid; gap: 28px; margin-top: 28px; }
+[data-nav-page="calendar"] > #ageSection { margin-top: 28px; }
 
 .focus-grid {
   display: grid;
@@ -487,6 +488,9 @@ body[data-page="dashboard"] #pageHeader { display: none; }
 /* ---------- phones and small tablets: bottom tab bar ---------- */
 @media (max-width: 760px) {
   #appShell { display: block; }
+
+  /* typing: the keyboard takes the bottom of the screen, so the tab bar steps aside */
+  html[data-typing] .sidebar-nav { display: none; }
 
   /* the tab bar sits under dialogs (z 50) but over the More sheet it opens */
   .sidebar-nav {
