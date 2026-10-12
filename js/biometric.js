@@ -18,7 +18,7 @@ var KEY = "logbook-bio";
 function native() {
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return null;
-  return (C.Plugins && C.Plugins.BiometricAuth) || null;
+  return (C.Plugins && C.Plugins.BiometricAuthNative) || null;   // @aparajita/capacitor-biometric-auth's native side
 }
 
 function saved() {
@@ -53,7 +53,7 @@ export async function enableBiometric() {
   var p = native();
   try {
     if (p) {
-      await p.authenticate({ reason: "Use your fingerprint to unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Cancel", allowDeviceCredentials: false });
+      await p.internalAuthenticate({ reason: "Use your fingerprint to unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Cancel", allowDeviceCredential: false });
       localStorage.setItem(KEY, JSON.stringify({ kind: "native" }));
       return true;
     }
@@ -83,7 +83,7 @@ export async function verifyBiometric() {
     if (s.kind === "native") {
       var p = native();
       if (!p) return false;
-      await p.authenticate({ reason: "Unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Use PIN", allowDeviceCredentials: false });
+      await p.internalAuthenticate({ reason: "Unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Use PIN", allowDeviceCredential: false });
       return true;
     }
     var got = await navigator.credentials.get({
