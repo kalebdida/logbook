@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { enhanceDateTime } from './dateTimePicker.js';
 
 /* Every <select> in the app gets this instead of the browser's plain list:
    a glass popover under the field on a computer, a sheet from the bottom on
@@ -201,7 +202,10 @@ function close(refocus) {
 
 function scan(root) {
   if (root.tagName === "SELECT") return enhance(root);
-  if (root.querySelectorAll) root.querySelectorAll("select").forEach(enhance);
+  if (root.tagName === "INPUT") return enhanceDateTime(root);
+  if (!root.querySelectorAll) return;
+  root.querySelectorAll("select").forEach(enhance);
+  root.querySelectorAll('input[type="date"], input[type="time"]').forEach(enhanceDateTime);
 }
 
 export function startPickers() {

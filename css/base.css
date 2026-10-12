@@ -894,3 +894,66 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   .picker-pop, .picker-pop.is-sheet, .picker-backdrop { animation: none; }
 }
+
+/* ---------- date and time pickers (js/dateTimePicker.js) ---------- */
+.picker--date, .picker--time { max-width: 100%; }
+.picker--date .picker-btn, .picker--time .picker-btn { justify-content: flex-start; }
+.picker-lead { display: inline-flex; flex: none; color: var(--accent2); }
+.picker-lead svg { width: 17px; height: 17px; }
+.picker--time { width: auto; }
+.picker--time .picker-btn { min-width: 104px; }
+
+.dt-pop { width: 312px; max-height: none; padding: 12px; }
+.dt-pop.is-sheet { width: auto; padding-left: 16px; padding-right: 16px; }
+.dt-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.dt-title {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  color: var(--text); font: 600 15.5px/1.2 var(--font-display, inherit); letter-spacing: -0.01em; cursor: pointer;
+  transition: background 0.2s ease;
+}
+.dt-title:hover { background: rgb(var(--accent2-rgb) / 0.1); }
+.dt-title svg { width: 15px; height: 15px; color: var(--muted); }
+.dt-week, .dt-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.dt-week span { padding: 4px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: center; text-transform: uppercase; }
+.dt-day {
+  position: relative; aspect-ratio: 1; min-height: 36px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s var(--ease-spring);
+}
+.dt-day:hover:not(:disabled) { background: rgb(var(--accent2-rgb) / 0.12); }
+.dt-day:focus-visible { outline: 2px solid rgb(var(--accent2-rgb) / 0.7); outline-offset: -2px; }
+.dt-day.is-out { color: rgb(var(--ink-rgb) / 0.3); }
+.dt-day.is-today::after { content: ""; position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent2); }
+.dt-day.is-on {
+  background: var(--accent); color: rgb(var(--bg-rgb)); font-weight: 700;
+  box-shadow: 0 0 0 4px rgb(var(--accent-rgb) / 0.18), 0 6px 18px -6px rgb(var(--accent-rgb) / 0.7);
+  animation: pop 0.3s var(--ease-spring) both;
+}
+.dt-day.is-on::after { background: rgb(var(--bg-rgb)); }
+.dt-day:disabled { opacity: 0.25; cursor: default; }
+.dt-years { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 4px 0; animation: fadeIn 0.2s ease both; }
+.dt-year { min-height: 44px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--text); font: inherit; font-size: 14.5px; cursor: pointer; transition: background 0.15s ease; }
+.dt-year:hover:not(:disabled) { background: rgb(var(--accent2-rgb) / 0.12); }
+.dt-year.is-today { border-color: rgb(var(--accent2-rgb) / 0.35); }
+.dt-year.is-on { background: var(--accent); color: rgb(var(--bg-rgb)); font-weight: 700; }
+.dt-year:disabled { opacity: 0.25; cursor: default; }
+.dt-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dt-foot .link-btn { margin: 0; }
+
+.tm-cols { display: flex; align-items: stretch; justify-content: center; gap: 6px; }
+.tm-col {
+  flex: 1; max-height: 228px; overflow-y: auto; padding: 92px 4px; scroll-snap-type: y mandatory;
+  -webkit-mask-image: linear-gradient(transparent, rgb(var(--ink-rgb)) 30%, rgb(var(--ink-rgb)) 70%, transparent);
+  mask-image: linear-gradient(transparent, rgb(var(--ink-rgb)) 30%, rgb(var(--ink-rgb)) 70%, transparent);
+  scrollbar-width: none;
+}
+.tm-col::-webkit-scrollbar { display: none; }
+.tm-opt {
+  display: block; width: 100%; min-height: 44px; border: 0; border-radius: 12px; scroll-snap-align: center;
+  background: transparent; color: var(--muted); font: 500 18px/1 var(--font-display, inherit); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s var(--ease-spring);
+}
+.tm-opt:hover { color: var(--text); }
+.tm-opt.is-on { background: rgb(var(--accent-rgb) / 0.14); color: var(--accent); font-weight: 700; transform: scale(1.06); }
+.tm-colon { align-self: center; color: var(--muted); font: 700 22px/1 var(--font-display, inherit); }
