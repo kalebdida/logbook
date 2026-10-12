@@ -479,3 +479,15 @@ def test_the_companion_remembers_across_restarts(server, tg, monkeypatch):
             assert bot.get_notes(db, 1) == "" and bot.load_turns(db, 1) == []
     finally:
         settings.ai_provider, settings.ai_api_key = "", ""
+
+
+def test_excel_files_are_read():
+    from io import BytesIO
+    from openpyxl import Workbook
+    book = Workbook()
+    book.active.title = "Schools"
+    book.active.append(["School", "Deadline", "Type"])
+    book.active.append(["MIT", "Jan 5", "Reach"])
+    buf = BytesIO(); book.save(buf)
+    text = bot.file_text("list.xlsx", "", buf.getvalue())
+    assert "Sheet: Schools" in text and "MIT | Jan 5 | Reach" in text

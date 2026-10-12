@@ -90,7 +90,7 @@ HELP = (
     "/morning 7 (or off)  ·  /backup\n"
     "/sleep  ·  /wake  ·  /grateful family dinner  ·  /nudges\n\n"
     "I'll remind you about deadlines (the day before, and 2 hours before) and your streak at 21:00.\n"
-    "Send a photo and it becomes today's photo. Send a PDF or Word file (an essay, a CV, a school list) and I'll read it and tell you what I think.\n"
+    "Send a photo and it becomes today's photo. Send a PDF, Word or Excel file (an essay, a CV, a school list) and I'll read it and tell you what I think.\n"
     "I remember what you tell me (schools, scores, plans). /memory shows it, /forget drops something.\n"
     "On Sundays the morning message comes with a backup file of everything.\n\n"
     "Hashtags pick the life area: #coding #learning #fitness #faith #social #work #rest #creativity #reflection "
@@ -275,6 +275,21 @@ def file_text(name: str, mime: str, data: bytes) -> str | None:
                 root = ElementTree.fromstring(z.read("word/document.xml"))
             paras = ["".join(t.text or "" for t in p.iter(ns + "t")) for p in root.iter(ns + "p")]
             return "\n".join(paras).strip()
+        if low.endswith((".xlsx", ".xlsm")) or "spreadsheetml" in (mime or ""):
+            from io import BytesIO
+            from openpyxl import load_workbook
+            book = load_workbook(BytesIO(data), read_only=True, data_only=True)
+            out = []
+            for sheet in book.worksheets[:10]:
+                out.append(f"## Sheet: {sheet.title}")
+                for row in sheet.iter_rows(max_row=2000, values_only=True):
+                    cells = ["" if v is None else str(v) for v in row]
+                    while cells and cells[-1] == "":
+                        cells.pop()
+                    if cells:
+                        out.append(" | ".join(cells))
+            book.close()
+            return "\n".join(out).strip()
         if (mime or "").startswith("text/") or low.endswith((".txt", ".md", ".csv", ".rtf", ".json")):
             return data.decode("utf-8", errors="replace").strip()
     except Exception:  # a broken or locked file
@@ -307,7 +322,7 @@ async def handle_document(db: Session, user: User, link: TelegramLink, msg: dict
         return
     text = file_text(name, mime, data)
     if text is None:
-        await send(chat, "I can't open that kind of file yet 🙈 PDF, Word (.docx) or a plain text file all work.")
+        await send(chat, "I can't open that kind of file yet 🙈 PDF, Word (.docx), Excel (.xlsx), CSV or a plain text file all work.")
         return
     if len(text) < 20:
         await send(chat, "I opened it but there's barely any text inside 🤔 If it's a scanned PDF, try sending the Word version or paste the text here.")
