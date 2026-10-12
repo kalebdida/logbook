@@ -70,7 +70,33 @@ def model_name() -> str:
     return settings.ai_model or DEFAULTS.get(provider_name(), "")
 
 
-async def chat(messages: list[dict], system: str, max_tokens: int, transport: httpx.AsyncBaseTransport | None = None) -> str:
+async def chat(messages: list[dict], system: str, max_tokens: int, transport: httpx.AsyncBaseTransport | None = None,
+               search: bool = False) -> str:
+    """One reply. search=True lets the model look things up on the web first
+    (Gemini: Google Search grounding; Claude: the web search tool) and adds the
+    pages it used as sources. If the provider refuses the search tool, the
+    question is asked again without it."""
+    if search and provider_name() in ("gemini", "anthropic"):
+        try:
+            return await _chat(messages, system, max_tokens, transport, True)
+        except AIError as exc:
+            log.warning("logbook: web search unavailable, answering without it: %s", str(exc)[:160])
+    return await _chat(messages, system, max_tokens, transport, False)
+
+
+def _sources(found: list[tuple[str, str]]) -> str:
+    seen, lines = set(), []
+    for url, title in found:
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        lines.append(f"• {title or url}: {url}" if title and title != url else f"• {url}")
+        if len(lines) == 4:
+            break
+    return ("\n\nSources:\n" + "\n".join(lines)) if lines else ""
+
+
+async def _chat(messages: list[dict], system: str, max_tokens: int, transport, search: bool) -> str:
     provider = provider_name()
     async with httpx.AsyncClient(timeout=90, transport=transport) as client:
         try:
@@ -82,16 +108,19 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
                         "anthropic-version": ANTHROPIC_VERSION,
                         "content-type": "application/json",
                     },
-                    json={"model": model_name(), "max_tokens": max_tokens, "system": system, "messages": messages},
+                    json=dict({"model": model_name(), "max_tokens": max_tokens, "system": system, "messages": messages},
+                              **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}]} if search else {})),
                 )
                 data = _json(response)
-                return "".join(block.get("text", "") for block in data.get("content", []) if block.get("type") == "text")
+                blocks = [b for b in data.get("content", []) if b.get("type") == "text"]
+                cited = [(c.get("url", ""), c.get("title", "")) for b in blocks for c in (b.get("citations") or [])]
+                return "".join(b.get("text", "") for b in blocks).strip() + _sources(cited)
 
             if provider == "gemini":
                 response = await client.post(
                     _gemini_base() + "/models/" + model_name() + ":generateContent",
                     headers={"x-goog-api-key": api_key(), "content-type": "application/json"},
-                    json=gemini_body(messages, system, max_tokens),
+                    json=gemini_body(messages, system, max_tokens, search),
                 )
                 return gemini_text(_json(response))
 
@@ -121,7 +150,7 @@ def _gemini_base() -> str:
     return (settings.ai_base_url or GEMINI_URL).rstrip("/")
 
 
-def gemini_body(messages: list[dict], system: str, max_tokens: int) -> dict:
+def gemini_body(messages: list[dict], system: str, max_tokens: int, search: bool = False) -> dict:
     """Gemini's own request shape: a system instruction, and turns as "user" /
     "model" that alternate, starting with the user."""
     contents: list[dict] = []
@@ -136,6 +165,8 @@ def gemini_body(messages: list[dict], system: str, max_tokens: int) -> dict:
     body: dict = {"contents": contents, "generationConfig": {"maxOutputTokens": max(max_tokens, GEMINI_MIN_TOKENS)}}
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
+    if search:
+        body["tools"] = [{"google_search": {}}]
     return body
 
 
@@ -149,7 +180,9 @@ def gemini_text(data: dict) -> str:
     text = "".join(p.get("text", "") for p in parts if isinstance(p.get("text"), str) and not p.get("thought"))
     if not text.strip() and candidates[0].get("finishReason") == "MAX_TOKENS":
         raise AIError("Gemini ran out of room before answering. Try a shorter question.")
-    return text
+    chunks = (candidates[0].get("groundingMetadata") or {}).get("groundingChunks") or []
+    found = [((c.get("web") or {}).get("uri", ""), (c.get("web") or {}).get("title", "")) for c in chunks]
+    return text.strip() + _sources(found) if found else text
 
 
 async def check(transport: httpx.AsyncBaseTransport | None = None) -> dict:

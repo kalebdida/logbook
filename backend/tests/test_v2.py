@@ -540,3 +540,29 @@ def test_habits_only_today_or_yesterday(client):
     assert client.put(f"/habits/{h['id']}/days/{old}").status_code == 400
     assert client.put(f"/habits/{h['id']}/days/{later}").status_code == 400
     assert client.put(f"/habits/{h['id']}/days/{TODAY}").status_code == 200
+
+
+def test_ai_search_adds_sources_and_falls_back(monkeypatch):
+    import asyncio
+    import httpx
+    from app import ai
+    from app.config import settings
+    seen = []
+
+    def gemini(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        if "tools" in body and len(seen) == 3:      # third call: the provider refuses the tool
+            return httpx.Response(400, json={"error": {"message": "tool not supported"}})
+        meta = {"groundingChunks": [{"web": {"uri": "https://admissions.example.edu/dates", "title": "Example dates"}}]} if "tools" in body else {}
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "Jan 1 💪"}]}, "groundingMetadata": meta}]})
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "k")
+    t = httpx.MockTransport(gemini)
+    out = asyncio.run(ai.chat([{"role": "user", "content": "deadline?"}], "sys", 100, t, search=True))
+    assert seen[0]["tools"] == [{"google_search": {}}]
+    assert out.startswith("Jan 1") and "Sources:" in out and "https://admissions.example.edu/dates" in out
+    plain = asyncio.run(ai.chat([{"role": "user", "content": "hi"}], "sys", 100, t))
+    assert "tools" not in seen[1] and "Sources" not in plain
+    fallback = asyncio.run(ai.chat([{"role": "user", "content": "deadline?"}], "sys", 100, t, search=True))
+    assert "tools" not in seen[-1] and fallback == "Jan 1 💪"

@@ -217,7 +217,7 @@ def test_morning_message_goes_out_once_at_the_hour(server, tg, monkeypatch):
 def test_plain_words_go_to_the_companion(server, tg, monkeypatch):
     seen = {}
 
-    async def fake_chat(messages, system, max_tokens, transport=None):
+    async def fake_chat(messages, system, max_tokens, transport=None, search=False):
         seen["messages"], seen["system"] = messages, system
         return "You've got this. One thing at a time."
     c = server
@@ -252,7 +252,7 @@ def test_due_understands_times_and_birthdays():
 def test_yuki_backups_and_birthdays_on_telegram(server, tg, monkeypatch):
     seen = {}
 
-    async def fake_chat(messages, system, max_tokens, transport=None):
+    async def fake_chat(messages, system, max_tokens, transport=None, search=False):
         seen["system"] = system
         return "Here."
 
@@ -404,7 +404,7 @@ def test_forgot_password_sends_a_code_to_telegram(server, tg):
 def test_a_sent_file_is_read_and_talked_about(server, tg, monkeypatch):
     seen = {}
 
-    async def fake_chat(messages, system, max_tokens, transport=None):
+    async def fake_chat(messages, system, max_tokens, transport=None, search=False):
         seen["messages"], seen["system"], seen["max"] = list(messages), system, max_tokens
         return "**Love** this opening ✨"
     c = server
@@ -449,7 +449,7 @@ def test_the_companion_remembers_across_restarts(server, tg, monkeypatch):
         "Of course I remember 😊",
     ])
 
-    async def fake_chat(messages, system, max_tokens, transport=None):
+    async def fake_chat(messages, system, max_tokens, transport=None, search=False):
         seen["messages"], seen["system"] = list(messages), system
         return next(replies)
     c = server
