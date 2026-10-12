@@ -6,8 +6,8 @@
      new VERSION, so the new worker downloads the whole new copy in the
      background, takes over, and the page reloads into it when that's safe
      (js/pwa.js). Old copies are deleted.
-   - config.js (which server to use): network first, so a changed server
-     address is picked up; the saved copy only when offline.
+   - config.js (which server to use): the saved copy at once, refreshed in
+     the background, so a changed server address arrives on the next open.
    - Running from source (VERSION "dev"): network first, so edits show at once.
    - everything else (your server's API, Spotify, AI providers): untouched,
      never cached here */
@@ -75,7 +75,17 @@ self.addEventListener("fetch", function (event) {
   var req = event.request;
   if (!isAppFile(req)) return;
   var path = new URL(req.url).pathname;
-  if (!BUILT || /\/config\.js$/.test(path)) {
+  if (BUILT && /\/config\.js$/.test(path)) {
+    // which server to use: the saved copy at once (it blocks the first paint),
+    // and a fresh one fetched behind it for next time
+    var refresh = fromNetwork(req);
+    event.waitUntil(refresh.catch(function () {}));
+    event.respondWith(fromCache(req).then(function (hit) {
+      return hit || refresh.catch(function () { return Response.error(); });
+    }));
+    return;
+  }
+  if (!BUILT) {
     // network first, the saved copy when offline
     event.respondWith(fromNetwork(req).catch(function () {
       return fromCache(req).then(function (hit) { return hit || Response.error(); });
