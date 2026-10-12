@@ -264,6 +264,47 @@
 
 <div id="miniPlayer" class="mini-player" role="region" aria-label="Now playing" hidden></div>
 
+<script>
+/* Boot watchdog: if the app hasn't started within 10 s (a script that failed
+   to load, an error at startup), show what went wrong instead of an empty
+   screen, with a way out. js/app.js sets window.__logbookBooted. */
+(function () {
+  var seen = [];
+  window.addEventListener("error", function (e) {
+    var t = e.target;
+    if (t && t !== window && (t.src || t.href)) seen.push("Couldn't load " + (t.src || t.href).replace(location.origin, ""));
+    else if (e.message) seen.push(e.message + (e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : ""));
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    seen.push("Unhandled: " + ((e.reason && (e.reason.message || e.reason)) || "?"));
+  });
+  window.__logbookSeen = seen;
+  setTimeout(function () {
+    if (window.__logbookBooted) return;
+    var box = document.createElement("div");
+    box.id = "bootRescue";
+    box.setAttribute("role", "alert");
+    box.style.cssText = "position:fixed;inset:0;z-index:999;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif";
+    box.innerHTML = '<div style="max-width:420px"><p style="font-size:20px;font-weight:600;margin:0 0 8px">Logbook didn\'t start</p>' +
+      '<p style="margin:0 0 12px;color:var(--text-2)">Something stopped it while opening. Try again; if it keeps happening, send a screenshot of this.</p>' +
+      '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;padding:10px;border-radius:10px;background:rgb(var(--ink-rgb) / 0.06);max-height:40vh;overflow:auto"></pre>' +
+      '<p style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0"><button type="button" data-r="reload" style="padding:10px 16px;border-radius:999px;border:0;background:var(--accent);color:var(--bg);font-weight:600">Try again</button>' +
+      '<button type="button" data-r="clean" style="padding:10px 16px;border-radius:999px;border:1px solid rgb(var(--ink-rgb) / 0.2);background:none;color:var(--text)">Clear saved files and retry</button></p></div>';
+    box.querySelector("pre").textContent = (seen.length ? seen.slice(-8).join("\n") : "No error was reported: it may still be loading on a slow connection.") +
+      "\n\n" + navigator.userAgent;
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-r]");
+      if (!b) return;
+      if (b.getAttribute("data-r") === "reload") return location.reload();
+      var jobs = [];
+      try { if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (err) {}
+      try { if (window.caches) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (err) {}
+      Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+    });
+    document.body.appendChild(box);
+  }, 10000);
+})();
+</script>
 <script src="config.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>

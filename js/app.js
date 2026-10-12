@@ -47,6 +47,8 @@ import { initPalette } from './palette.js';
 import { startPickers } from './picker.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
 
+window.__logbookBooted = true;   // every module loaded: the boot watchdog in index.html stands down
+
 function applyLook() {
   var p = getPrefs();
   document.body.classList.toggle("no-scanlines", !p.scanlines);
