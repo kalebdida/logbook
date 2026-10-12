@@ -47,7 +47,7 @@ function field(label, name, type, autocomplete, iconName, extra) {
 export function clearLocalTraces() {
   try { sessionStorage.clear(); } catch (e) {}
   cacheClear();
-  try { localStorage.removeItem("logbook-pin"); } catch (e) {}
+  try { localStorage.removeItem("logbook-pin"); localStorage.removeItem("logbook-bio"); } catch (e) {}
   try {
     localStorage.removeItem("logbook-ai");
     localStorage.removeItem("logbook-pomodoro");

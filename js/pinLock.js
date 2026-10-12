@@ -3,6 +3,7 @@ import { sceneSvg } from './scene.js';
 import { mountMascot } from './mascot.js';
 import { getPrefs } from './prefs.js';
 import { isDevice } from './connection.js';
+import { hasBiometric, clearBiometric, verifyBiometric } from './biometric.js';
 
 /* A PIN for this device: Logbook asks for it when it opens, and again after
    a minute away. It guards the screen on a phone someone else is holding;
@@ -33,6 +34,7 @@ export async function setPin(pin) {
 
 export function clearPin() {
   try { localStorage.removeItem(KEY); } catch (e) {}
+  clearBiometric();       // the fingerprint rides on the PIN: no PIN, no fingerprint
 }
 
 async function check(pin) {
@@ -65,6 +67,7 @@ export function pinPad(mode) {
           '<button type="button" class="pin-key" data-k="0">0</button>' +
           '<button type="button" class="pin-key pin-key--quiet" data-k="back" aria-label="Delete">' + icon("delete") + "</button>" +
         "</div>" +
+        (mode === "unlock" && hasBiometric() ? '<button type="button" class="pin-finger" data-k="finger"><span data-icon="fingerprint"></span>Use fingerprint</button>' : "") +
         (mode !== "unlock" ? "" : '<button type="button" class="link-btn pin-ok" data-k="ok" hidden>Unlock</button>') +
       "</div>";
     document.body.appendChild(el);
@@ -114,7 +117,20 @@ export function pinPad(mode) {
         setTimeout(function () { hint.textContent = "Enter your PIN"; }, 30000);
       } else wrong("That's not it");
     }
+    var asking = false;
+    async function finger() {
+      if (asking || mode !== "unlock") return;
+      asking = true;
+      var ok = await verifyBiometric();
+      asking = false;
+      if (!el.isConnected) return;
+      if (ok) {
+        if (cat) cat.react("cheer");
+        setTimeout(function () { done(true); }, 350);
+      } else hint.textContent = "Not recognised. Try again or type your PIN.";
+    }
     function press(k) {
+      if (k === "finger") return finger();
       if (k === "back") { typed = typed.slice(0, -1); return paint(); }
       if (k === "cancel") return done(mode === "set" ? null : false);
       if (k === "forgot") {
@@ -155,6 +171,7 @@ export function pinPad(mode) {
       el.querySelector(".pin-card").appendChild(ok);
     }
     paint();
+    if (mode === "unlock" && hasBiometric()) setTimeout(finger, 450);     // ask right away, the PIN pad stays underneath
   });
   return open;
 }

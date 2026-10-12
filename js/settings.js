@@ -18,6 +18,7 @@ import { LINE_KINDS, linesFor, TRANSLATIONS } from './verse.js';
 import { renderTelegramCard } from './telegramCard.js';
 import { phoneNotifyAvailable, askPermission } from './phoneNotify.js';
 import { hasPin, setPin, clearPin, pinPad } from './pinLock.js';
+import { hasBiometric, clearBiometric, biometricAvailable, enableBiometric } from './biometric.js';
 import { GIFTS, streakInfo } from './mascot.js';
 import { getProfile, saveProfile, onProfile } from './profile.js';
 
@@ -150,6 +151,7 @@ export function renderSettings() {
       '<section class="settings-card">' +
         cardHead("lock", "Lock this device", "Asks for a PIN when Logbook opens on this phone or computer.") +
         toggle("prefPin", "Ask for a PIN", "", hasPin()) +
+        '<div id="bioRow" hidden>' + toggle("prefBio", "Unlock with fingerprint", "Your PIN still works if the sensor doesn't.", hasBiometric()) + "</div>" +
       "</section>") +
 
     group("look", "Look", "Your theme and how alive the app feels.",
@@ -403,16 +405,32 @@ function wire(el) {
   });
 
   var pinBox = el.querySelector("#prefPin");
+  var bioBox = el.querySelector("#prefBio");
+  var bioRow = el.querySelector("#bioRow");
+  function showBio() {
+    if (!bioRow) return;
+    if (!hasPin()) { bioRow.hidden = true; return; }
+    biometricAvailable().then(function (ok) { bioRow.hidden = !ok; });
+  }
   pinBox.addEventListener("change", async function () {
     if (pinBox.checked) {
       var pin = await pinPad("set");
       if (pin) { await setPin(pin); toast("PIN set. Logbook asks for it when it opens."); }
       else pinBox.checked = false;
     } else {
-      if (await pinPad("confirm")) { clearPin(); toast("PIN removed"); }
+      if (await pinPad("confirm")) { clearPin(); if (bioBox) bioBox.checked = false; toast("PIN removed"); }
       else pinBox.checked = true;
     }
+    showBio();
   });
+  if (bioBox) bioBox.addEventListener("change", async function () {
+    if (bioBox.checked) {
+      if (await enableBiometric()) toast("Fingerprint on. Logbook asks for it when it opens.");
+      else { bioBox.checked = false; toast("Couldn't turn on the fingerprint. Is one set up on this phone?"); }
+    } else { clearBiometric(); toast("Fingerprint off. The PIN stays."); }
+  });
+  showBio();
+
 
   var phoneBox = el.querySelector("#prefPhoneNotify");
   if (phoneBox) phoneBox.addEventListener("change", async function () {
