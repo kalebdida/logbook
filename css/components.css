@@ -210,6 +210,12 @@
 .task-add .text-input { flex: 1 1 auto; padding-left: 42px; border-style: dashed; background: transparent; }
 .task-add .text-input:focus { border-style: solid; }
 .task-add .select-input { flex: 0 0 auto; max-width: 150px; color: var(--muted); }
+.task-add-go {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); border-color: transparent;
+  animation: pop 0.18s ease-out;
+}
+.task-add-go:active { transform: scale(0.92); }
 .day-tasks .task-list { margin-bottom: 16px; }
 
 /* phones: the area moves under the title as a quiet line, so titles get the full width */

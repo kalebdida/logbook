@@ -33,6 +33,7 @@ var P = {
   "search": '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   "command": '<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>',
   "keyboard": '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+  "arrow-up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
   "check": '<path d="M20 6 9 17l-5-5"/>',
   "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',

@@ -24,6 +24,13 @@ export async function renderTasks(container, day, opts) {
   list.carry = results[1];
   draw(list);
   container.onsubmit = function (e) { handleSubmit(list, e); };
+  // the add button shows once there's something to add
+  container.oninput = function (e) {
+    var form = e.target.closest('[data-form="task"]');
+    if (!form || e.target.name !== "title") return;
+    var go = form.querySelector(".task-add-go");
+    if (go) go.hidden = !e.target.value.trim();
+  };
   container.onchange = function (e) { handleChange(list, e); };
   container.onclick = function (e) { handleClick(list, e); };
 }
@@ -96,7 +103,7 @@ function draw(list) {
       '<span class="task-add-icon" aria-hidden="true">' + icon("plus") + "</span>" +
       '<input class="text-input" name="title" maxlength="300" placeholder="' + (o.placeholder || "Add a task") + '" aria-label="' + (o.label || "New task") + '" enterkeyhint="done" required>' +
       '<select class="select-input" name="category" aria-label="Life area">' + categoryOptions("", "Area") + "</select>" +
-      '<button type="submit" class="sr-only">Add</button>' +
+      '<button type="submit" class="icon-btn task-add-go" aria-label="Add task" hidden>' + icon("arrow-up") + "</button>" +
     "</form>";
 }
 
