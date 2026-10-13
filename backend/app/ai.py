@@ -10,7 +10,10 @@ Two protocols cover nearly everything:
              reported to work on the native API but not on the OpenAI one.
 """
 
+import asyncio
 import logging
+import re
+import time
 
 import httpx
 
@@ -70,18 +73,57 @@ def model_name() -> str:
     return settings.ai_model or DEFAULTS.get(provider_name(), "")
 
 
+# Google's free plan is often "busy" (503) and refuses web search (429).
+# Busy errors are retried, then a sister model is tried; a refused search is
+# skipped for a few hours instead of costing every message an extra call.
+GEMINI_BACKUPS = ["gemini-3.1-flash-lite", "gemini-3-flash-preview"]
+SEARCH_PAUSE_S = 6 * 3600
+search_paused_until = 0.0
+
+
+def _status(exc: Exception) -> int:
+    m = re.search(r"error (\d{3})", str(exc))
+    return int(m.group(1)) if m else 0
+
+
+def _busy(exc: Exception) -> bool:
+    code = _status(exc)
+    return code in (408, 429, 500, 502, 503, 504) or "Couldn't reach" in str(exc)
+
+
 async def chat(messages: list[dict], system: str, max_tokens: int, transport: httpx.AsyncBaseTransport | None = None,
                search: bool = False) -> str:
     """One reply. search=True lets the model look things up on the web first
     (Gemini: Google Search grounding; Claude: the web search tool) and adds the
     pages it used as sources. If the provider refuses the search tool, the
-    question is asked again without it."""
-    if search and provider_name() in ("gemini", "anthropic"):
+    question is asked again without it (and search rests for a while).
+    A busy provider is asked again, then a backup model takes the question."""
+    global search_paused_until
+    if search and provider_name() in ("gemini", "anthropic") and time.time() >= search_paused_until:
         try:
             return await _chat(messages, system, max_tokens, transport, True)
         except AIError as exc:
+            if _status(exc) in (400, 403, 429):
+                search_paused_until = time.time() + SEARCH_PAUSE_S
             log.warning("logbook: web search unavailable, answering without it: %s", str(exc)[:160])
-    return await _chat(messages, system, max_tokens, transport, False)
+    plan = [("", 0), ("", 1.5)]
+    if provider_name() == "gemini" and not settings.ai_base_url:
+        plan += [(m, 0) for m in GEMINI_BACKUPS if m != model_name()]
+    plan.append(("", 4))
+    last: AIError | None = None
+    for model, wait in plan:
+        if wait:
+            await asyncio.sleep(wait)
+        try:
+            return await _chat(messages, system, max_tokens, transport, False, model)
+        except AIError as exc:
+            last = exc
+            if model and _status(exc) in (400, 404):
+                continue                    # that backup model isn't available to this key
+            if not _busy(exc):
+                raise
+            log.warning("logbook: AI busy (%s), trying again: %s", model or model_name(), str(exc)[:120])
+    raise last
 
 
 def _sources(found: list[tuple[str, str]]) -> str:
@@ -96,8 +138,9 @@ def _sources(found: list[tuple[str, str]]) -> str:
     return ("\n\nSources:\n" + "\n".join(lines)) if lines else ""
 
 
-async def _chat(messages: list[dict], system: str, max_tokens: int, transport, search: bool) -> str:
+async def _chat(messages: list[dict], system: str, max_tokens: int, transport, search: bool, model: str = "") -> str:
     provider = provider_name()
+    model = model or model_name()
     async with httpx.AsyncClient(timeout=90, transport=transport) as client:
         try:
             if provider == "anthropic":
@@ -108,7 +151,7 @@ async def _chat(messages: list[dict], system: str, max_tokens: int, transport, s
                         "anthropic-version": ANTHROPIC_VERSION,
                         "content-type": "application/json",
                     },
-                    json=dict({"model": model_name(), "max_tokens": max_tokens, "system": system, "messages": messages},
+                    json=dict({"model": model, "max_tokens": max_tokens, "system": system, "messages": messages},
                               **({"tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}]} if search else {})),
                 )
                 data = _json(response)
@@ -118,7 +161,7 @@ async def _chat(messages: list[dict], system: str, max_tokens: int, transport, s
 
             if provider == "gemini":
                 response = await client.post(
-                    _gemini_base() + "/models/" + model_name() + ":generateContent",
+                    _gemini_base() + "/models/" + model + ":generateContent",
                     headers={"x-goog-api-key": api_key(), "content-type": "application/json"},
                     json=gemini_body(messages, system, max_tokens, search),
                 )
@@ -132,7 +175,7 @@ async def _chat(messages: list[dict], system: str, max_tokens: int, transport, s
                     (settings.ai_base_url or "https://api.openai.com/v1").rstrip("/") + "/chat/completions",
                     headers=headers,
                     json={
-                        "model": model_name(),
+                        "model": model,
                         "max_tokens": max_tokens,
                         "messages": [{"role": "system", "content": system}] + messages,
                     },

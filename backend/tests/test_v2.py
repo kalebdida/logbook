@@ -566,3 +566,40 @@ def test_ai_search_adds_sources_and_falls_back(monkeypatch):
     assert "tools" not in seen[1] and "Sources" not in plain
     fallback = asyncio.run(ai.chat([{"role": "user", "content": "deadline?"}], "sys", 100, t, search=True))
     assert "tools" not in seen[-1] and fallback == "Jan 1 💪"
+
+
+def test_ai_busy_retries_then_backup_model(monkeypatch):
+    import asyncio
+    import httpx
+    from app import ai
+    from app.config import settings
+    asked = []
+
+    async def no_wait(_):
+        return None
+    monkeypatch.setattr(ai.asyncio, "sleep", no_wait)
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "k")
+    monkeypatch.setattr(settings, "ai_model", "busy-model")
+    monkeypatch.setattr(ai, "search_paused_until", 0.0)
+
+    def gemini(request):
+        model = request.url.path.split("/models/")[1].split(":")[0]
+        body = json.loads(request.content)
+        asked.append((model, "tools" in body))
+        if "tools" in body:
+            return httpx.Response(429, json={"error": {"message": "quota"}})
+        if model == "busy-model":
+            return httpx.Response(503, json={"error": {"message": "high demand"}})
+        if model == ai.GEMINI_BACKUPS[0]:
+            return httpx.Response(404, json={"error": {"message": "no such model"}})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "here 😊"}]}}]})
+    t = httpx.MockTransport(gemini)
+    out = asyncio.run(ai.chat([{"role": "user", "content": "hi"}], "", 50, t, search=True))
+    assert out == "here 😊"
+    assert asked[0] == ("busy-model", True)                       # tried search once
+    assert asked[1:3] == [("busy-model", False), ("busy-model", False)]   # busy: asked again
+    assert asked[-1] == (ai.GEMINI_BACKUPS[1], False)             # a backup answered
+    asked.clear()
+    asyncio.run(ai.chat([{"role": "user", "content": "hi"}], "", 50, t, search=True))
+    assert not any(tool for _, tool in asked)                     # a refused search rests for a while
