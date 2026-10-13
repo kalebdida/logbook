@@ -425,6 +425,17 @@ route("POST", "/backup/wipe", async function (p, q, body) {
   await commit(ops);
   return { ok: true, removed: n };
 });
+/* the running timer: one device here, so just kept in memory */
+var live = { timer: null, rev: 0, finished: "" };
+route("GET", "/pomodoro/live", function () { return { timer: live.timer, rev: live.rev }; });
+route("PUT", "/pomodoro/live", function (p, q, body) { live.timer = (body || {}).timer || null; live.rev++; return { timer: live.timer, rev: live.rev }; });
+route("POST", "/pomodoro/live/finish", function (p, q, body) {
+  var id = String((body || {}).id || "");
+  if (!id || live.finished === id) return { first: false };
+  live.finished = id;
+  return { first: true };
+});
+
 route("GET", "/pomodoro", function () {
   return rows("pomodoro_days").sort(function (a, b) { return b.date.localeCompare(a.date); }).map(copy);
 });

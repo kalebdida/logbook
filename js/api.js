@@ -348,6 +348,20 @@ export async function apiListPomodoroDays() {
   return request("/pomodoro/");
 }
 
+/* the running timer, shared by every device on the account */
+export async function apiGetLiveTimer() {
+  return request("/pomodoro/live");
+}
+
+export async function apiPutLiveTimer(timer) {
+  return request("/pomodoro/live", Object.assign({ method: "PUT" }, jsonBody({ timer: timer })));
+}
+
+/* { first: true } only for the first device to report this block finished */
+export async function apiFinishLiveTimer(id) {
+  return request("/pomodoro/live/finish", Object.assign({ method: "POST" }, jsonBody({ id: id })));
+}
+
 // ---------- backup & health ----------
 
 export async function apiWipeMyData(keepProfile) {

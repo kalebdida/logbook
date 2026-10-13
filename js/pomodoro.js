@@ -1,6 +1,6 @@
 import { dateKey } from "./dayRecord.js";
 import { icon } from './icons.js';
-import { apiRecordPomodoroSession, apiListPomodoroDays } from "./api.js";
+import { apiRecordPomodoroSession, apiListPomodoroDays, apiGetLiveTimer, apiPutLiveTimer, apiFinishLiveTimer } from "./api.js";
 import { getPrefs } from "./prefs.js";
 import { emitChange } from "./bus.js";
 import { toast } from "./toast.js";
@@ -363,11 +363,13 @@ function startTimer() {
 
   var resumed = state.timer.status === "paused";
   var now = Date.now();
+  if (!resumed || !state.timer.id) state.timer.id = now.toString(36) + Math.random().toString(36).slice(2, 8);
   state.timer.status = "running";
   state.timer.startedAt = now;
   state.timer.endsAt = now + state.timer.remainingMs;
 
   saveState();
+  pushLive();
   startTicking();
   updateView();
   if (state.timer.mode === "focus") maybeEnterSpace();
@@ -392,6 +394,7 @@ function pauseTimer() {
 
   stopTicking();
   saveState();
+  pushLive();
   updateView();
   emitPomodoroEvent("paused");
 }
@@ -409,6 +412,7 @@ function resetTimer(reason) {
   stopTicking();
   state.timer = createTimer(previousMode, state.settings);
   saveState();
+  pushLive();
   updateView();
   emitPomodoroEvent("session-reset", {
     reason: reason || "manual",
@@ -422,6 +426,7 @@ function selectMode(mode) {
   var previousMode = state.timer.mode;
   state.timer = createTimer(mode, state.settings);
   saveState();
+  pushLive();
   updateView();
   emitPomodoroEvent("session-reset", {
     reason: "mode-change",
@@ -453,10 +458,67 @@ function recordFocus(day, ms, partial) {
   });
 }
 
+/* A finished block is counted by the first device that reports it (the
+   server says which); others showing the same timer skip it. Without a
+   connection it's counted here. */
+function countOnce(id, day, ms) {
+  if (!id) return recordFocus(day, ms, false);
+  apiFinishLiveTimer(id).then(function (r) {
+    if (!r || r.first !== false) recordFocus(day, ms, false);
+  }).catch(function () { recordFocus(day, ms, false); });
+}
+
+/* ---- the running timer, shared by every device on the account ---- */
+var liveRev = 0;
+var livePushing = 0;
+
+function pushLive() {
+  if (!state) return;
+  livePushing++;
+  state.timer.changedAt = Date.now();      // newer wins when devices compare
+  saveState();
+  var t = Object.assign({}, state.timer, { remainingMs: remainingMs() });
+  apiPutLiveTimer(t).then(function (r) { if (r && r.rev > liveRev) liveRev = r.rev; })
+    .catch(function () {})
+    .then(function () { livePushing--; });
+}
+
+function sameTimer(a, b) {
+  return a && b && a.id === b.id && a.status === b.status && a.mode === b.mode &&
+    Math.abs((a.endsAt || 0) - (b.endsAt || 0)) < 1500 && Math.abs((a.remainingMs || 0) - (b.remainingMs || 0)) < 1500;
+}
+
+/* another device started, paused or reset the timer: show the same here */
+function pullLive() {
+  if (!state || livePushing) return;
+  apiGetLiveTimer().then(function (r) {
+    if (!r || livePushing || r.rev <= liveRev) return;
+    liveRev = r.rev;
+    var t = r.timer;
+    if (!t || !MODE_LABELS[t.mode] || ["ready", "running", "paused"].indexOf(t.status) < 0) return;
+    if (sameTimer(t, state.timer)) return;
+    if ((Number(t.changedAt) || 0) <= (Number(state.timer.changedAt) || 0)) return;   // ours is as new or newer
+    if (t.status === "running" && !Number.isFinite(t.endsAt)) return;
+    state.timer = {
+      id: t.id || "", mode: t.mode, status: t.status,
+      durationMs: Number(t.durationMs) || state.settings[t.mode] * MINUTE,
+      remainingMs: Math.max(0, Number(t.remainingMs) || 0),
+      startedAt: t.startedAt || null, endsAt: t.status === "running" ? t.endsAt : null,
+      changedAt: Number(t.changedAt) || Date.now()
+    };
+    syncTimer();           // it may have finished meanwhile
+    saveState();
+    if (state.timer.status === "running") { startTicking(); if (state.timer.mode === "focus") maybeEnterSpace(); }
+    else stopTicking();
+    updateView();
+  }).catch(function () {});
+}
+
 function completeTimer(completedAt, recovered, skipped) {
   var completedMode = state.timer.mode;
   stopTicking();
 
+  var finishedId = state.timer.id || "";
   if (completedMode === "focus") {
     var completedDay = dateKey(new Date(completedAt));
     var fullMs = state.timer.durationMs;
@@ -465,10 +527,10 @@ function completeTimer(completedAt, recovered, skipped) {
     if (recovered && Date.now() - completedAt > 120000) {
       toast("Your focus timer ran out while you were away, so it wasn't counted.", "ok", {
         duration: 15000,
-        action: { label: "I was focusing", run: function () { recordFocus(completedDay, fullMs, false); } }
+        action: { label: "I was focusing", run: function () { countOnce(finishedId, completedDay, fullMs); } }
       });
     } else {
-      recordFocus(completedDay, fullMs, false);
+      countOnce(finishedId, completedDay, fullMs);
     }
 
     var nextBreak = state.totals.sessions % LONG_BREAK_EVERY === 0 ? "longBreak" : "shortBreak";
@@ -479,6 +541,7 @@ function completeTimer(completedAt, recovered, skipped) {
 
   ensureToday();
   saveState();
+  pushLive();
   // background tabs tick slowly, so a timer can be noticed a little late;
   // still announce it unless it ended long ago (e.g. the laptop was asleep)
   if (!recovered || Date.now() - completedAt < 120000) announce(completedMode, skipped);
@@ -675,7 +738,11 @@ function attachGlobalListeners() {
   if (globalListenersAttached) return;
   globalListenersAttached = true;
 
+  pullLive();
+  setInterval(function () { if (document.visibilityState === "visible") pullLive(); }, 15000);
+
   function refreshAfterAway() {
+    pullLive();
     var changed = syncTimer();
     if (changed) saveState();
     updateView();

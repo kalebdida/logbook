@@ -479,3 +479,21 @@ def test_recall_reads_only_your_own_logbook(server):
     assert "missed the bus" in theirs and "robotics" not in theirs.split("MENTION")[-1].split("\n", 1)[-1]
     assert "won the robotics" not in theirs
     assert c.post("/ai/recall", json={"question": "x"}).status_code == 401
+
+
+def test_the_running_focus_timer_is_shared_by_your_devices_only(server):
+    c = server
+    admin = admin_token(c)
+    friend = make_user(c, admin, "beti")
+    assert c.get("/pomodoro/live", headers=h(admin)).json() == {"timer": None, "rev": 0}
+    t = {"id": "abc", "mode": "focus", "status": "running", "durationMs": 1500000, "remainingMs": 1500000, "startedAt": 1, "endsAt": 2}
+    r = c.put("/pomodoro/live", json={"timer": t}, headers=h(admin)).json()
+    assert r["rev"] == 1 and r["timer"]["id"] == "abc"
+    assert c.get("/pomodoro/live", headers=h(admin)).json()["timer"]["status"] == "running"   # another device sees it
+    assert c.get("/pomodoro/live", headers=h(friend)).json()["timer"] is None                 # a friend never does
+    # two devices report the same block finished: only one counts it
+    assert c.post("/pomodoro/live/finish", json={"id": "abc"}, headers=h(admin)).json() == {"first": True}
+    assert c.post("/pomodoro/live/finish", json={"id": "abc"}, headers=h(admin)).json() == {"first": False}
+    assert c.post("/pomodoro/live/finish", json={"id": "abc"}, headers=h(friend)).json() == {"first": True}
+    assert c.post("/pomodoro/live/finish", json={"id": "next"}, headers=h(admin)).json() == {"first": True}
+    assert c.get("/pomodoro/live").status_code == 401

@@ -11,6 +11,7 @@ from app.models.activity import Activity
 from app.models.day_record import DayRecord
 from app.models.deadline import Deadline
 from app.models.entry import Entry
+from app.models.focus_live import FocusLive
 from app.models.goal import Goal
 from app.models.habit import Habit, HabitLog
 from app.models.pomodoro_day import PomodoroDay
@@ -23,4 +24,4 @@ from app.models.task import Task
 from app.models.telegram import AppSetting, CompanionMessage, CompanionNotes, TelegramLink
 from app.models.user import Invite, User
 
-__all__ = ["Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer", "AppSetting", "TelegramLink", "CompanionMessage", "CompanionNotes", "Profile", "SleepLog", "Photo", "Letter"]
+__all__ = ["FocusLive", "Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer", "AppSetting", "TelegramLink", "CompanionMessage", "CompanionNotes", "Profile", "SleepLog", "Photo", "Letter"]
