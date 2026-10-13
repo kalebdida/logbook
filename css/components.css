@@ -2620,12 +2620,13 @@ body.is-dimming::after {
   padding: 30px 24px 22px;
   border: 1px solid rgb(var(--ink-rgb) / 0.14);
   border-radius: calc(var(--r-xl) + 4px);
-  background: linear-gradient(180deg, rgb(var(--surface-rgb) / 0.82), rgb(var(--surface-rgb) / 0.68));
+  /* solid, no backdrop blur: Android's web view can lose a blurred layer's
+     contents when the fingerprint prompt covers the app and goes away */
+  background: linear-gradient(180deg, rgb(var(--surface-rgb) / 0.97), rgb(var(--surface-rgb) / 0.93));
   box-shadow: 0 50px 100px -40px rgb(var(--shade-rgb) / 0.9);
-  -webkit-backdrop-filter: blur(24px);
-  backdrop-filter: blur(24px);
   animation: lockIn 0.5s var(--ease-out) both;
 }
+.pin-card.is-repaint { transform: translateZ(0); }
 .pin-card.is-wrong { animation: shake 0.42s var(--ease-out); }
 .pin-cat { position: absolute; left: 50%; bottom: 100%; width: 0; height: 0; }
 .pin-cat .mascot--lock { bottom: calc(var(--m-w) * -0.085); }
