@@ -53,7 +53,7 @@ export async function enableBiometric() {
   var p = native();
   try {
     if (p) {
-      await p.internalAuthenticate({ reason: "Use your fingerprint to unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Cancel", allowDeviceCredential: false });
+      await p.internalAuthenticate({ reason: "Use your fingerprint to unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Cancel", allowDeviceCredential: false, androidConfirmationRequired: false });
       localStorage.setItem(KEY, JSON.stringify({ kind: "native" }));
       return true;
     }
@@ -75,16 +75,20 @@ export async function enableBiometric() {
   }
 }
 
-/* Ask for the fingerprint. Resolves true only when the device says it's you. */
+/* Ask for the fingerprint. Resolves { ok, why }:
+   ok true only when the device says it's you; otherwise why is
+   "cancel" (dismissed, or Android cancelled it: the app was switched away),
+   "lockout" (too many tries for now), or "fail". */
 export async function verifyBiometric() {
   var s = saved();
-  if (!s) return false;
+  if (!s) return { ok: false, why: "fail" };
   try {
     if (s.kind === "native") {
       var p = native();
-      if (!p) return false;
-      await p.internalAuthenticate({ reason: "Unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Use PIN", allowDeviceCredential: false });
-      return true;
+      if (!p) return { ok: false, why: "fail" };
+      await p.internalAuthenticate({ reason: "Unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you",
+        cancelTitle: "Use PIN", allowDeviceCredential: false, androidConfirmationRequired: false });
+      return { ok: true };
     }
     var got = await navigator.credentials.get({
       publicKey: {
@@ -94,8 +98,11 @@ export async function verifyBiometric() {
         timeout: 60000
       }
     });
-    return Boolean(got);
+    return { ok: Boolean(got), why: got ? undefined : "cancel" };
   } catch (e) {
-    return false;     // cancelled, not recognised, or too many tries: the PIN is still there
+    var code = String((e && (e.code || e.name)) || "");
+    if (/lockout/i.test(code)) return { ok: false, why: "lockout" };
+    if (/cancel|NotAllowedError|AbortError/i.test(code)) return { ok: false, why: "cancel" };
+    return { ok: false, why: "fail" };     // the PIN is still there either way
   }
 }

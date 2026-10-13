@@ -118,19 +118,42 @@ export function pinPad(mode) {
       } else wrong("That's not it");
     }
     var asking = false;
-    async function finger() {
-      if (asking || mode !== "unlock") return;
+    /* Ask for the fingerprint only while Logbook is really on screen: asking
+       while the app is still opening or being switched away makes Android
+       cancel the prompt (and can leave its window half-drawn). */
+    function onScreen() { return document.visibilityState === "visible" && document.hasFocus(); }
+    async function finger(auto) {
+      if (asking || mode !== "unlock" || !el.isConnected) return;
+      if (!onScreen()) { if (!auto) hint.textContent = "Enter your PIN"; return waitToAsk(); }
       asking = true;
-      var ok = await verifyBiometric();
+      var r = await verifyBiometric();
       asking = false;
       if (!el.isConnected) return;
-      if (ok) {
+      if (r.ok) {
         if (cat) cat.react("cheer");
         setTimeout(function () { done(true); }, 350);
+      } else if (r.why === "lockout") hint.textContent = "Too many tries. Type your PIN.";
+      else if (r.why === "cancel") {
+        hint.textContent = "Enter your PIN";
+        if (!onScreen()) waitToAsk();          // cancelled because the app was switched away: ask again on return
       } else hint.textContent = "Not recognised. Try again or type your PIN.";
     }
+    var waiting = false;
+    function waitToAsk() {
+      if (waiting) return;
+      waiting = true;
+      function back() {
+        if (!onScreen()) return;
+        waiting = false;
+        document.removeEventListener("visibilitychange", back);
+        window.removeEventListener("focus", back);
+        setTimeout(function () { finger(true); }, 400);
+      }
+      document.addEventListener("visibilitychange", back);
+      window.addEventListener("focus", back);
+    }
     function press(k) {
-      if (k === "finger") return finger();
+      if (k === "finger") return finger(false);
       if (k === "back") { typed = typed.slice(0, -1); return paint(); }
       if (k === "cancel") return done(mode === "set" ? null : false);
       if (k === "forgot") {
@@ -171,7 +194,7 @@ export function pinPad(mode) {
       el.querySelector(".pin-card").appendChild(ok);
     }
     paint();
-    if (mode === "unlock" && hasBiometric()) setTimeout(finger, 450);     // ask right away, the PIN pad stays underneath
+    if (mode === "unlock" && hasBiometric()) setTimeout(function () { finger(true); }, 700);     // ask once it's on screen; the PIN pad stays underneath
   });
   return open;
 }
