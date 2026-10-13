@@ -619,6 +619,10 @@ function loadSpotify(entity, autoplay) {
   if (!host) return;
   spotify.entity = entity;
   save({ spotify: Object.assign({}, settings.spotify, { current: entity.url }), source: "spotify" });
+  var full = document.querySelector("[data-spotify-open]");
+  if (full) full.href = entity.url;      // the Spotify app opens it (App Links), full songs there
+  var acts = document.querySelector(".spotify-actions");
+  if (acts) acts.hidden = false;
   var height = spotifyHeight(entity.type);
   if (spotify.frame && spotify.frame.isConnected && spotify.height === height) {
     tell({ type: "load", uri: entity.uri, autoplay: Boolean(autoplay) });
@@ -877,9 +881,11 @@ function renderSpotify() {
         }).join("") + "</div>"
       : "") +
     '<div id="spotifyEmbed" class="spotify-embed"></div>' +
-    '<div class="settings-actions spotify-actions"' + (settings.spotify.current ? "" : " hidden") + '><button type="button" class="tool-btn" data-music="save-preset">Save to my list</button>' +
-      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">Find playlists on Spotify ' + icon("external-link") + "</a></div>" +
-    '<p class="setting-hint">Full songs if you\'re logged in to Spotify in this browser; otherwise Spotify plays 30-second previews. The player loads from Spotify, so it needs internet.</p>';
+    '<div class="settings-actions spotify-actions"' + (settings.spotify.current ? "" : " hidden") + '>' +
+      '<a class="tool-btn spotify-full" data-spotify-open href="' + escapeHtml((parseSpotify(settings.spotify.current) || {}).url || "https://open.spotify.com") + '" target="_blank" rel="noopener">' + icon("play") + "<span>Full songs in Spotify</span></a>" +
+      '<button type="button" class="tool-btn" data-music="save-preset">Save to my list</button>' +
+      '<a class="link-btn" href="https://open.spotify.com/search/lofi%20focus" target="_blank" rel="noopener">Find playlists ' + icon("external-link") + "</a></div>" +
+    '<p class="setting-hint">Spotify only plays 30-second previews inside other apps. "Full songs in Spotify" opens this in the Spotify app, where it plays in full; your focus timer keeps running here.</p>';
   // the player only loads when you open this tab or press load: nothing contacts Spotify before that
   if (parseSpotify(settings.spotify.current) && settings.tab === "spotify") {
     document.getElementById("spotifyEmbed").innerHTML = '<button type="button" class="tool-btn" data-music="spotify-resume">Load the Spotify player</button>';
