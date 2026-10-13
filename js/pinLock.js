@@ -144,10 +144,17 @@ export function pinPad(mode) {
     // coming back from the fingerprint prompt or another app: make the web
     // view draw the card again (it sometimes comes back blank)
     function repaint() {
-      var card = el.querySelector(".pin-card");
-      if (!card || !el.isConnected) return;
-      card.classList.add("is-repaint");
-      requestAnimationFrame(function () { requestAnimationFrame(function () { card.classList.remove("is-repaint"); }); });
+      if (!el.isConnected) return;
+      // a full relayout makes the web view draw every part of the screen
+      // again (a lighter nudge left parts of the card blank on Android)
+      [0, 120, 400, 1000].forEach(function (ms) {
+        setTimeout(function () {
+          if (!el.isConnected || document.visibilityState !== "visible") return;
+          el.style.display = "none";
+          void el.offsetHeight;
+          el.style.display = "";
+        }, ms);
+      });
     }
     document.addEventListener("visibilitychange", repaint);
     window.addEventListener("focus", repaint);

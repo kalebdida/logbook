@@ -2608,7 +2608,7 @@ body.is-dimming::after {
 }
 .pin-screen.is-leaving { animation: lockOut 0.38s ease both; }
 .pin-scene { position: fixed; inset: 0; pointer-events: none; }
-.pin-scene .scene { width: 100%; height: 100%; filter: blur(2px); }
+.pin-scene .scene { width: 100%; height: 100%; }
 .pin-card {
   position: relative;
   z-index: 1;
@@ -2626,7 +2626,6 @@ body.is-dimming::after {
   box-shadow: 0 50px 100px -40px rgb(var(--shade-rgb) / 0.9);
   animation: lockIn 0.5s var(--ease-out) both;
 }
-.pin-card.is-repaint { transform: translateZ(0); }
 .pin-card.is-wrong { animation: shake 0.42s var(--ease-out); }
 .pin-cat { position: absolute; left: 50%; bottom: 100%; width: 0; height: 0; }
 .pin-cat .mascot--lock { bottom: calc(var(--m-w) * -0.085); }
