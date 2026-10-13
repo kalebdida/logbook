@@ -3,8 +3,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app import ai
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy.orm import Session
+
+from app import ai, recall
 from app.auth import current_user
+from app.database import get_db
 from app.config import settings
 from app.models.user import User
 
@@ -49,3 +54,17 @@ async def ai_chat(body: ChatRequest, user: User = Depends(current_user)):
         ai.log.warning("logbook: AI chat failed (%s, %s): %s", ai.provider_name(), ai.model_name(), str(exc)[:300])
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return {"text": text, "model": ai.model_name()}
+
+
+class RecallRequest(BaseModel):
+    question: str = Field("", max_length=4000)
+    share_text: bool = True
+    tz_minutes: int = Field(0, ge=-14 * 60, le=14 * 60)    # local time = UTC + this
+
+
+@router.post("/recall")
+def ai_recall(body: RecallRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """What the companion should know for this question, from the whole
+    logbook since the first day (see app/recall.py). This account's rows only."""
+    today = (datetime.now(timezone.utc) + timedelta(minutes=body.tz_minutes)).date()
+    return {"context": recall.build(db, user.id, today, body.tz_minutes, body.question, body.share_text)}

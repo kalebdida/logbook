@@ -27,7 +27,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy.orm import Session
 
-from app import ai, verses
+from app import ai, recall, verses
 from app.config import settings
 from app.database import SessionLocal
 from app.models import (Activity, AppSetting, CompanionMessage, CompanionNotes, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
@@ -872,8 +872,13 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
         "[remember: one short fact in third person]. One tag per fact, only new facts, never things already in the notes. "
         "If something in the notes stops being true, add [forget: a few words from that line] and, if needed, [remember: the new fact]. "
         "Don't save small talk or moods that pass. The tags are hidden from them.\n\n"
+        "Their whole logbook is below, from the day they started: a month-by-month view, the last two weeks, this time in "
+        "earlier years, and whatever they asked about. When they ask about the past ('what was I doing last October', "
+        "'what did I write a year ago'), answer from it with dates, and quote their own words briefly when it helps. "
+        "If something isn't in it, say you can't find it; never make up a day or an entry.\n\n"
         "What you remember about them:\n" + (notes or "(nothing yet: you're just getting to know them)") + "\n\n"
-        + brief_for_ai(db, user, link.tz_minutes)
+        + brief_for_ai(db, user, link.tz_minutes) + "\n\n"
+        + recall.build(db, user.id, local_today(link.tz_minutes), link.tz_minutes, text or file_name, notes=False)
     )
     try:
         reply = await ai.chat(turns, system, 2400 if file_text else 1500, search=True)

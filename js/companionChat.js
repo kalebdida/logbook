@@ -5,7 +5,8 @@
 import { aiStatus, aiChat, getAIConfig } from './ai.js';
 import { icon } from './icons.js';
 import { getEntries } from './journal.js';
-import { apiListDaysAsMap } from './api.js';
+import { apiListDaysAsMap, apiAIRecall } from './api.js';
+import { isDevice } from './connection.js';
 import { getGoals } from './goals.js';
 import { getPomodoroHistory } from './pomodoro.js';
 import { habitSummary } from './habits.js';
@@ -127,6 +128,27 @@ export async function buildContext() {
   return lines.join("\n");
 }
 
+/* With a server: the whole logbook since the first day, picked for this
+   question (backend app/recall.py), plus today's habits from here. On this
+   device only: the two-week summary built in the browser. */
+async function contextFor(question) {
+  var shareText = getAIConfig().shareText;
+  if (!isDevice()) {
+    try {
+      var ctx = await apiAIRecall(question, shareText);
+      var habits = { total: 0 };
+      try { habits = habitSummary(); } catch (err) {}
+      if (habits && habits.total) {
+        ctx += "\n\nHABITS (" + habits.doneToday + "/" + habits.total + " done today):\n" + habits.habits.map(function (h) {
+          return "- " + (shareText ? h.name : "habit") + ": " + (h.doneToday ? "done today" : "not yet today") + ", streak " + h.streak + "d";
+        }).join("\n");
+      }
+      return "today is " + dateKey(new Date()) + ".\n" + ctx;
+    } catch (e) { /* an older server: fall back to the summary below */ }
+  }
+  return buildContext();
+}
+
 function systemPrompt(context) {
   return (
     "You are the companion inside Logbook, the private journal and personal OS of " + displayName() + ". " +
@@ -134,6 +156,7 @@ function systemPrompt(context) {
     "Talk like their close friend, not an assistant: warm, sweet, honest and human, a little playful. Cheer their wins specifically, " +
     "be gentle when a day was rough, and give real advice when they ask, kindly and without lecturing. Sometimes end with one easy question back. " +
     "Keep answers short (under 150 words) unless asked for more. Plain prose, or a few short bullets for plans. No therapy clichés, no 'as an AI'. " +
+    "The data below can reach back to their very first day: when they ask about the past, answer with dates and quote their own words briefly when it helps. " +
     "Only use the data below. Never invent days, entries, or numbers. If the data doesn't answer something, say so. " +
     "If they seem to be struggling a lot, be kind and suggest talking to someone they trust.\n\n" +
     "THEIR DATA:\n" + context
@@ -155,7 +178,7 @@ function format(text) {
 
 function messagesHtml() {
   if (!history.length) {
-    return '<p class="chat-empty">Ask anything about your days. It reads a summary of the last two weeks.</p>';
+    return '<p class="chat-empty">Ask anything about your days. ' + (isDevice() ? "It reads a summary of the last two weeks." : "It knows your whole logbook, from your first day.") + '</p>';
   }
   return history.map(function (m, i) {
     return '<div class="chat-msg chat-msg--' + m.role + (m.error ? " chat-msg--error" : "") + '">' +
@@ -189,8 +212,8 @@ async function send(el, text) {
   history.push({ role: "user", content: text });
   draw(el, true);
   try {
-    var context = await buildContext();
-    var reply = await aiChat(outgoing(), systemPrompt(context), 700);
+    var context = await contextFor(text);
+    var reply = await aiChat(outgoing(), systemPrompt(context), 1200);
     history.push({ role: "assistant", content: String(reply || "").trim() || "(No answer)" });
   } catch (e) {
     history.push({ role: "assistant", content: "Couldn't reach the AI: " + (e.detail || e.message), error: true });

@@ -234,6 +234,9 @@ route("GET", "/health", function () {
 route("GET", "/auth/status", function () { return { required: false, authenticated: true, accounts: false, user: null }; });
 route("POST", "/auth/login", function () { return { token: "", expires_at: null, required: false }; });
 
+/* the companion's recall lives on a server; here the app builds its own summary */
+route("POST", "/ai/recall", function () { fail(404, "Recall needs a server"); });
+
 /* entries */
 route("POST", "/entries", async function (p, q, body) {
   var mood = oneOf(body.mood, MOODS, "mood");

@@ -464,3 +464,18 @@ def test_start_fresh_wipes_only_my_data(server):
     assert c.get("/habits/", headers=h(a)).json() == []
     assert len(c.get("/entries/", headers=h(b)).json()) == 1
     assert c.get("/auth/me", headers=h(a)).status_code == 200
+
+
+def test_recall_reads_only_your_own_logbook(server):
+    c = server
+    admin = admin_token(c)
+    friend = make_user(c, admin, "amen")
+    when = (datetime.now(timezone.utc) - timedelta(days=370)).isoformat()
+    c.post("/entries/", json={"mood": "good", "text": "kal secret: won the robotics final", "occurred_at": when}, headers=h(admin))
+    c.post("/entries/", json={"mood": "rough", "text": "amen secret: missed the bus", "occurred_at": when}, headers=h(friend))
+    mine = c.post("/ai/recall", json={"question": "what happened a year ago? robotics"}, headers=h(admin)).json()["context"]
+    theirs = c.post("/ai/recall", json={"question": "what happened a year ago? robotics bus"}, headers=h(friend)).json()["context"]
+    assert "robotics final" in mine and "missed the bus" not in mine
+    assert "missed the bus" in theirs and "robotics" not in theirs.split("MENTION")[-1].split("\n", 1)[-1]
+    assert "won the robotics" not in theirs
+    assert c.post("/ai/recall", json={"question": "x"}).status_code == 401

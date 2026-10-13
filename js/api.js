@@ -482,6 +482,14 @@ export async function apiAIChat(messages, system, maxTokens) {
   return request("/ai/chat", Object.assign({ method: "POST" }, jsonBody({ messages: messages, system: system, max_tokens: maxTokens || 900 })));
 }
 
+/* the companion's view of the whole logbook for one question (server only) */
+export async function apiAIRecall(question, shareText) {
+  var body = await request("/ai/recall", Object.assign({ method: "POST" }, jsonBody({
+    question: question || "", share_text: shareText !== false, tz_minutes: -new Date().getTimezoneOffset()
+  })));
+  return body.context || "";
+}
+
 // ---------- deadlines ----------
 
 function deadlineFromApi(d) {
