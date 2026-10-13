@@ -18,14 +18,19 @@ var KEY = "logbook-bio";
 function native() {
   var C = window.Capacitor;
   if (!C || !C.isNativePlatform || !C.isNativePlatform()) return null;
-  return (C.Plugins && C.Plugins.BiometricAuthNative) || null;   // @aparajita/capacitor-biometric-auth's native side
+  return (C.Plugins && C.Plugins.LogbookFingerprint) || null;   // android-extras/java/FingerprintBridge.java
 }
 
 function saved() {
   try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; }
 }
 
-export function hasBiometric() { return Boolean(saved()); }
+/* On, and this copy of the app can actually do it (an older Android app
+   without the fingerprint module can't, so it just shows the PIN pad). */
+export function hasBiometric() {
+  var s = saved();
+  return Boolean(s) && (s.kind !== "native" || Boolean(native()));
+}
 
 export function clearBiometric() {
   try { localStorage.removeItem(KEY); } catch (e) {}
@@ -35,7 +40,7 @@ export function clearBiometric() {
 export async function biometricAvailable() {
   var p = native();
   if (p) {
-    try { var r = await p.checkBiometry(); return Boolean(r && r.isAvailable); } catch (e) { return false; }
+    try { var r = await p.check(); return Boolean(r && r.available); } catch (e) { return false; }
   }
   try {
     if (!window.PublicKeyCredential || !window.isSecureContext) return false;
@@ -53,7 +58,7 @@ export async function enableBiometric() {
   var p = native();
   try {
     if (p) {
-      await p.internalAuthenticate({ reason: "Use your fingerprint to unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you", cancelTitle: "Cancel", allowDeviceCredential: false, androidConfirmationRequired: false });
+      await p.authenticate({ title: "Unlock Logbook with your fingerprint", subtitle: "Confirm it's you", cancel: "Cancel" });
       localStorage.setItem(KEY, JSON.stringify({ kind: "native" }));
       return true;
     }
@@ -86,8 +91,7 @@ export async function verifyBiometric() {
     if (s.kind === "native") {
       var p = native();
       if (!p) return { ok: false, why: "fail" };
-      await p.internalAuthenticate({ reason: "Unlock Logbook", androidTitle: "Logbook", androidSubtitle: "Confirm it's you",
-        cancelTitle: "Use PIN", allowDeviceCredential: false, androidConfirmationRequired: false });
+      await p.authenticate({ title: "Unlock Logbook", cancel: "Use PIN" });
       return { ok: true };
     }
     var got = await navigator.credentials.get({

@@ -42,7 +42,13 @@ def main() -> None:
     if ".LogbookWidget" not in text:
         text = text.replace("</application>", RECEIVER + "    </application>", 1)
         manifest.write_text(text)
-    print(f"widget added to {app_id}")
+    # FingerprintBridge.java uses Android's biometric library
+    gradle = ROOT / "android" / "app" / "build.gradle"
+    g = gradle.read_text()
+    if "androidx.biometric:biometric" not in g:
+        g = g.replace("dependencies {", "dependencies {\n    implementation 'androidx.biometric:biometric:1.1.0'", 1)
+        gradle.write_text(g)
+    print(f"widget and fingerprint added to {app_id}")
 
 
 if __name__ == "__main__":
