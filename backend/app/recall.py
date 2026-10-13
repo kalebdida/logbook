@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (Activity, CompanionNotes, DayRecord, Entry, Goal, PomodoroDay, SleepLog, Task)
 
-LIMIT = 45_000          # characters of context at most (about 11k tokens)
+LIMIT = 24_000          # characters of context at most (about 6k tokens): enough history, quick replies
 MONTHS = {m.lower(): i for i, m in enumerate(calendar.month_name) if m}
 MONTHS.update({m.lower(): i for i, m in enumerate(calendar.month_abbr) if m})
 STOP = set("""the and for that this with what when where which who how why was were are have has had did does you your
@@ -206,9 +206,14 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
             more.append(f"  entry ({e.mood}): {clip(e.text, 420)}")
         return line + ("\n" + "\n".join(more) if more else "")
 
-    out: list[str] = []
+    # sections keep their order on the page; when it's too long, the least
+    # useful for this question are shortened first (lower number = kept whole)
+    out: list[tuple[int, str]] = []
+
+    def add(keep: int, section: str):
+        out.append((keep, section))
     span = (today - first).days
-    out.append(f"They started using Logbook on {first.isoformat()} ({span} days ago). "
+    add(0, f"They started using Logbook on {first.isoformat()} ({span} days ago). "
                f"In all: {len(entries)} journal entries, {sum(t.completed for t in tasks)} tasks done, "
                f"{_minutes(sum(p.focus_ms or 0 for p in focus.values()))} of focus.")
 
@@ -238,11 +243,11 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
         if m["areas"]:
             parts.append("time went to " + ", ".join(k for k, _ in m["areas"].most_common(3)))
         lines.append(f"{key}: " + "; ".join(parts))
-    out.append("MONTH BY MONTH SINCE THE START:\n" + "\n".join(lines))
+    add(5, "MONTH BY MONTH SINCE THE START:\n" + "\n".join(lines))
 
     # 2. the last 14 days
     recent = [today - timedelta(days=i) for i in range(13, -1, -1)]
-    out.append("THE LAST 14 DAYS:\n" + "\n".join(day_text(d) for d in recent if d in all_days or d == today))
+    add(4, "THE LAST 14 DAYS:\n" + "\n".join(day_text(d) for d in recent if d in all_days or d == today))
 
     # 3. this day in earlier years
     back = []
@@ -256,7 +261,7 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
         if found:
             back.append(f"-- around {same.isoformat()} ({years} year{'s' if years > 1 else ''} ago) --\n" + "\n".join(day_text(d) for d in found))
     if back:
-        out.append("THIS TIME IN EARLIER YEARS:\n" + "\n".join(back))
+        add(6, "THIS TIME IN EARLIER YEARS:\n" + "\n".join(back))
 
     # 4. what the question points at
     shown = set(recent)
@@ -265,9 +270,9 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
         found = [d for d in ds if d in all_days and d not in shown]
         shown.update(found)
         if found:
-            out.append(f"WHAT THEY ASKED ABOUT ({label}, {a.isoformat()} to {b.isoformat()}):\n" + "\n".join(day_text(d) for d in found[:40]))
+            add(1, f"WHAT THEY ASKED ABOUT ({label}, {a.isoformat()} to {b.isoformat()}):\n" + "\n".join(day_text(d) for d in found[:40]))
         else:
-            out.append(f"WHAT THEY ASKED ABOUT ({label}, {a.isoformat()} to {b.isoformat()}): nothing logged in that period.")
+            add(1, f"WHAT THEY ASKED ABOUT ({label}, {a.isoformat()} to {b.isoformat()}): nothing logged in that period.")
 
     # 5. older days that share words with the question
     if share_text:
@@ -287,20 +292,34 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
                     scored.append((score, d))
             scored.sort(key=lambda x: (-x[0], x[1]))
             if scored:
-                out.append(f"OLDER DAYS THAT MENTION {', '.join(words).upper()}:\n" + "\n".join(day_text(d) for _, d in scored[:10]))
+                add(2, f"OLDER DAYS THAT MENTION {', '.join(words).upper()}:\n" + "\n".join(day_text(d) for _, d in scored[:10]))
 
     # 6. goals and what the companion has learned
     if goals:
         if share_text:
-            out.append("GOALS:\n" + "\n".join(f"- {clip(g.title, 80)} ({g.category}, {'done' if g.completed else str(g.progress) + '%'}"
+            add(3, "GOALS:\n" + "\n".join(f"- {clip(g.title, 80)} ({g.category}, {'done' if g.completed else str(g.progress) + '%'}"
                                                 + (f", target {g.target_date.isoformat()}" if g.target_date else "") + ")" for g in goals[:20]))
         else:
-            out.append(f"GOALS: {len(goals)} ({sum(g.completed for g in goals)} done)")
+            add(3, f"GOALS: {len(goals)} ({sum(g.completed for g in goals)} done)")
     learned = db.get(CompanionNotes, uid) if notes else None
     if learned and learned.notes.strip() and share_text:
-        out.append("WHAT THE COMPANION HAS LEARNED ABOUT THEM (from chats):\n" + learned.notes.strip())
+        add(1, "WHAT THE COMPANION HAS LEARNED ABOUT THEM (from chats):\n" + learned.notes.strip())
 
-    text = "\n\n".join(out)
-    if len(text) > LIMIT:
-        text = text[:LIMIT] + "\n…(cut for length)"
-    return text
+    return fit(out)
+
+
+def fit(sections: list[tuple[int, str]]) -> str:
+    """Join the sections, shortening the least important first until it fits."""
+    texts = [t for _, t in sections]
+    total = lambda: sum(len(t) for t in texts) + 2 * len(texts)
+    for keep in sorted({k for k, _ in sections}, reverse=True):
+        if total() <= LIMIT or keep <= 1:
+            break
+        for i, (k, _) in enumerate(sections):
+            over = total() - LIMIT
+            if k == keep and over > 0:
+                room = max(200, len(texts[i]) - over)
+                if room < len(texts[i]):
+                    texts[i] = texts[i][:room].rsplit("\n", 1)[0] + "\n…(more not shown)"
+    text = "\n\n".join(texts)
+    return text if len(text) <= LIMIT + 4000 else text[:LIMIT + 4000] + "\n…(cut for length)"

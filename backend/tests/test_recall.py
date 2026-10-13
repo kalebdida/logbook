@@ -54,3 +54,12 @@ def test_build_reaches_back_to_the_first_day(client):
 
         assert "applying to MIT" not in recall.build(db, 1, TODAY, 180, "hi", notes=False)
         assert recall.build(db, 2, TODAY, 180, "anything") == "They haven't logged anything yet."
+
+
+def test_fit_trims_the_least_useful_first():
+    sections = [(0, "intro"), (5, "MONTHS\n" + "m line\n" * 3000), (4, "LAST 14\n" + "d line\n" * 3000),
+                (1, "ASKED\n" + "asked line\n" * 400), (6, "YEARS\n" + "y line\n" * 3000)]
+    text = recall.fit(sections)
+    assert len(text) <= recall.LIMIT + 4000
+    assert text.count("asked line") == 400            # what they asked about stays whole
+    assert "intro" in text and "MONTHS" in text and "YEARS" in text

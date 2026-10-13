@@ -76,6 +76,7 @@ def model_name() -> str:
 # Google's free plan is often "busy" (503) and refuses web search (429).
 # Busy errors are retried, then a sister model is tried; a refused search is
 # skipped for a few hours instead of costing every message an extra call.
+gemini_thinking_low = True       # switched off if a model refuses the setting
 GEMINI_BACKUPS = ["gemini-3.1-flash-lite", "gemini-3-flash-preview"]
 SEARCH_PAUSE_S = 6 * 3600
 search_paused_until = 0.0
@@ -117,6 +118,10 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
         try:
             return await _chat(messages, system, max_tokens, transport, False, model)
         except AIError as exc:
+            global gemini_thinking_low
+            if gemini_thinking_low and _status(exc) == 400 and "think" in str(exc).lower():
+                gemini_thinking_low = False
+                return await _chat(messages, system, max_tokens, transport, False, model)
             last = exc
             if model and _status(exc) in (400, 404):
                 continue                    # that backup model isn't available to this key
@@ -141,7 +146,7 @@ def _sources(found: list[tuple[str, str]]) -> str:
 async def _chat(messages: list[dict], system: str, max_tokens: int, transport, search: bool, model: str = "") -> str:
     provider = provider_name()
     model = model or model_name()
-    async with httpx.AsyncClient(timeout=90, transport=transport) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=10), transport=transport) as client:
         try:
             if provider == "anthropic":
                 response = await client.post(
@@ -210,6 +215,9 @@ def gemini_body(messages: list[dict], system: str, max_tokens: int, search: bool
         body["systemInstruction"] = {"parts": [{"text": system}]}
     if search:
         body["tools"] = [{"google_search": {}}]
+    if gemini_thinking_low:
+        # a friend's reply doesn't need long reasoning: thinking was most of a ~1 minute wait
+        body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
     return body
 
 
