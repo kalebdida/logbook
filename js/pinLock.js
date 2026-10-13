@@ -87,8 +87,6 @@ export function pinPad(mode) {
       el.classList.add("is-leaving");
       document.body.classList.remove("has-pin");
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", repaint);
-      window.removeEventListener("focus", repaint);
       setTimeout(function () { el.remove(); }, 380);
       open = null;
       resolve(value);
@@ -131,7 +129,6 @@ export function pinPad(mode) {
       var r = await verifyBiometric();
       asking = false;
       if (!el.isConnected) return;
-      repaint();
       if (r.ok) {
         if (cat) cat.react("cheer");
         setTimeout(function () { done(true); }, 350);
@@ -141,23 +138,6 @@ export function pinPad(mode) {
         if (!onScreen()) waitToAsk();          // cancelled because the app was switched away: ask again on return
       } else hint.textContent = "Not recognised. Try again or type your PIN.";
     }
-    // coming back from the fingerprint prompt or another app: make the web
-    // view draw the card again (it sometimes comes back blank)
-    function repaint() {
-      if (!el.isConnected) return;
-      // a full relayout makes the web view draw every part of the screen
-      // again (a lighter nudge left parts of the card blank on Android)
-      [0, 120, 400, 1000].forEach(function (ms) {
-        setTimeout(function () {
-          if (!el.isConnected || document.visibilityState !== "visible") return;
-          el.style.display = "none";
-          void el.offsetHeight;
-          el.style.display = "";
-        }, ms);
-      });
-    }
-    document.addEventListener("visibilitychange", repaint);
-    window.addEventListener("focus", repaint);
     var waiting = false;
     function waitToAsk() {
       if (waiting) return;
