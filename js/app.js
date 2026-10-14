@@ -45,6 +45,7 @@ import { renderCompanion } from './companion.js';
 import { renderSettings, refreshDbStatus, refreshServerCards, refreshGifts } from './settings.js';
 import { initPalette } from './palette.js';
 import { startPickers } from './picker.js';
+import { startSettingsSync } from './settingsSync.js';
 import { checkBackend, startStatusWatch, onStatus } from './status.js';
 
 window.__logbookBooted = true;   // every module loaded: the boot watchdog in index.html stands down
@@ -180,6 +181,7 @@ async function init() {
   // remember what the server says for next time (accounts only)
   if (!isDevice() && getConnection().token) setCacheUser(getConnection().username || "");
   var online = await checkBackend();
+  if (online) safe("settings sync", startSettingsSync);     // theme, cards, timer lengths... follow the account
   if (fromCache) {
     // the server answered: draw again only if something changed meanwhile
     if (online) {

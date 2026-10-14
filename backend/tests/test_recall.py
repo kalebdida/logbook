@@ -63,3 +63,62 @@ def test_fit_trims_the_least_useful_first():
     assert len(text) <= recall.LIMIT + 4000
     assert text.count("asked line") == 400            # what they asked about stays whole
     assert "intro" in text and "MONTHS" in text and "YEARS" in text
+
+
+def test_photos_are_remembered_by_what_they_show(client):
+    from app.models import Photo
+    with SessionLocal() as db:
+        db.add(Photo(user_id=1, date=date(2025, 10, 11), mime="image/jpeg", data=b"x", thumb=b"x", caption="",
+                     seen="Sunset over the hills at Entoto, friends laughing by a car."))
+        db.add(Photo(user_id=1, date=date(2025, 6, 2), mime="image/jpeg", data=b"x", thumb=b"x", caption="graduation day", seen=""))
+        db.commit()
+        ctx = recall.build(db, 1, TODAY, 180, "what was that sunset photo?")
+        assert "Sunset over the hills at Entoto" in ctx                 # this time last year, and found by its words
+        assert "2025-10:" in ctx and "1 photo" in ctx
+        ctx = recall.build(db, 1, TODAY, 180, "my graduation")
+        assert 'their caption "graduation day"' in ctx
+        assert "graduation day" not in recall.build(db, 1, TODAY, 180, "graduation", share_text=False)
+
+
+def test_describe_image_asks_the_model_to_look(monkeypatch):
+    import asyncio
+    import json
+    import httpx
+    from app import ai
+    from app.config import settings
+    seen = {}
+
+    def gemini(request):
+        body = json.loads(request.content)
+        seen["parts"] = body["contents"][0]["parts"]
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "A cat asleep on a desk."}]}}]})
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "k")
+    out = asyncio.run(ai.describe_image(b"\xff\xd8jpeg", "image/jpeg", httpx.MockTransport(gemini)))
+    assert out == "A cat asleep on a desk."
+    assert seen["parts"][0]["inline_data"]["mime_type"] == "image/jpeg" and "photo" in seen["parts"][1]["text"]
+
+
+def test_photos_get_described_once(client, monkeypatch):
+    import asyncio
+    from app import ai, photo_notes
+    from app.config import settings
+    from app.models import Photo
+    calls = []
+
+    async def fake(data, mime, transport=None):
+        calls.append(mime)
+        return "Two friends at a cafe."
+    monkeypatch.setattr(ai, "describe_image", fake)
+    monkeypatch.setattr(settings, "ai_provider", "gemini")
+    monkeypatch.setattr(settings, "ai_api_key", "k")
+    with SessionLocal() as db:
+        for d in (date(2025, 1, 1), date(2025, 1, 2)):
+            db.add(Photo(user_id=1, date=d, mime="image/jpeg", data=b"x", thumb=b"x", caption="", seen=""))
+        db.commit()
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr(photo_notes.asyncio, "sleep", lambda s: real_sleep(0))
+    assert asyncio.run(photo_notes.describe_missing(1)) == 2
+    assert asyncio.run(photo_notes.describe_missing(1)) == 0 and len(calls) == 2
+    with SessionLocal() as db:
+        assert db.get(Photo, (1, date(2025, 1, 2))).seen == "Two friends at a cafe."

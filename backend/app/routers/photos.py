@@ -4,9 +4,10 @@ import base64
 import binascii
 from datetime import date as date_type
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import BackgroundTasks, APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
+from app import photo_notes
 from app.auth import current_user_id
 from app.database import get_db
 from app.models.photo import Photo
@@ -34,6 +35,7 @@ def save_photo(db: Session, uid: int, day: date_type, image: bytes, thumb: bytes
         row = Photo(user_id=uid, date=day, data=image, thumb=thumb)
         db.add(row)
     row.data, row.thumb, row.mime, row.caption = image, thumb, mime, caption.strip()[:300]
+    row.seen = ""       # a new picture: describe it again (app/photo_notes.py)
     db.commit()
     db.refresh(row)
     return row
@@ -51,8 +53,9 @@ def list_photos(start: date_type | None = None, end: date_type | None = None,
 
 
 @router.put("/{day}", response_model=PhotoInfo)
-def put_photo(day: date_type, body: PhotoUpload, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
+def put_photo(day: date_type, body: PhotoUpload, bg: BackgroundTasks, uid: int = Depends(current_user_id), db: Session = Depends(get_db)):
     row = save_photo(db, uid, day, decode(body.image, "photo"), decode(body.thumb, "thumbnail"), body.mime, body.caption)
+    bg.add_task(photo_notes.describe, uid, day)      # so the companion knows what it shows
     return PhotoInfo(date=row.date, caption=row.caption, created_at=row.created_at)
 
 

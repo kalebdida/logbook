@@ -425,6 +425,10 @@ route("POST", "/backup/wipe", async function (p, q, body) {
   await commit(ops);
   return { ok: true, removed: n };
 });
+/* one device: its settings are already here */
+route("GET", "/sync/settings", function () { return { data: {}, stamp: 0 }; });
+route("PUT", "/sync/settings", function (p, q, body) { return { data: (body || {}).data || {}, stamp: (body || {}).stamp || 0 }; });
+
 /* the running timer: one device here, so just kept in memory */
 var live = { timer: null, rev: 0, finished: "" };
 route("GET", "/pomodoro/live", function () { return { timer: live.timer, rev: live.rev }; });

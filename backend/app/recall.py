@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.models import (Activity, CompanionNotes, DayRecord, Entry, Goal, PomodoroDay, SleepLog, Task)
+from app.models import (Activity, CompanionNotes, DayRecord, Entry, Goal, Photo, PomodoroDay, SleepLog, Task)
 
 LIMIT = 24_000          # characters of context at most (about 6k tokens): enough history, quick replies
 MONTHS = {m.lower(): i for i, m in enumerate(calendar.month_name) if m}
@@ -150,6 +150,7 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
     acts = db.query(Activity).filter(Activity.user_id == uid).all()
     sleeps = {s.date: s for s in db.query(SleepLog).filter(SleepLog.user_id == uid).all()}
     goals = db.query(Goal).filter(Goal.user_id == uid).all()
+    photos = {d: (c or "", seen or "") for d, c, seen in db.query(Photo.date, Photo.caption, Photo.seen).filter(Photo.user_id == uid).all()}
 
     by_day: dict[date, list[Entry]] = defaultdict(list)
     for e in entries:
@@ -161,7 +162,7 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
     for a in acts:
         acts_by_day[a.day_date].append(a)
 
-    all_days = set(by_day) | {d for d, r in days.items()} | set(focus) | set(tasks_by_day) | set(acts_by_day)
+    all_days = set(by_day) | {d for d, r in days.items()} | set(focus) | set(tasks_by_day) | set(acts_by_day) | set(photos)
     all_days = {d for d in all_days if d and d <= today}
     if not all_days:
         return "They haven't logged anything yet."
@@ -186,6 +187,8 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
         s = sleeps.get(d)
         if s and s.bed_at and s.wake_at:
             bits.append("slept " + _minutes(int((s.wake_at - s.bed_at).total_seconds() * 1000)))
+        if d in photos:
+            bits.append("photo of the day")
         line = f"{d.isoformat()} ({d.strftime('%a')}): " + ("; ".join(bits) or "page only")
         if not share_text:
             return line
@@ -204,6 +207,11 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
                                                      + (f" #{a.activity_category}" if a.activity_category else "") for a in ac[:10]))
         for e in es[:6]:
             more.append(f"  entry ({e.mood}): {clip(e.text, 420)}")
+        if d in photos:
+            cap, seen = photos[d]
+            words = "; ".join(x for x in (f'their caption "{clip(cap, 160)}"' if cap else "",
+                                          f"it shows: {clip(seen, 300)}" if seen and seen != "-" else "") if x)
+            more.append("  photo of the day: " + (words or "(not described yet)"))
         return line + ("\n" + "\n".join(more) if more else "")
 
     # sections keep their order on the page; when it's too long, the least
@@ -228,6 +236,8 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
         m = months[t.day_date.strftime("%Y-%m")]
         m["tt"] += 1
         m["td"] += bool(t.completed)
+    for d in photos:
+        months[d.strftime("%Y-%m")]["photos"] = months[d.strftime("%Y-%m")].get("photos", 0) + 1
     for a in acts:
         if a.activity_category:
             months[a.day_date.strftime("%Y-%m")]["areas"][a.activity_category] += a.duration_minutes or 1
@@ -242,6 +252,8 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
             parts.append(f"tasks {m['td']}/{m['tt']}")
         if m["areas"]:
             parts.append("time went to " + ", ".join(k for k, _ in m["areas"].most_common(3)))
+        if m.get("photos"):
+            parts.append(f"{m['photos']} photo{'s' if m['photos'] > 1 else ''}")
         lines.append(f"{key}: " + "; ".join(parts))
     add(5, "MONTH BY MONTH SINCE THE START:\n" + "\n".join(lines))
 
@@ -286,6 +298,7 @@ def build(db: Session, uid: int, today: date, tz: int, question: str = "", share
                     hay += " " + " ".join(filter(None, (r.journal, r.morning_main_focus, r.reflection_what_happened,
                                                          r.reflection_wins, r.reflection_lessons, r.reflection_gratitude)))
                 hay += " " + " ".join(t.title for t in tasks_by_day.get(d, [])) + " " + " ".join(a.title for a in acts_by_day.get(d, []))
+                hay += " " + " ".join(photos.get(d, ("", "")))
                 hay = hay.lower()
                 score = sum(hay.count(w) for w in words)
                 if score:

@@ -27,7 +27,7 @@ from datetime import date, datetime, timedelta, timezone
 import httpx
 from sqlalchemy.orm import Session
 
-from app import ai, recall, verses
+from app import ai, photo_notes, recall, verses
 from app.config import settings
 from app.database import SessionLocal
 from app.models import (Activity, AppSetting, CompanionMessage, CompanionNotes, DayRecord, Deadline, Entry, Habit, HabitLog, PomodoroDay, Prayer, Profile,
@@ -345,6 +345,7 @@ async def handle_media(db: Session, user: User, link: TelegramLink, msg: dict) -
             return
         from app.routers.photos import save_photo
         save_photo(db, user.id, today, image, thumb, "image/jpeg", (msg.get("caption") or "")[:300])
+        photo_notes.later(photo_notes.describe(user.id, today))
         await send(chat, "📸 Saved as today's photo" + (f": <i>{esc(msg['caption'][:100])}</i>" if msg.get("caption") else "") +
                    ". It's on your Today page and the calendar.")
         return
@@ -832,6 +833,7 @@ async def companion_reply(db: Session, user: User, link: TelegramLink, text: str
         turns.pop()
     turns.append({"role": "user", "content": full})
     notes = get_notes(db, user.id)
+    photo_notes.later(photo_notes.describe_missing(user.id))      # older photos get described in the background
     name = pet_name(db, user.id)
     system = (
         f"Today is {local_now(link.tz_minutes).strftime('%A, %B %d, %Y, %H:%M')} (their local time). "

@@ -131,6 +131,39 @@ async def chat(messages: list[dict], system: str, max_tokens: int, transport: ht
     raise last
 
 
+DESCRIBE = ("Describe this photo for the owner's private journal in one or two plain sentences: what's in it, "
+            "where it seems to be, the mood or moment. Don't guess anyone's name. No preamble.")
+
+
+async def describe_image(data: bytes, mime: str, transport: httpx.AsyncBaseTransport | None = None) -> str:
+    """A short description of a photo (Gemini or Claude, which can see images).
+    Returns "" when the provider can't look at images."""
+    import base64
+    b64 = base64.b64encode(data).decode()
+    provider = provider_name()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=10), transport=transport) as client:
+        try:
+            if provider == "gemini":
+                body = {"contents": [{"role": "user", "parts": [{"inline_data": {"mime_type": mime or "image/jpeg", "data": b64}}, {"text": DESCRIBE}]}],
+                        "generationConfig": {"maxOutputTokens": GEMINI_MIN_TOKENS}}
+                if gemini_thinking_low:
+                    body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
+                res = await client.post(_gemini_base() + "/models/" + model_name() + ":generateContent",
+                                        headers={"x-goog-api-key": api_key(), "content-type": "application/json"}, json=body)
+                return gemini_text(_json(res)).strip()[:600]
+            if provider == "anthropic":
+                res = await client.post((settings.ai_base_url or ANTHROPIC_URL).rstrip("/") + "/v1/messages",
+                    headers={"x-api-key": settings.ai_api_key, "anthropic-version": ANTHROPIC_VERSION, "content-type": "application/json"},
+                    json={"model": model_name(), "max_tokens": 200, "messages": [{"role": "user", "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": mime or "image/jpeg", "data": b64}},
+                        {"type": "text", "text": DESCRIBE}]}]})
+                data_ = _json(res)
+                return "".join(b.get("text", "") for b in data_.get("content", []) if b.get("type") == "text").strip()[:600]
+        except httpx.HTTPError as exc:
+            raise AIError(f"Couldn't reach the AI provider: {exc.__class__.__name__}") from exc
+    return ""
+
+
 def _sources(found: list[tuple[str, str]]) -> str:
     seen, lines = set(), []
     for url, title in found:

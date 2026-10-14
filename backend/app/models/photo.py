@@ -3,7 +3,7 @@ and a 240px thumbnail), so a year of them stays small."""
 
 from datetime import date as date_type
 
-from sqlalchemy import Date, LargeBinary, String
+from sqlalchemy import Text, Date, LargeBinary, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -19,3 +19,4 @@ class Photo(Base, TimestampMixin):
     data: Mapped[bytes] = mapped_column(LargeBinary)
     thumb: Mapped[bytes] = mapped_column(LargeBinary)
     caption: Mapped[str] = mapped_column(String(300), default="")
+    seen: Mapped[str] = mapped_column(Text, default="")     # a short description of the photo, written once by the AI, for the companion

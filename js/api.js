@@ -348,6 +348,15 @@ export async function apiListPomodoroDays() {
   return request("/pomodoro/");
 }
 
+/* settings that follow the account (js/settingsSync.js) */
+export async function apiGetSyncedSettings() {
+  return request("/sync/settings");
+}
+
+export async function apiPutSyncedSettings(data, stamp) {
+  return request("/sync/settings", Object.assign({ method: "PUT" }, jsonBody({ data: data, stamp: stamp })));
+}
+
 /* the running timer, shared by every device on the account */
 export async function apiGetLiveTimer() {
   return request("/pomodoro/live");

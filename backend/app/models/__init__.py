@@ -23,5 +23,6 @@ from app.models.letter import Letter
 from app.models.task import Task
 from app.models.telegram import AppSetting, CompanionMessage, CompanionNotes, TelegramLink
 from app.models.user import Invite, User
+from app.models.user_settings import UserSettings
 
-__all__ = ["FocusLive", "Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer", "AppSetting", "TelegramLink", "CompanionMessage", "CompanionNotes", "Profile", "SleepLog", "Photo", "Letter"]
+__all__ = ["UserSettings", "FocusLive", "Entry", "DayRecord", "Task", "Activity", "Goal", "PomodoroDay", "Habit", "HabitLog", "User", "Invite", "Deadline", "Prayer", "AppSetting", "TelegramLink", "CompanionMessage", "CompanionNotes", "Profile", "SleepLog", "Photo", "Letter"]

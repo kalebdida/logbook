@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app import ai, recall
+from app import ai, photo_notes, recall
 from app.auth import current_user
 from app.database import get_db
 from app.config import settings
@@ -63,8 +63,10 @@ class RecallRequest(BaseModel):
 
 
 @router.post("/recall")
-def ai_recall(body: RecallRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+async def ai_recall(body: RecallRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """What the companion should know for this question, from the whole
     logbook since the first day (see app/recall.py). This account's rows only."""
     today = (datetime.now(timezone.utc) + timedelta(minutes=body.tz_minutes)).date()
+    if body.share_text:
+        photo_notes.later(photo_notes.describe_missing(user.id))
     return {"context": recall.build(db, user.id, today, body.tz_minutes, body.question, body.share_text)}

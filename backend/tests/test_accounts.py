@@ -497,3 +497,18 @@ def test_the_running_focus_timer_is_shared_by_your_devices_only(server):
     assert c.post("/pomodoro/live/finish", json={"id": "abc"}, headers=h(friend)).json() == {"first": True}
     assert c.post("/pomodoro/live/finish", json={"id": "next"}, headers=h(admin)).json() == {"first": True}
     assert c.get("/pomodoro/live").status_code == 401
+
+
+def test_settings_follow_the_account_and_only_it(server):
+    c = server
+    admin = admin_token(c)
+    friend = make_user(c, admin, "lily")
+    assert c.get("/sync/settings", headers=h(admin)).json() == {"data": {}, "stamp": 0}
+    body = {"data": {"logbook-theme": '"rooftop"', "logbook-pin": "secret", "logbook-music": "{}"}, "stamp": 1000}
+    r = c.put("/sync/settings", json=body, headers=h(admin)).json()
+    assert r["data"] == {"logbook-theme": '"rooftop"', "logbook-music": "{}"}     # device-only keys never stored
+    # an older device's copy doesn't undo the newer change
+    r = c.put("/sync/settings", json={"data": {"logbook-theme": '"night"'}, "stamp": 500}, headers=h(admin)).json()
+    assert r["data"]["logbook-theme"] == '"rooftop"' and r["stamp"] == 1000
+    assert c.get("/sync/settings", headers=h(friend)).json() == {"data": {}, "stamp": 0}
+    assert c.get("/sync/settings").status_code == 401
