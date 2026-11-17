@@ -1,24 +1,56 @@
 import { getPrefs, displayName } from './prefs.js';
-import { isDevice, serverBase } from './connection.js';
+import { isDevice, serverBase, getConnection, setConnection } from './connection.js';
 import { sceneSvg } from './scene.js';
 
 /* A calm line, not an alarm: a server restart or a weak connection is
    usually over in under a minute, and the last copy stays on screen. */
+var downSince = 0;
+var LONG_DOWN_MS = 20000;   // past a restart or a blip: say so, and offer a way to keep going
+
 export function showBackendWarning(show) {
   var warn = document.getElementById("storageWarning");
   if (!warn) return;
   warn.classList.toggle("is-reconnecting", show !== false);
   if (show === false) {
+    downSince = 0;
+    warn.classList.remove("is-down");
     if (!warn.hidden && warn.classList.contains("was-reconnecting")) warn.hidden = true;
     warn.classList.remove("was-reconnecting");
     return;
   }
+  if (!downSince) downSince = Date.now();
   warn.hidden = false;
   warn.classList.add("was-reconnecting");
   var off = typeof navigator !== "undefined" && navigator.onLine === false;
-  warn.innerHTML = '<span class="reconnect-dot" aria-hidden="true"></span><span>' +
-    (off ? "<strong>You're offline.</strong> What you see is your last copy. Saving waits until you're back."
-         : "<strong>Reconnecting…</strong> What you see is your last copy. It saves again in a moment.") + "</span>";
+  var long = !off && Date.now() - downSince >= LONG_DOWN_MS;
+  if (long && warn.classList.contains("is-down")) return;     // already showing the choices
+  warn.classList.toggle("is-down", long);
+  if (!long) {
+    warn.innerHTML = '<span class="reconnect-dot" aria-hidden="true"></span><span>' +
+      (off ? "<strong>You're offline.</strong> What you see is your last copy. Saving waits until you're back."
+           : "<strong>Reconnecting…</strong> What you see is your last copy. It saves again in a moment.") + "</span>";
+    return;
+  }
+  // the server is away for a while (a free host can be paused for days):
+  // be honest, and let people keep writing here or look around
+  var guest = !getConnection().token;
+  warn.innerHTML = '<span class="reconnect-dot" aria-hidden="true"></span>' +
+    '<span class="down-text"><strong>The server isn\'t answering.</strong> ' +
+    (guest ? "You can look around on sample days, or keep a logbook on this device."
+           : "What you see is your last copy, and new writing won't save to it until the server is back.") + "</span>" +
+    '<span class="down-actions">' +
+    (guest ? '<button type="button" class="chip" data-down="demo">Look around</button>' : "") +
+    '<button type="button" class="chip" data-down="device">Write on this device</button></span>';
+  var demoBtn = warn.querySelector('[data-down="demo"]');
+  if (demoBtn) demoBtn.addEventListener("click", function () {
+    import('./demo.js').then(function (m) { m.enterDemo(); });
+  });
+  warn.querySelector('[data-down="device"]').addEventListener("click", function () {
+    if (!confirm("Keep writing on this device while the server is away?\n\nThis device starts with a fresh logbook. Your old entries stay safe on the server. " +
+                 "When it's back: Settings → Your data → Export here, then Restore into your account. Restore only adds, it never overwrites.")) return;
+    setConnection({ mode: "device", serverUrl: getConnection().serverUrl, token: getConnection().token });
+    location.reload();
+  });
 }
 
 export function showStorageWarning(kind) {

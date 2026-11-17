@@ -589,5 +589,8 @@ body[data-page="dashboard"] #pageHeader { display: none; }
   animation: fadeIn 0.3s ease both;
 }
 #storageWarning.is-reconnecting[hidden] { display: none !important; }
+#storageWarning.is-reconnecting.is-down { flex-wrap: wrap; border-radius: var(--r-md); color: var(--text); }
+#storageWarning .down-text { flex: 1 1 260px; }
+#storageWarning .down-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .reconnect-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); animation: breathe 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .reconnect-dot { animation: none; } }
