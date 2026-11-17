@@ -50,7 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           name="logbook-$(date -u +%Y-%m-%d).dump.gpg"
-          /usr/lib/postgresql/17/bin/pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL" \
+          # accept the string however Neon's Connect box copied it: bare, quoted, or as a "psql '...'" line
+          url="$(printf '%s' "$DATABASE_URL" | tr -d "\r\n'\"" | sed -e 's/^[[:space:]]*psql[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          /usr/lib/postgresql/17/bin/pg_dump --format=custom --no-owner --no-privileges "$url" \
             | gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase-fd 3 -o "$name" 3<<<"$BACKUP_PASSPHRASE"
           test -s "$name"
           echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
