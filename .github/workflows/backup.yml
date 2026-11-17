@@ -33,14 +33,14 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: install pg_dump 17
+      - name: install pg_dump 18 (Neon runs PostgreSQL 18; pg_dump must be the same or newer)
         if: steps.check.outputs.skip != 'true'
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-17
+          sudo apt-get install -y -qq postgresql-client-18
 
       - name: dump and encrypt
         if: steps.check.outputs.skip != 'true'
@@ -52,7 +52,7 @@ jobs:
           name="logbook-$(date -u +%Y-%m-%d).dump.gpg"
           # accept the string however Neon's Connect box copied it: bare, quoted, or as a "psql '...'" line
           url="$(printf '%s' "$DATABASE_URL" | tr -d "\r\n'\"" | sed -e 's/^[[:space:]]*psql[[:space:]]*//' -e 's/[[:space:]]*$//')"
-          /usr/lib/postgresql/17/bin/pg_dump --format=custom --no-owner --no-privileges "$url" \
+          /usr/lib/postgresql/18/bin/pg_dump --format=custom --no-owner --no-privileges "$url" \
             | gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase-fd 3 -o "$name" 3<<<"$BACKUP_PASSPHRASE"
           test -s "$name"
           echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
